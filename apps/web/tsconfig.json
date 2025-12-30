@@ -17,8 +17,12 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@wacrm/db": ["../../packages/db/src/index.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@wacrm/db": [
+        "../../packages/db/src/index.ts"
+      ]
     },
     "plugins": [
       {

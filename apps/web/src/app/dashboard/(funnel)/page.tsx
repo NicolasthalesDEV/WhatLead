@@ -3,19 +3,19 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import { 
-  Users, 
-  CalendarCheck, 
-  BedDouble, 
-  MessageSquare, 
-  TrendingUp, 
+import {
+  Users,
+  CalendarCheck,
+  BedDouble,
+  MessageSquare,
+  TrendingUp,
   DollarSign,
   Activity,
   Calendar,
@@ -45,7 +45,7 @@ export default function Dashboard() {
   const handlePeriodChange = (period: PeriodFilter) => {
     setIsLoading(true);
     setSelectedPeriod(period);
-    
+
     // Simula delay de carregamento dos dados
     setTimeout(() => {
       setIsLoading(false);
@@ -82,7 +82,7 @@ export default function Dashboard() {
     };
 
     const periodData = baseStats[period];
-    
+
     return [
       {
         title: "Total de Hóspedes",

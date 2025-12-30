@@ -64,7 +64,7 @@ export default function Home() {
             WhatsApp Commerce CRM
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            A plataforma completa para gerenciar seu negócio no WhatsApp. 
+            A plataforma completa para gerenciar seu negócio no WhatsApp.
             Vendas, atendimento e relacionamento em um só lugar.
           </p>
           <div className="space-x-4">

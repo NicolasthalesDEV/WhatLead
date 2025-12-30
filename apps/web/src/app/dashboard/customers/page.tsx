@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Mail, 
-  Phone, 
+import {
+  Users,
+  Search,
+  Plus,
+  Mail,
+  Phone,
   MessageSquare,
   MoreVertical,
   Filter,
@@ -182,14 +182,14 @@ export default function CustomersPage() {
           <div className="flex items-center space-x-2 mb-6">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar hóspedes..." 
-                className="pl-8" 
+              <Input
+                placeholder="Buscar hóspedes..."
+                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             {/* Dropdown de Filtros */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -230,113 +230,113 @@ export default function CustomersPage() {
               .filter(customer => {
                 // Filtro por busca
                 const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    customer.phone.includes(searchQuery);
-                
+                  customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  customer.phone.includes(searchQuery);
+
                 // Filtro por status
                 const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
-                
+
                 return matchesSearch && matchesStatus;
               })
               .map((customer) => (
-              <div key={customer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                    <span className="text-primary font-semibold">
-                      {customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </span>
+                <div key={customer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <span className="text-primary font-semibold">
+                        {customer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-semibold">{customer.name}</h3>
+                        <Badge variant={customer.status === 'online' ? 'default' : 'secondary'}>
+                          {customer.lastSeen}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex items-center">
+                          <Mail className="h-3 w-3 mr-1" />
+                          {customer.email}
+                        </div>
+                        <div className="flex items-center">
+                          <Phone className="h-3 w-3 mr-1" />
+                          {customer.phone}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
+
+                  <div className="flex items-center space-x-6">
+                    <div className="text-right text-sm">
+                      <div className="font-semibold">{customer.totalSpent}</div>
+                      <div className="text-muted-foreground">{customer.orders} pedidos</div>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className="text-muted-foreground">Último contato</div>
+                      <div>{customer.lastContact}</div>
+                    </div>
                     <div className="flex items-center space-x-2">
-                      <h3 className="font-semibold">{customer.name}</h3>
-                      <Badge variant={customer.status === 'online' ? 'default' : 'secondary'}>
-                        {customer.lastSeen}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <div className="flex items-center">
-                        <Mail className="h-3 w-3 mr-1" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center">
-                        <Phone className="h-3 w-3 mr-1" />
-                        {customer.phone}
-                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenChat(customer)}
+                        title="Abrir chat WhatsApp"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+
+                      {/* Dropdown de Ações */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleViewCustomer(customer.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditCustomer(customer.id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteCustomer(customer.id)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Deletar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-6">
-                  <div className="text-right text-sm">
-                    <div className="font-semibold">{customer.totalSpent}</div>
-                    <div className="text-muted-foreground">{customer.orders} pedidos</div>
-                  </div>
-                  <div className="text-right text-sm">
-                    <div className="text-muted-foreground">Último contato</div>
-                    <div>{customer.lastContact}</div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => handleOpenChat(customer)}
-                      title="Abrir chat WhatsApp"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    
-                    {/* Dropdown de Ações */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleViewCustomer(customer.id)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEditCustomer(customer.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteCustomer(customer.id)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Deletar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
+              ))}
+
             {/* Estado vazio */}
             {customers.filter(customer => {
               const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                  customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                  customer.phone.includes(searchQuery);
+                customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                customer.phone.includes(searchQuery);
               const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
               return matchesSearch && matchesStatus;
             }).length === 0 && (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold">Nenhum cliente encontrado</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || statusFilter !== "all" 
-                    ? "Tente ajustar os filtros de busca" 
-                    : "Adicione seu primeiro cliente para começar"
-                  }
-                </p>
-              </div>
-            )}
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold">Nenhum cliente encontrado</h3>
+                  <p className="text-muted-foreground">
+                    {searchQuery || statusFilter !== "all"
+                      ? "Tente ajustar os filtros de busca"
+                      : "Adicione seu primeiro cliente para começar"
+                    }
+                  </p>
+                </div>
+              )}
           </div>
         </CardContent>
       </Card>

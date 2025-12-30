@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  MessageSquare, 
-  Send, 
+import {
+  ArrowLeft,
+  MessageSquare,
+  Send,
   Search,
   User,
   Phone,
@@ -89,12 +89,12 @@ export default function SendMessagePage() {
 
   const handleSendMessage = () => {
     if (!selectedContact || !message.trim()) return;
-    
+
     console.log("Enviando mensagem:", {
       contact: selectedContact,
       message: message
     });
-    
+
     // Limpar mensagem após envio
     setMessage("");
   };
@@ -121,8 +121,8 @@ export default function SendMessagePage() {
             </p>
           </div>
         </div>
-        <Button 
-          onClick={handleSendMessage} 
+        <Button
+          onClick={handleSendMessage}
           disabled={!selectedContact || !message.trim()}
         >
           <Send className="mr-2 h-4 w-4" />
@@ -152,16 +152,15 @@ export default function SendMessagePage() {
           <CardContent className="p-0">
             <div className="space-y-0">
               {contacts
-                .filter(contact => 
+                .filter(contact =>
                   contact.name.toLowerCase().includes(searchContact.toLowerCase()) ||
                   contact.phone.includes(searchContact)
                 )
                 .map((contact) => (
-                  <div 
+                  <div
                     key={contact.id}
-                    className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b ${
-                      selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
+                    className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b ${selectedContact?.id === contact.id ? 'bg-blue-50 border-blue-200' : ''
+                      }`}
                     onClick={() => setSelectedContact(contact)}
                   >
                     <div className="relative">
@@ -298,7 +297,7 @@ export default function SendMessagePage() {
                       onChange={(e) => setMessage(e.target.value)}
                     />
                   </div>
-                  
+
                   {/* Ferramentas */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">

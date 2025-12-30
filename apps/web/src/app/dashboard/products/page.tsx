@@ -4,22 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { 
-  BedDouble, 
-  Search, 
-  Plus, 
-  Edit, 
+import {
+  BedDouble,
+  Search,
+  Plus,
+  Edit,
   Eye,
   DollarSign,
   TrendingUp,
@@ -178,14 +178,14 @@ export default function ProductsPage() {
             <div className="flex items-center space-x-2">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar quartos..." 
+                <Input
+                  placeholder="Buscar quartos..."
                   className="pl-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              
+
               {/* Filtro por Status */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -257,118 +257,118 @@ export default function ProductsPage() {
               .filter(product => {
                 // Filtro por busca
                 const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                    product.category.toLowerCase().includes(searchQuery.toLowerCase());
-                
+                  product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  product.category.toLowerCase().includes(searchQuery.toLowerCase());
+
                 // Filtro por status
                 const matchesStatus = statusFilter === "all" || product.status === statusFilter;
-                
+
                 // Filtro por categoria
                 const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-                
+
                 return matchesSearch && matchesStatus && matchesCategory;
               })
               .map((product) => (
-              <Card key={product.id} className="overflow-hidden">
-                <div className="aspect-square bg-gray-100 relative">
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                    <BedDouble className="h-12 w-12" />
+                <Card key={product.id} className="overflow-hidden">
+                  <div className="aspect-square bg-gray-100 relative">
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                      <BedDouble className="h-12 w-12" />
+                    </div>
+                    {product.status === 'out_of_stock' && (
+                      <div className="absolute top-2 right-2">
+                        <Badge variant="destructive">Ocupado</Badge>
+                      </div>
+                    )}
                   </div>
-                  {product.status === 'out_of_stock' && (
-                    <div className="absolute top-2 right-2">
-                      <Badge variant="destructive">Ocupado</Badge>
-                    </div>
-                  )}
-                </div>
-                <CardContent className="p-4">
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground">{product.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-primary">{product.price}</span>
-                      <Badge variant="secondary">{product.category}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Unidades: {product.stock}</span>
-                      <div className="flex items-center">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {product.sales} reservas
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-lg">{product.name}</h3>
+                      <p className="text-sm text-muted-foreground">{product.description}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-primary">{product.price}</span>
+                        <Badge variant="secondary">{product.category}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>Unidades: {product.stock}</span>
+                        <div className="flex items-center">
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          {product.sales} reservas
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleViewProduct(product.id)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver
-                    </Button>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <Button
+                        variant="outline"
                         size="sm"
-                        onClick={() => handleEditProduct(product.id)}
+                        onClick={() => handleViewProduct(product.id)}
                       >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
+                        <Eye className="h-4 w-4 mr-2" />
+                        Ver
                       </Button>
-                      
-                      {/* Dropdown de Ações */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleViewProduct(product.id)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditProduct(product.id)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Deletar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditProduct(product.id)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+
+                        {/* Dropdown de Ações */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleViewProduct(product.id)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditProduct(product.id)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Deletar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            
+                  </CardContent>
+                </Card>
+              ))}
+
             {/* Estado vazio */}
             {products.filter(product => {
               const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                  product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                  product.category.toLowerCase().includes(searchQuery.toLowerCase());
+                product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                product.category.toLowerCase().includes(searchQuery.toLowerCase());
               const matchesStatus = statusFilter === "all" || product.status === statusFilter;
               const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
               return matchesSearch && matchesStatus && matchesCategory;
             }).length === 0 && (
-              <div className="col-span-full text-center py-8">
-                <BedDouble className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold">Nenhum quarto encontrado</h3>
-                <p className="text-muted-foreground">
-                  {searchQuery || statusFilter !== "all" || categoryFilter !== "all"
-                    ? "Tente ajustar os filtros de busca" 
-                    : "Adicione seu primeiro quarto para começar"
-                  }
-                </p>
-              </div>
-            )}
+                <div className="col-span-full text-center py-8">
+                  <BedDouble className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold">Nenhum quarto encontrado</h3>
+                  <p className="text-muted-foreground">
+                    {searchQuery || statusFilter !== "all" || categoryFilter !== "all"
+                      ? "Tente ajustar os filtros de busca"
+                      : "Adicione seu primeiro quarto para começar"
+                    }
+                  </p>
+                </div>
+              )}
           </div>
         </CardContent>
       </Card>

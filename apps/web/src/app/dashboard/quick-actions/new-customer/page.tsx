@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  Users, 
-  Save, 
-  Phone, 
-  Mail, 
+import {
+  ArrowLeft,
+  Users,
+  Save,
+  Phone,
+  Mail,
   MapPin,
   Building2,
   Calendar,
@@ -82,8 +82,8 @@ export default function NewCustomerPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo *</Label>
-                <Input 
-                  id="name" 
+                <Input
+                  id="name"
                   placeholder="Ex: João Silva"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
@@ -91,9 +91,9 @@ export default function NewCustomerPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
+                <Input
+                  id="email"
+                  type="email"
                   placeholder="joao@exemplo.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange("email", e.target.value)}
@@ -105,8 +105,8 @@ export default function NewCustomerPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone/WhatsApp *</Label>
-                <Input 
-                  id="phone" 
+                <Input
+                  id="phone"
                   placeholder="(11) 99999-9999"
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
@@ -114,8 +114,8 @@ export default function NewCustomerPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="company">Empresa</Label>
-                <Input 
-                  id="company" 
+                <Input
+                  id="company"
                   placeholder="Nome da empresa"
                   value={formData.company}
                   onChange={(e) => handleInputChange("company", e.target.value)}
@@ -131,8 +131,8 @@ export default function NewCustomerPage() {
               </h3>
               <div className="space-y-2">
                 <Label htmlFor="address">Endereço Completo</Label>
-                <Input 
-                  id="address" 
+                <Input
+                  id="address"
                   placeholder="Rua, número, complemento"
                   value={formData.address}
                   onChange={(e) => handleInputChange("address", e.target.value)}
@@ -141,8 +141,8 @@ export default function NewCustomerPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="city">Cidade</Label>
-                  <Input 
-                    id="city" 
+                  <Input
+                    id="city"
                     placeholder="São Paulo"
                     value={formData.city}
                     onChange={(e) => handleInputChange("city", e.target.value)}
@@ -150,8 +150,8 @@ export default function NewCustomerPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="state">Estado</Label>
-                  <Input 
-                    id="state" 
+                  <Input
+                    id="state"
                     placeholder="SP"
                     value={formData.state}
                     onChange={(e) => handleInputChange("state", e.target.value)}
@@ -159,8 +159,8 @@ export default function NewCustomerPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="zipCode">CEP</Label>
-                  <Input 
-                    id="zipCode" 
+                  <Input
+                    id="zipCode"
                     placeholder="01234-567"
                     value={formData.zipCode}
                     onChange={(e) => handleInputChange("zipCode", e.target.value)}
@@ -173,8 +173,8 @@ export default function NewCustomerPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="tags">Tags</Label>
-                <Input 
-                  id="tags" 
+                <Input
+                  id="tags"
                   placeholder="Ex: vip, atacado, fornecedor (separadas por vírgula)"
                   value={formData.tags}
                   onChange={(e) => handleInputChange("tags", e.target.value)}

@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Settings, 
-  User, 
-  Building2, 
-  Bell, 
-  Shield, 
+import {
+  Settings,
+  User,
+  Building2,
+  Bell,
+  Shield,
   Palette,
   MessageSquare,
   CreditCard,
@@ -204,10 +204,10 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Senha Atual</Label>
                 <div className="relative">
-                  <Input 
-                    id="currentPassword" 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Digite sua senha atual" 
+                  <Input
+                    id="currentPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Digite sua senha atual"
                   />
                   <Button
                     type="button"

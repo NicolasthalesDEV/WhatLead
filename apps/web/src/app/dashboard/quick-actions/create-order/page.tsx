@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  CalendarCheck, 
-  Save, 
+import {
+  ArrowLeft,
+  CalendarCheck,
+  Save,
   Search,
   Plus,
   Minus,
@@ -79,8 +79,8 @@ export default function CreateOrderPage() {
   const addToCart = (product: Product) => {
     const existingItem = cartItems.find(item => item.id === product.id);
     if (existingItem) {
-      setCartItems(prev => prev.map(item => 
-        item.id === product.id 
+      setCartItems(prev => prev.map(item =>
+        item.id === product.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
@@ -94,8 +94,8 @@ export default function CreateOrderPage() {
     if (newQuantity <= 0) {
       setCartItems(prev => prev.filter(item => item.id !== productId));
     } else {
-      setCartItems(prev => prev.map(item => 
-        item.id === productId 
+      setCartItems(prev => prev.map(item =>
+        item.id === productId
           ? { ...item, quantity: newQuantity }
           : item
       ));
@@ -158,7 +158,7 @@ export default function CreateOrderPage() {
               {!selectedCustomer ? (
                 <div className="grid gap-3">
                   {customers.map((customer) => (
-                    <div 
+                    <div
                       key={customer.id}
                       className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
                       onClick={() => setSelectedCustomer(customer)}
@@ -179,8 +179,8 @@ export default function CreateOrderPage() {
                     <div className="font-medium">{selectedCustomer.name}</div>
                     <div className="text-sm text-muted-foreground">{selectedCustomer.phone}</div>
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onClick={() => setSelectedCustomer(null)}
                   >
@@ -207,12 +207,12 @@ export default function CreateOrderPage() {
               </div>
               <div className="grid gap-3">
                 {products
-                  .filter(product => 
+                  .filter(product =>
                     product.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
                     product.sku.toLowerCase().includes(searchProduct.toLowerCase())
                   )
                   .map((product) => (
-                    <div 
+                    <div
                       key={product.id}
                       className="flex items-center justify-between p-3 border rounded-lg"
                     >
@@ -226,7 +226,7 @@ export default function CreateOrderPage() {
                         <span className="font-semibold">
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}/noite
                         </span>
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={() => addToCart(product)}
                         >
@@ -252,16 +252,16 @@ export default function CreateOrderPage() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
                         <span className="w-8 text-center">{item.quantity}</span>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >

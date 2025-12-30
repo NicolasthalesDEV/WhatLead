@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   ArrowLeft,
   CheckCircle2,
   Clock,
@@ -243,7 +243,7 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
             </div>
           </CardHeader>
           <CardContent>
-            <div 
+            <div
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: notification.fullContent }}
             />
@@ -293,8 +293,8 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
                   <div key={index}>
                     {action.link ? (
                       <Link href={action.link} className="block">
-                        <Button 
-                          variant={action.variant || "outline"} 
+                        <Button
+                          variant={action.variant || "outline"}
                           className="w-full justify-start"
                         >
                           <ExternalLink className="mr-2 h-4 w-4" />
@@ -302,8 +302,8 @@ export default function NotificationDetailPage({ params }: NotificationDetailPag
                         </Button>
                       </Link>
                     ) : (
-                      <Button 
-                        variant={action.variant || "outline"} 
+                      <Button
+                        variant={action.variant || "outline"}
                         className="w-full justify-start"
                         onClick={() => handleAction(action.action)}
                       >

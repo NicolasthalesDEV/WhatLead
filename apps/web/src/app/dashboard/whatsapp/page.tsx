@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
-import { 
-  MessageSquare, 
-  Search, 
-  Plus, 
+import {
+  MessageSquare,
+  Search,
+  Plus,
   Send,
   Phone,
   Video,
@@ -186,11 +186,10 @@ function WhatsAppContent() {
               {conversations.map((conversation) => {
                 const isSelected = selectedContact === conversation.customer;
                 return (
-                  <div 
-                    key={conversation.id} 
-                    className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b transition-colors ${
-                      isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                    }`}
+                  <div
+                    key={conversation.id}
+                    className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                      }`}
                     onClick={() => setSelectedContact(conversation.customer)}
                   >
                     <div className="relative">
@@ -205,9 +204,8 @@ function WhatsAppContent() {
                     </div>
                     <div className="ml-3 flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className={`font-semibold text-sm truncate ${
-                          isSelected ? 'text-blue-700' : ''
-                        }`}>{conversation.customer}</h3>
+                        <h3 className={`font-semibold text-sm truncate ${isSelected ? 'text-blue-700' : ''
+                          }`}>{conversation.customer}</h3>
                         <span className="text-xs text-muted-foreground">{conversation.time}</span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -274,17 +272,15 @@ function WhatsAppContent() {
               <CardContent className="flex-1 p-4 space-y-4 h-[400px] overflow-y-auto">
                 {messages.map((message) => (
                   <div key={message.id} className={`flex ${message.sender === 'agent' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-md px-4 py-2 rounded-lg ${
-                      message.sender === 'agent' 
-                        ? 'bg-primary text-primary-foreground' 
+                    <div className={`max-w-xs lg:max-md px-4 py-2 rounded-lg ${message.sender === 'agent'
+                        ? 'bg-primary text-primary-foreground'
                         : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.sender === 'agent' 
-                          ? 'text-primary-foreground/70' 
-                          : 'text-gray-500'
                       }`}>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      <p className={`text-xs mt-1 ${message.sender === 'agent'
+                          ? 'text-primary-foreground/70'
+                          : 'text-gray-500'
+                        }`}>
                         {message.time}
                       </p>
                     </div>

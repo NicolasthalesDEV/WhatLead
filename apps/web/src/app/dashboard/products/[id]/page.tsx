@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useRouter } from "next/navigation";
-import { 
+import {
   ArrowLeft,
   Edit,
   BedDouble,
@@ -79,9 +79,9 @@ export default function ProductDetailsPage() {
     router.push('/dashboard/products');
   };
 
-  const profitMargin = ((parseFloat(product.price.replace('R$ ', '').replace(',', '.')) - 
-                        parseFloat(product.cost.replace('R$ ', '').replace(',', '.'))) / 
-                       parseFloat(product.price.replace('R$ ', '').replace(',', '.')) * 100).toFixed(1);
+  const profitMargin = ((parseFloat(product.price.replace('R$ ', '').replace(',', '.')) -
+    parseFloat(product.cost.replace('R$ ', '').replace(',', '.'))) /
+    parseFloat(product.price.replace('R$ ', '').replace(',', '.')) * 100).toFixed(1);
 
   return (
     <div className="space-y-6">

@@ -77,7 +77,7 @@ export function Sidebar({ className }: SidebarProps) {
     // Limpar dados de autenticação (localStorage, cookies, etc.)
     localStorage.removeItem('auth-token');
     localStorage.removeItem('user-data');
-    
+
     // Redirecionar para página de login
     router.push('/login');
   };
@@ -117,7 +117,7 @@ export function Sidebar({ className }: SidebarProps) {
         </div>
       </div>
       <div className="absolute bottom-4 left-0 right-0 px-3">
-        <button 
+        <button
           onClick={handleLogout}
           className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         >

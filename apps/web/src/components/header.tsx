@@ -22,7 +22,7 @@ export function Header() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  
+
   // Dados simulados para busca - Hotelaria
   const mockData = {
     customers: [
@@ -78,7 +78,7 @@ export function Header() {
   // Função de busca global
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    
+
     if (query.length < 2) {
       setSearchResults([]);
       setShowResults(false);
@@ -93,21 +93,21 @@ export function Header() {
       .filter(customer => {
         // Busca no nome
         const nameMatch = customer.name.toLowerCase().includes(queryLower);
-        
+
         // Busca no telefone apenas se a query for claramente numérica
         // (contém pelo menos 2 dígitos e apenas números, espaços, parênteses, traços)
         const hasEnoughDigits = (query.match(/\d/g) || []).length >= 2;
         const isPhoneQuery = hasEnoughDigits && /^[\d\s\(\)\-\+]+$/.test(query.trim());
-        
+
         const phoneMatch = isPhoneQuery && (
-          customer.phone.includes(query) || 
+          customer.phone.includes(query) ||
           customer.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
         );
-        
+
         return nameMatch || phoneMatch;
       })
       .slice(0, 3);
-    
+
     // Buscar produtos - busca mais precisa
     const productResults = mockData.products
       .filter(product => {
@@ -187,7 +187,7 @@ export function Header() {
         setShowResults(false);
         setSearchQuery("");
       }
-      
+
       // Atalho Ctrl+K ou Cmd+K para focar na busca
       if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
         event.preventDefault();
@@ -198,7 +198,7 @@ export function Header() {
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
@@ -213,7 +213,7 @@ export function Header() {
     // Limpar dados de autenticação (localStorage, cookies, etc.)
     localStorage.removeItem('auth-token');
     localStorage.removeItem('user-data');
-    
+
     // Redirecionar para página de login
     router.push('/login');
   };
@@ -246,7 +246,7 @@ export function Header() {
               onChange={(e) => handleSearch(e.target.value)}
               onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
             />
-            
+
             {/* Dropdown de Resultados */}
             {showResults && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
@@ -291,7 +291,7 @@ export function Header() {
                     </div>
                   ))
                 )}
-                
+
                 {/* Footer do dropdown */}
                 <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-t">
                   <div className="flex items-center justify-between">

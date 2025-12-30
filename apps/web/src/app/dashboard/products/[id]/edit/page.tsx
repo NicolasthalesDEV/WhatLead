@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import { 
+import {
   ArrowLeft,
   Save,
   Eye,
@@ -56,7 +56,7 @@ export default function EditProductPage() {
 
   const handleSave = async () => {
     setLoading(true);
-    
+
     // Simular salvamento
     setTimeout(() => {
       setLoading(false);
@@ -326,8 +326,8 @@ export default function EditProductPage() {
                 <Eye className="h-4 w-4 mr-2" />
                 Ver Detalhes
               </Button>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={handleSave}
                 disabled={loading}
               >

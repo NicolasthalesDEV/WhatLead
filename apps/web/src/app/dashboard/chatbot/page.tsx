@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { 
+import {
   Bot,
   Settings,
   MessageSquare,
@@ -108,7 +108,7 @@ export default function ChatbotPage() {
           <Badge variant={botEnabled ? "default" : "secondary"} className="px-3 py-1">
             {botEnabled ? "Ativo" : "Pausado"}
           </Badge>
-          <Button 
+          <Button
             variant={botEnabled ? "outline" : "default"}
             onClick={toggleBotStatus}
           >
@@ -185,7 +185,7 @@ export default function ChatbotPage() {
                 <textarea
                   id="welcomeMessage"
                   value={config.welcomeMessage}
-                  onChange={(e) => setConfig({...config, welcomeMessage: e.target.value})}
+                  onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
                   placeholder="Digite a mensagem inicial do bot"
                   rows={3}
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -200,8 +200,8 @@ export default function ChatbotPage() {
                       type="time"
                       value={config.businessHours.start}
                       onChange={(e) => setConfig({
-                        ...config, 
-                        businessHours: {...config.businessHours, start: e.target.value}
+                        ...config,
+                        businessHours: { ...config.businessHours, start: e.target.value }
                       })}
                     />
                     <span>até</span>
@@ -209,8 +209,8 @@ export default function ChatbotPage() {
                       type="time"
                       value={config.businessHours.end}
                       onChange={(e) => setConfig({
-                        ...config, 
-                        businessHours: {...config.businessHours, end: e.target.value}
+                        ...config,
+                        businessHours: { ...config.businessHours, end: e.target.value }
                       })}
                     />
                   </div>
@@ -221,7 +221,7 @@ export default function ChatbotPage() {
                     id="delay"
                     type="number"
                     value={config.responseDelay}
-                    onChange={(e) => setConfig({...config, responseDelay: e.target.value})}
+                    onChange={(e) => setConfig({ ...config, responseDelay: e.target.value })}
                     min="0"
                     max="10"
                   />
@@ -254,8 +254,8 @@ export default function ChatbotPage() {
             <CardContent>
               <div className="space-y-4">
                 {flows.map((flow) => (
-                  <div 
-                    key={flow.id} 
+                  <div
+                    key={flow.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center space-x-4">
@@ -299,7 +299,7 @@ export default function ChatbotPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {quickResponses.map((response) => (
-                <div 
+                <div
                   key={response.id}
                   className="p-3 border rounded-lg text-sm hover:bg-gray-50 cursor-pointer transition-colors"
                 >
@@ -326,7 +326,7 @@ export default function ChatbotPage() {
                 </div>
                 <Badge variant="default">Ativo</Badge>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -339,7 +339,7 @@ export default function ChatbotPage() {
                 </div>
                 <Badge variant="default">Ativo</Badge>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 border rounded-lg opacity-60">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">

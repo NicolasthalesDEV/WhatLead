@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Bell, 
-  Search, 
+import {
+  Bell,
+  Search,
   Filter,
   CheckCircle2,
   Clock,
@@ -206,14 +206,13 @@ export default function NotificationsPage() {
             {notifications.map((notification) => {
               const IconComponent = notification.icon;
               return (
-                <Link 
-                  key={notification.id} 
+                <Link
+                  key={notification.id}
                   href={`/dashboard/notifications/${notification.id}`}
                   className="block"
                 >
-                  <div className={`flex items-center p-4 hover:bg-gray-50 border-b transition-colors ${
-                    !notification.read ? 'bg-blue-50/30' : ''
-                  }`}>
+                  <div className={`flex items-center p-4 hover:bg-gray-50 border-b transition-colors ${!notification.read ? 'bg-blue-50/30' : ''
+                    }`}>
                     <div className={`w-12 h-12 rounded-full ${notification.bgColor} flex items-center justify-center mr-4`}>
                       <IconComponent className={`h-6 w-6 ${notification.color}`} />
                     </div>

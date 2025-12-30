@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  TrendingUp, 
-  Users, 
-  ShoppingCart, 
+import {
+  TrendingUp,
+  Users,
+  ShoppingCart,
   DollarSign,
   Calendar,
   Download,
@@ -143,7 +143,7 @@ export default function ReportsPage() {
                   <div className="w-12 text-sm font-medium">{item.month}</div>
                   <div className="flex-1 mx-3">
                     <div className="bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-primary h-2 rounded-full transition-all"
                         style={{ width: `${(item.value / 45000) * 100}%` }}
                       ></div>

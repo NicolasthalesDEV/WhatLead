@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ArrowLeft, 
-  BedDouble, 
-  Save, 
-  Upload, 
+import {
+  ArrowLeft,
+  BedDouble,
+  Save,
+  Upload,
   DollarSign,
   Boxes,
   Tag,
@@ -86,8 +86,8 @@ export default function AddProductPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Quarto *</Label>
-                <Input 
-                  id="name" 
+                <Input
+                  id="name"
                   placeholder="Ex: Suíte Master Vista Mar"
                   value={formData.name}
                   onChange={(e) => handleInputChange("name", e.target.value)}
@@ -109,8 +109,8 @@ export default function AddProductPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="sku">SKU/Código *</Label>
-                <Input 
-                  id="sku" 
+                <Input
+                  id="sku"
                   placeholder="LED-20W-001"
                   value={formData.sku}
                   onChange={(e) => handleInputChange("sku", e.target.value)}
@@ -118,8 +118,8 @@ export default function AddProductPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="barcode">Código de Barras</Label>
-                <Input 
-                  id="barcode" 
+                <Input
+                  id="barcode"
                   placeholder="7891234567890"
                   value={formData.barcode}
                   onChange={(e) => handleInputChange("barcode", e.target.value)}
@@ -127,8 +127,8 @@ export default function AddProductPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
-                <Input 
-                  id="category" 
+                <Input
+                  id="category"
                   placeholder="Iluminação LED"
                   value={formData.category}
                   onChange={(e) => handleInputChange("category", e.target.value)}
@@ -145,8 +145,8 @@ export default function AddProductPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="price">Preço de Venda *</Label>
-                  <Input 
-                    id="price" 
+                  <Input
+                    id="price"
                     placeholder="125.00"
                     type="number"
                     step="0.01"
@@ -156,8 +156,8 @@ export default function AddProductPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="comparePrice">Preço Comparação</Label>
-                  <Input 
-                    id="comparePrice" 
+                  <Input
+                    id="comparePrice"
                     placeholder="150.00"
                     type="number"
                     step="0.01"
@@ -167,8 +167,8 @@ export default function AddProductPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cost">Custo</Label>
-                  <Input 
-                    id="cost" 
+                  <Input
+                    id="cost"
                     placeholder="80.00"
                     type="number"
                     step="0.01"
@@ -188,8 +188,8 @@ export default function AddProductPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="stock">Quantidade em Estoque</Label>
-                  <Input 
-                    id="stock" 
+                  <Input
+                    id="stock"
                     placeholder="100"
                     type="number"
                     value={formData.stock}
@@ -198,8 +198,8 @@ export default function AddProductPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="minStock">Estoque Mínimo</Label>
-                  <Input 
-                    id="minStock" 
+                  <Input
+                    id="minStock"
                     placeholder="10"
                     type="number"
                     value={formData.minStock}
@@ -215,8 +215,8 @@ export default function AddProductPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="weight">Peso (kg)</Label>
-                  <Input 
-                    id="weight" 
+                  <Input
+                    id="weight"
                     placeholder="0.5"
                     type="number"
                     step="0.01"
@@ -226,8 +226,8 @@ export default function AddProductPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dimensions">Dimensões (cm)</Label>
-                  <Input 
-                    id="dimensions" 
+                  <Input
+                    id="dimensions"
                     placeholder="30 x 30 x 2"
                     value={formData.dimensions}
                     onChange={(e) => handleInputChange("dimensions", e.target.value)}
@@ -239,8 +239,8 @@ export default function AddProductPage() {
             {/* Tags */}
             <div className="space-y-2">
               <Label htmlFor="tags">Tags</Label>
-              <Input 
-                id="tags" 
+              <Input
+                id="tags"
                 placeholder="led, iluminacao, economico (separadas por vírgula)"
                 value={formData.tags}
                 onChange={(e) => handleInputChange("tags", e.target.value)}

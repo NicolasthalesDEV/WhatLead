@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { 
-  CalendarCheck, 
-  Search, 
-  Plus, 
-  Eye, 
+import {
+  CalendarCheck,
+  Search,
+  Plus,
+  Eye,
   DollarSign,
   Clock,
   CheckCircle,
@@ -200,7 +200,7 @@ export default function OrdersPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-6">
                   <div className="text-right">
                     <div className="text-lg font-semibold">{order.total}</div>
