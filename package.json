@@ -1,0 +1,27 @@
+{
+  "name": "wacrm",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:push": "pnpm -C packages/db prisma db push",
+    "db:migrate": "pnpm -C packages/db prisma migrate dev --name init",
+    "db:generate": "pnpm -C packages/db prisma generate",
+    "seed": "tsx scripts/dev.seed.ts",
+    "web": "pnpm --filter @wacrm/web dev",
+    "worker": "pnpm --filter @wacrm/worker dev"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.19.17",
+    "tsx": "^4.16.2",
+    "turbo": "2.0.6",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3"
+  }
+}

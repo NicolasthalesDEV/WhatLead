@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# testing
+coverage
+
+# next.js
+.next/
+out/
+
+# turbo
+turbo
+dist
+
+# misc
+.DS_Store
+.env
+.env.local
+.env.*.local
+*.log
+
+# prisma
+packages/db/prisma/migrations/

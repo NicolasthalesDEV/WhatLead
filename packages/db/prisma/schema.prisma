@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id           String         @id @default(cuid())
+  name         String
+  slug         String         @unique
+  users        User[]
+  channels     WhatsChannel[]
+  customers    Customer[]
+  products     Product[]
+  quotes       Quote[]
+  orders       Order[]
+  payments     Payment[]
+  webhooks     WebhookEndpoint[]
+  messages     WhatsMessage[]
+  funnelStages FunnelStage[]
+  createdAt    DateTime       @default(now())
+}
+
+model User {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  email     String   @unique
+  hash      String
+  role      Role
+  name      String
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  SELLER
+  SUPPORT
+}
+
+model WhatsChannel {
+  id            String         @id @default(cuid())
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id])
+  phoneNumberId String         @unique
+  waAccessToken String
+  waBusinessId  String
+  displayName   String
+  status        String
+  messages      WhatsMessage[]
+  createdAt     DateTime       @default(now())
+}
+
+model Customer {
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id])
+  name      String
+  phoneE164 String         @unique
+  email     String?
+  tags      String[]
+  quotes    Quote[]
+  orders    Order[]
+  messages  WhatsMessage[]
+  createdAt DateTime       @default(now())
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  title       String
+  slug        String
+  description String?
+  imageUrl    String?
+  active      Boolean     @default(true)
+  prices      Price[]
+  quoteItems  QuoteItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+}
+
+model Price {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  currency    String   @default("BRL")
+  amount      Int
+  promoAmount Int?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  companyId   String
+  customerId  String
+  company     Company     @relation(fields: [companyId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  status      QuoteStatus @default(DRAFT)
+  items       QuoteItem[]
+  orders      Order[]
+  total       Int
+  pdfUrl      String?
+  createdAt   DateTime    @default(now())
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+}
+
+model QuoteItem {
+  id         String  @id @default(cuid())
+  quoteId    String
+  productId  String
+  qty        Int
+  priceCents Int
+  quote      Quote   @relation(fields: [quoteId], references: [id])
+  product    Product @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  companyId  String
+  customerId String
+  quoteId    String?
+  status     OrderStatus @default(PENDING)
+  total      Int
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+  quote      Quote?   @relation(fields: [quoteId], references: [id])
+  items      OrderItem[]
+  payments   Payment[]
+}
+
+enum OrderStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  CANCELED
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  qty        Int
+  priceCents Int
+  order      Order   @relation(fields: [orderId], references: [id])
+  product    Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  companyId String
+  orderId   String
+  provider  String        // PIX
+  status    PaymentStatus @default(PENDING)
+  amount    Int
+  chargeId  String?
+  payload   Json?
+  company   Company       @relation(fields: [companyId], references: [id])
+  order     Order         @relation(fields: [orderId], references: [id])
+  createdAt DateTime      @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  EXPIRED
+  FAILED
+}
+
+model WhatsMessage {
+  id           String @id @default(cuid())
+  companyId    String
+  customerId   String
+  channelId    String
+  direction    MessageDirection
+  type         String
+  body         String?
+  templateName String?
+  status       String
+  raw          Json?
+  createdAt    DateTime @default(now())
+  customer     Customer   @relation(fields: [customerId], references: [id])
+  company      Company    @relation(fields: [companyId], references: [id])
+  channel      WhatsChannel @relation(fields: [channelId], references: [id])
+}
+
+enum MessageDirection {
+  IN
+  OUT
+}
+
+model FunnelStage {
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  order     Int
+  default   Boolean @default(false)
+  company   Company @relation(fields: [companyId], references: [id])
+}
+
+model Ticket {
+  id          String @id @default(cuid())
+  companyId   String
+  customerId  String
+  title       String
+  status      String
+  priority    String
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+}
+
+model NPSSurvey {
+  id        String @id @default(cuid())
+  companyId String
+  name      String
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+}
+
+model NPSResponse {
+  id         String @id @default(cuid())
+  surveyId   String
+  customerId String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model WebhookEndpoint {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  url       String
+  secret    String
+  active    Boolean @default(true)
+  events    String[]
+  createdAt DateTime @default(now())
+}
+
+model WebhookDelivery {
+  id         String @id @default(cuid())
+  endpointId String
+  eventType  String
+  payload    Json
+  status     String
+  attempt    Int    @default(0)
+  createdAt  DateTime @default(now())
+}
