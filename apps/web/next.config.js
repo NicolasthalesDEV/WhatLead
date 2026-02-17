@@ -11,8 +11,13 @@ const nextConfig = {
     '/*': [
       '../../node_modules/.prisma/client/**/*',
       '../../node_modules/@prisma/client/**/*',
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*',
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/@prisma/client/**/*',
+      '../../node_modules/.pnpm/@prisma+engines*/**/*',
       '../../packages/db/node_modules/.prisma/client/**/*',
       '../../packages/db/node_modules/@prisma/client/**/*',
+      '../../packages/db/node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*',
+      '../../packages/db/node_modules/.pnpm/@prisma+client*/node_modules/@prisma/client/**/*',
     ],
   },
 
