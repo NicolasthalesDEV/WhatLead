@@ -68,9 +68,15 @@ export default function RegisterContent() {
         plan: hasNoPlanSelected ? "free_trial" : planId
       });
 
-      const candidates = ["/api/auth/register", "/api/auth/register/"];
+      const candidates = [
+        "/api/auth/register",
+        "/api/auth/register/",
+        "/api/public/register",
+        "/api/public/register/",
+      ];
       if (typeof window !== "undefined") {
         candidates.push(`${window.location.origin}/api/auth/register`);
+        candidates.push(`${window.location.origin}/api/public/register`);
       }
 
       let res: Response | null = null;
@@ -113,17 +119,20 @@ export default function RegisterContent() {
         const errorCode = data?.error?.code;
 
         if (res.status === 405) {
+          const lastAttempt = attempts[attempts.length - 1];
           console.error("Register endpoint returned 405", {
             attempts,
             responseAllow: res.headers.get("allow"),
             requestId,
             errorCode,
             responseBody: data,
+            finalAttemptedUrl: lastAttempt?.url,
           });
 
           const diag = requestId ? ` (ID: ${requestId})` : "";
           const code = errorCode ? ` [${errorCode}]` : "";
-          setMessage(`Cadastro bloqueado por método inválido (HTTP 405)${code}${diag}`);
+          const attempted = lastAttempt?.url ? ` URL: ${lastAttempt.url}` : "";
+          setMessage(`Cadastro bloqueado por método inválido (HTTP 405)${code}${diag}${attempted}`);
           return;
         }
 
