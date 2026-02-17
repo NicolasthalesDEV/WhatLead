@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import {
   Settings,
   User,
@@ -25,6 +26,50 @@ import { useState } from "react";
 
 export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
+
+  // Profile state
+  const [profile, setProfile] = useState({
+    firstName: "João",
+    lastName: "Silva",
+    email: "joao@empresa.com",
+    phone: "(11) 99999-9999",
+  });
+
+  // Company state
+  const [company, setCompany] = useState({
+    name: "Empresa Exemplo LTDA",
+    cnpj: "12.345.678/0001-90",
+    ie: "123.456.789.012",
+    address: "Rua Exemplo, 123 - Centro - São Paulo/SP",
+  });
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      // Simulating API call - replace with actual API endpoints
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      
+      // Here you would call your API endpoints to save the data
+      // await fetch('/api/user/profile', { method: 'PUT', body: JSON.stringify(profile) });
+      // await fetch('/api/user/company', { method: 'PUT', body: JSON.stringify(company) });
+      
+      showToast("Configurações salvas com sucesso!", "success");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      showToast("Erro ao salvar configurações", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -36,9 +81,9 @@ export default function SettingsPage() {
             Gerencie suas preferências e configurações do sistema
           </p>
         </div>
-        <Button>
+        <Button onClick={handleSave} disabled={saving}>
           <Save className="mr-2 h-4 w-4" />
-          Salvar Alterações
+          {saving ? "Salvando..." : "Salvar Alterações"}
         </Button>
       </div>
 
@@ -50,38 +95,62 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="p-0">
             <nav className="space-y-1">
-              <a href="#profile" className="flex items-center px-4 py-3 text-sm font-medium bg-primary/10 text-primary">
+              <button
+                onClick={() => scrollToSection("profile")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20"
+              >
                 <User className="mr-3 h-4 w-4" />
                 Perfil
-              </a>
-              <a href="#company" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("company")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <Building2 className="mr-3 h-4 w-4" />
                 Empresa
-              </a>
-              <a href="#notifications" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("notifications")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <Bell className="mr-3 h-4 w-4" />
                 Notificações
-              </a>
-              <a href="#security" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("security")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <Shield className="mr-3 h-4 w-4" />
                 Segurança
-              </a>
-              <a href="#appearance" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("appearance")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <Palette className="mr-3 h-4 w-4" />
                 Aparência
-              </a>
-              <a href="#whatsapp" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("whatsapp")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <MessageSquare className="mr-3 h-4 w-4" />
                 WhatsApp
-              </a>
-              <a href="#billing" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("billing")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <CreditCard className="mr-3 h-4 w-4" />
                 Plano e Faturamento
-              </a>
-              <a href="#integrations" className="flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50">
+              </button>
+              <button
+                onClick={() => scrollToSection("integrations")}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
+              >
                 <Globe className="mr-3 h-4 w-4" />
                 Integrações
-              </a>
+              </button>
             </nav>
           </CardContent>
         </Card>
@@ -101,20 +170,37 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nome</Label>
-                  <Input id="firstName" defaultValue="João" />
+                  <Input
+                    id="firstName"
+                    value={profile.firstName}
+                    onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Sobrenome</Label>
-                  <Input id="lastName" defaultValue="Silva" />
+                  <Input
+                    id="lastName"
+                    value={profile.lastName}
+                    onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" defaultValue="joao@empresa.com" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={profile.email}
+                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input id="phone" defaultValue="(11) 99999-9999" />
+                <Input
+                  id="phone"
+                  value={profile.phone}
+                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                />
               </div>
             </CardContent>
           </Card>
@@ -131,21 +217,37 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Nome da Empresa</Label>
-                <Input id="companyName" defaultValue="Empresa Exemplo LTDA" />
+                <Input
+                  id="companyName"
+                  value={company.name}
+                  onChange={(e) => setCompany({ ...company, name: e.target.value })}
+                />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input id="cnpj" defaultValue="12.345.678/0001-90" />
+                  <Input
+                    id="cnpj"
+                    value={company.cnpj}
+                    onChange={(e) => setCompany({ ...company, cnpj: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ie">Inscrição Estadual</Label>
-                  <Input id="ie" defaultValue="123.456.789.012" />
+                  <Input
+                    id="ie"
+                    value={company.ie}
+                    onChange={(e) => setCompany({ ...company, ie: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Endereço</Label>
-                <Input id="address" defaultValue="Rua Exemplo, 123 - Centro - São Paulo/SP" />
+                <Input
+                  id="address"
+                  value={company.address}
+                  onChange={(e) => setCompany({ ...company, address: e.target.value })}
+                />
               </div>
             </CardContent>
           </Card>

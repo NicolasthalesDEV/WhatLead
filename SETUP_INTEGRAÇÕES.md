@@ -163,7 +163,7 @@ Abra o arquivo `.env` e adicione:
 
 ```bash
 PSP_PROVIDER=asaas
-ASAAS_API_KEY=$aact_YTU5YTE0M2M2N2I4MTliNzk0YTI5N2U5MzdjNWZmNDQ6OjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+ASAAS_API_KEY=$aact_sua_chave_api_aqui
 ```
 
 ✅ **Asaas configurado!**

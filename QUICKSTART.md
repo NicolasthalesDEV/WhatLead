@@ -96,8 +96,8 @@ SKIP_ENV_VALIDATION=true
 DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/db?sslmode=require&pgbouncer=true
 DIRECT_URL=postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/db?sslmode=require
 
-# JWT (cole o resultado do openssl)
-JWT_SECRET=6dc88b6683cdb6f5abb07a661a631114eec66738accd953756fe004a3965a8be
+# JWT (cole o resultado do openssl rand -hex 32)
+JWT_SECRET=gere_sua_chave_com_openssl_rand_hex_32
 
 # PIX (modo fake para testes)
 PIX_PROVIDER=fake

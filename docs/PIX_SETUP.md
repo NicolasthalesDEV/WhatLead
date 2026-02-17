@@ -118,11 +118,11 @@ curl -X POST "https://seu-dominio.com/api/orders/ORDER_ID/payments/pix" \
 PSP_PROVIDER=asaas
 
 # Produção
-ASAAS_API_KEY=$aact_YTU5YTE0M2M2N2I4MTliNzk0YTI5N2U5MzdjNWZmNDQ6OjAwMDAwMDAwMDAwMDAwODc0Mzc6OiRhYWNoXzFiZDA3OGE3LWZlNWUtNDRiOS05YTFjLWI5MTgwOWU4NjFlMA==
+ASAAS_API_KEY=$aact_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ASAAS_SANDBOX=false
 
 # Sandbox (Desenvolvimento)
-ASAAS_API_KEY=$aact_YTU5YTE0M2M2N2I4MTliNzk0YTI5N2U5MzdjNWZmNDQ6OjAwMDAwMDAwMDAwMDAwODc0Mzc6OiRhYWNoXzFiZDA3OGE3LWZlNWUtNDRiOS05YTFjLWI5MTgwOWU4NjFlMA==
+ASAAS_API_KEY=$aact_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ASAAS_SANDBOX=true
 ```
 

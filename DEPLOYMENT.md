@@ -68,8 +68,8 @@ pnpm db:migrate
 3. Copie as URLs (connection pooling mode)
 
 ```bash
-DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:6543/postgres?pgbouncer=true
-DIRECT_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[YOUR_PASSWORD]@db.xxx.supabase.co:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres:[YOUR_PASSWORD]@db.xxx.supabase.co:5432/postgres
 ```
 
 ### Opção C: Railway 🚂

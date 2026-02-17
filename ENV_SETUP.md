@@ -30,7 +30,7 @@ openssl rand -hex 32
 ```
 
 ```bash
-JWT_SECRET=6dc88b6683cdb6f5abb07a661a631114eec66738accd953756fe004a3965a8be
+JWT_SECRET=sua_chave_jwt_aqui_gere_com_comando_acima
 ```
 
 **Status:** [ ] Configurado

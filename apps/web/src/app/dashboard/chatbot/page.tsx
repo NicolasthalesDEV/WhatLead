@@ -3,7 +3,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
 import { useState, useEffect } from "react";
 import {
   Bot,
@@ -47,6 +51,10 @@ export default function ChatbotPage() {
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [loading, setLoading] = useState(false);
   const [nodes, setNodes] = useState<Node[]>([]);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newFlowName, setNewFlowName] = useState("");
+  const [newFlowDescription, setNewFlowDescription] = useState("");
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadFlows();
@@ -59,12 +67,15 @@ export default function ChatbotPage() {
       setFlows(data.flows || []);
     } catch (error) {
       console.error("Failed to load flows:", error);
+      showToast("Erro ao carregar fluxos", "error");
     }
   };
 
   const createFlow = async () => {
-    const name = prompt("Nome do fluxo:");
-    if (!name) return;
+    if (!newFlowName.trim()) {
+      showToast("Nome do fluxo é obrigatório", "warning");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -72,18 +83,26 @@ export default function ChatbotPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          description: "",
+          name: newFlowName.trim(),
+          description: newFlowDescription.trim(),
           triggers: [],
           priority: 0,
         }),
       });
 
       if (res.ok) {
+        showToast("Fluxo criado com sucesso!", "success");
+        setShowCreateDialog(false);
+        setNewFlowName("");
+        setNewFlowDescription("");
         await loadFlows();
+      } else {
+        const error = await res.json();
+        showToast(error.message || "Erro ao criar fluxo", "error");
       }
     } catch (error) {
       console.error("Failed to create flow:", error);
+      showToast("Erro ao criar fluxo", "error");
     }
     setLoading(false);
   };
@@ -93,10 +112,17 @@ export default function ChatbotPage() {
 
     setLoading(true);
     try {
-      await fetch(`/api/chatbot/flows/${id}`, { method: "DELETE" });
-      await loadFlows();
+      const res = await fetch(`/api/chatbot/flows/${id}`, { method: "DELETE" });
+      
+      if (res.ok) {
+        showToast("Fluxo excluído com sucesso!", "success");
+        await loadFlows();
+      } else {
+        showToast("Erro ao excluir fluxo", "error");
+      }
     } catch (error) {
       console.error("Failed to delete flow:", error);
+      showToast("Erro ao excluir fluxo", "error");
     }
     setLoading(false);
   };
@@ -382,7 +408,7 @@ export default function ChatbotPage() {
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
           </Button>
-          <Button onClick={createFlow} disabled={loading}>
+          <Button onClick={() => setShowCreateDialog(true)} disabled={loading}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Fluxo
           </Button>
@@ -506,6 +532,63 @@ export default function ChatbotPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialog para criar novo fluxo */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Fluxo</DialogTitle>
+            <DialogDescription>
+              Crie um novo fluxo de conversação para o chatbot
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="flow-name">Nome do Fluxo *</Label>
+              <Input
+                id="flow-name"
+                placeholder="Ex: Atendimento Inicial"
+                value={newFlowName}
+                onChange={(e) => setNewFlowName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) {
+                    createFlow();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="flow-description">Descrição</Label>
+              <Textarea
+                id="flow-description"
+                placeholder="Descreva brevemente o propósito deste fluxo"
+                value={newFlowDescription}
+                onChange={(e) => setNewFlowDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateDialog(false);
+                setNewFlowName("");
+                setNewFlowDescription("");
+              }}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={createFlow} disabled={loading || !newFlowName.trim()}>
+              {loading ? "Criando..." : "Criar Fluxo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
