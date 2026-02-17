@@ -13,10 +13,7 @@ const nextConfig = {
   output: 'standalone',
 
   // Webpack configuration for Prisma and path resolution
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      config.externals.push('@prisma/client');
-    }
+  webpack: (config) => {
 
     // Ensure @ alias works correctly
     config.resolve.alias = {
