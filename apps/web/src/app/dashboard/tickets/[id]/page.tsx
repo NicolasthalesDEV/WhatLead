@@ -331,11 +331,10 @@ export default function TicketDetailsPage() {
                 ticket.comments.map((comment) => (
                   <div
                     key={comment.id}
-                    className={`p-4 rounded-lg ${
-                      comment.isInternal
+                    className={`p-4 rounded-lg ${comment.isInternal
                         ? "bg-yellow-50 border border-yellow-200"
                         : "bg-muted"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">

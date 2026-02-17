@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { z } from "zod";
-import { generateVerificationToken, createAuditLog } from "@/lib/auth";
+import { createAuditLog } from "@/lib/auth";
 
 const Body = z.object({
   email: z.string().email(),
@@ -30,20 +30,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (user.emailVerified) {
-    return NextResponse.json({
-      success: true,
-      message: "Email already verified",
-    });
-  }
-
-  const verifyToken = generateVerificationToken();
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerifyToken: verifyToken },
-  });
-
   await createAuditLog({
     userId: user.id,
     companyId: user.companyId,
@@ -52,12 +38,8 @@ export async function POST(req: NextRequest) {
     req,
   });
 
-  // TODO: Send email with verification link
-  // In production: ${process.env.APP_URL}/verify-email?token=${verifyToken}
-  console.log(`Email verification token for ${user.email}: ${verifyToken}`);
-
   return NextResponse.json({
     success: true,
-    message: "Verification email sent",
+    message: "Email verification is not enabled in current deployment",
   });
 }

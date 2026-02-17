@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { createSession, generateVerificationToken, createAuditLog, checkRateLimit } from "@/lib/auth";
+import { createSession, createAuditLog, checkRateLimit } from "@/lib/auth";
 
 const Body = z.object({
   email: z.string().email(),
@@ -57,8 +57,6 @@ export async function POST(req: NextRequest) {
     });
 
     const hash = await bcrypt.hash(body.data.password, 10);
-    const emailVerifyToken = generateVerificationToken();
-
     const user = await tx.user.create({
       data: {
         companyId: company.id,
@@ -66,11 +64,10 @@ export async function POST(req: NextRequest) {
         hash,
         role: "OWNER",
         name: body.data.name,
-        emailVerifyToken,
       },
     });
 
-    return { company, user, emailVerifyToken };
+    return { company, user };
   });
 
   // Create session
@@ -89,9 +86,6 @@ export async function POST(req: NextRequest) {
     },
     req,
   });
-
-  // TODO: Send verification email
-  console.log(`Email verification token for ${result.user.email}: ${result.emailVerifyToken}`);
 
   return NextResponse.json({
     accessToken: session.accessToken,

@@ -18,11 +18,6 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         role: true,
-        avatarUrl: true,
-        preferences: true,
-        emailVerified: true,
-        twoFactorEnabled: true,
-        lastLoginAt: true,
         createdAt: true,
         company: {
           select: {
@@ -38,7 +33,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ user: profile });
+    return NextResponse.json({
+      user: {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        avatarUrl: null,
+        preferences: null,
+        emailVerified: false,
+        twoFactorEnabled: false,
+        lastLoginAt: null,
+        createdAt: profile.createdAt,
+        company: profile.company,
+      },
+    });
   } catch (error) {
     console.error('Error fetching profile:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -59,8 +68,6 @@ export async function PATCH(req: NextRequest) {
     const schema = z.object({
       name: z.string().min(2).max(100).optional(),
       email: z.string().email().optional(),
-      avatarUrl: z.string().url().nullable().optional(),
-      preferences: z.record(z.any()).nullable().optional(),
     });
 
     const result = schema.safeParse(body);
@@ -71,7 +78,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const { name, email, avatarUrl, preferences } = result.data;
+    const { name, email } = result.data;
 
     // Get current user to check email
     const currentUser = await prisma.user.findUnique({
@@ -96,12 +103,7 @@ export async function PATCH(req: NextRequest) {
     // Update user
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
-    if (email !== undefined) {
-      updateData.email = email;
-      updateData.emailVerified = currentUser && email === currentUser.email;
-    }
-    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
-    if (preferences !== undefined) updateData.preferences = preferences;
+    if (email !== undefined) updateData.email = email;
 
     const updatedUser = await prisma.user.update({
       where: { id: user.uid },
@@ -111,11 +113,6 @@ export async function PATCH(req: NextRequest) {
         name: true,
         email: true,
         role: true,
-        avatarUrl: true,
-        preferences: true,
-        emailVerified: true,
-        twoFactorEnabled: true,
-        lastLoginAt: true,
         createdAt: true,
         company: {
           select: {
@@ -127,7 +124,21 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ user: updatedUser });
+    return NextResponse.json({
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        avatarUrl: null,
+        preferences: null,
+        emailVerified: false,
+        twoFactorEnabled: false,
+        lastLoginAt: null,
+        createdAt: updatedUser.createdAt,
+        company: updatedUser.company,
+      },
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

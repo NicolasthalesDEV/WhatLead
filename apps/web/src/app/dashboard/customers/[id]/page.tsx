@@ -341,12 +341,12 @@ export default function CustomerDetailsPage() {
                       <div className="flex flex-col items-center">
                         <div
                           className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.type === "order"
-                              ? "bg-green-100"
-                              : activity.type === "quote"
-                                ? "bg-blue-100"
-                                : activity.type === "message"
-                                  ? "bg-purple-100"
-                                  : "bg-orange-100"
+                            ? "bg-green-100"
+                            : activity.type === "quote"
+                              ? "bg-blue-100"
+                              : activity.type === "message"
+                                ? "bg-purple-100"
+                                : "bg-orange-100"
                             }`}
                         >
                           {activity.type === "order" && (
