@@ -12,7 +12,7 @@ import { prisma } from '@wacrm/db';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ mediaId: string> } }
+  { params }: { params: Promise<{ mediaId: string }> }
 ) {
   try {
     const user = await verifyAuth(req);

@@ -5,8 +5,9 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/funnel/cards/[id] - Obter detalhes de um card
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET(
 
   const card = await db.funnelCard.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
     include: {
@@ -40,8 +41,9 @@ export async function GET(
 // PATCH /api/funnel/cards/[id] - Atualizar card
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -64,7 +66,7 @@ export async function PATCH(
   // Verificar se o card pertence à empresa
   const existingCard = await db.funnelCard.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
   });
@@ -162,7 +164,7 @@ export async function PATCH(
   }
 
   const card = await db.funnelCard.update({
-    where: { id: params.id },
+    where: { id: id },
     data: updateData,
     include: {
       stage: true,
@@ -190,8 +192,9 @@ export async function PATCH(
 // DELETE /api/funnel/cards/[id] - Deletar card
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -199,7 +202,7 @@ export async function DELETE(
 
   const card = await db.funnelCard.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
   });
@@ -209,7 +212,7 @@ export async function DELETE(
   }
 
   await db.funnelCard.delete({
-    where: { id: params.id },
+    where: { id: id },
   });
 
   // Reorganizar posições dos cards restantes no estágio

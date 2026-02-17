@@ -5,8 +5,9 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/notifications/[id] - Buscar notificação específica
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return authResult.res;
@@ -14,7 +15,7 @@ export async function GET(
 
   try {
     const notification = await prisma.notification.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!notification) {
@@ -42,8 +43,9 @@ export async function GET(
 // PATCH /api/notifications/[id] - Marcar como lida
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return authResult.res;
@@ -54,7 +56,7 @@ export async function PATCH(
 
   try {
     const notification = await prisma.notification.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!notification) {
@@ -69,7 +71,7 @@ export async function PATCH(
     }
 
     const updated = await prisma.notification.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         isRead,
         readAt: isRead ? new Date() : null,
@@ -89,8 +91,9 @@ export async function PATCH(
 // DELETE /api/notifications/[id] - Deletar notificação
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return authResult.res;
@@ -98,7 +101,7 @@ export async function DELETE(
 
   try {
     const notification = await prisma.notification.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!notification) {
@@ -113,7 +116,7 @@ export async function DELETE(
     }
 
     await prisma.notification.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ success: true });

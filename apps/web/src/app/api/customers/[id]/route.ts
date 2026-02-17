@@ -17,12 +17,13 @@ const UpdateCustomerBody = z.object({
 // GET /api/customers/[id] - Get customer details
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const customer = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: "company-1", // TODO: Get from auth
       },
       include: {
@@ -79,7 +80,7 @@ export async function GET(
     // Calculate metrics
     const totalSpent = await prisma.order.aggregate({
       where: {
-        customerId: params.id,
+        customerId: id,
         status: "PAID",
       },
       _sum: {
@@ -88,7 +89,7 @@ export async function GET(
     });
 
     const firstOrder = await prisma.order.findFirst({
-      where: { customerId: params.id },
+      where: { customerId: id },
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     });
@@ -121,8 +122,9 @@ export async function GET(
 // PATCH /api/customers/[id] - Update customer
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const body = await request.json();
     const data = UpdateCustomerBody.parse(body);
@@ -130,7 +132,7 @@ export async function PATCH(
     // Check if customer exists
     const existing = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: "company-1", // TODO: Get from auth
       },
     });
@@ -144,7 +146,7 @@ export async function PATCH(
 
     // Update customer
     const customer = await prisma.customer.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(data.name && { name: data.name }),
         ...(data.email !== undefined && { email: data.email || null }),
@@ -186,13 +188,14 @@ export async function PATCH(
 // DELETE /api/customers/[id] - Delete customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // Check if customer exists and has no orders/quotes
     const customer = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: "company-1", // TODO: Get from auth
       },
       include: {
@@ -222,7 +225,7 @@ export async function DELETE(
     }
 
     await prisma.customer.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ success: true });

@@ -11,7 +11,7 @@ import { retryWebhookDelivery } from '@/lib/webhooks';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await verifyAuth(req);

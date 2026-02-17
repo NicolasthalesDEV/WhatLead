@@ -5,8 +5,9 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/funnel/stages/[id] - Obter detalhes de um estágio
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,7 +15,7 @@ export async function GET(
 
   const stage = await db.funnelStage.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
     include: {
@@ -36,8 +37,9 @@ export async function GET(
 // PATCH /api/funnel/stages/[id] - Atualizar estágio
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,7 +51,7 @@ export async function PATCH(
   // Verificar se o estágio pertence à empresa
   const existingStage = await db.funnelStage.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
   });
@@ -104,7 +106,7 @@ export async function PATCH(
   }
 
   const stage = await db.funnelStage.update({
-    where: { id: params.id },
+    where: { id: id },
     data: updateData,
     include: {
       _count: {
@@ -121,8 +123,9 @@ export async function PATCH(
 // DELETE /api/funnel/stages/[id] - Deletar estágio
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -130,7 +133,7 @@ export async function DELETE(
 
   const stage = await db.funnelStage.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
     include: {
@@ -155,7 +158,7 @@ export async function DELETE(
   }
 
   await db.funnelStage.delete({
-    where: { id: params.id },
+    where: { id: id },
   });
 
   // Reorganizar ordem dos estágios restantes

@@ -5,8 +5,9 @@ import { requireAuth } from "@/lib/auth";
 // POST /api/funnel/cards/[id]/move - Mover card para outro estágio/posição
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +26,7 @@ export async function POST(
   // Verificar se o card existe e pertence à empresa
   const card = await db.funnelCard.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
   });
@@ -83,7 +84,7 @@ export async function POST(
 
     // 3. Mover o card
     const movedCard = await db.funnelCard.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         stageId,
         position,
@@ -150,7 +151,7 @@ export async function POST(
     }
 
     const movedCard = await db.funnelCard.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         position,
         lastActivityAt: new Date(),

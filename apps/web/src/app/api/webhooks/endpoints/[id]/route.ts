@@ -11,8 +11,9 @@ import { verifyAuth } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await verifyAuth(req);
     if (!user) {
@@ -21,7 +22,7 @@ export async function GET(
 
     const endpoint = await prisma.webhookEndpoint.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId,
       },
       select: {
@@ -73,8 +74,9 @@ const updateEndpointSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await verifyAuth(req);
     if (!user) {
@@ -92,7 +94,7 @@ export async function PATCH(
     // Verificar se webhook existe e pertence à empresa
     const existing = await prisma.webhookEndpoint.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId,
       },
     });
@@ -109,7 +111,7 @@ export async function PATCH(
 
     // Atualizar endpoint
     const endpoint = await prisma.webhookEndpoint.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(data.url && { url: data.url }),
         ...(data.events && { events: data.events }),
@@ -153,8 +155,9 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const user = await verifyAuth(req);
     if (!user) {
@@ -172,7 +175,7 @@ export async function DELETE(
     // Verificar se webhook existe e pertence à empresa
     const existing = await prisma.webhookEndpoint.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId,
       },
     });
@@ -186,7 +189,7 @@ export async function DELETE(
 
     // Deletar endpoint
     await prisma.webhookEndpoint.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ success: true });

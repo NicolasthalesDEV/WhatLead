@@ -17,8 +17,9 @@ const UpdateProductBody = z.object({
 // GET /api/products/[id] - Obter detalhes do produto
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,7 +27,7 @@ export async function GET(
 
   const product = await db.product.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
     include: {
@@ -52,8 +53,9 @@ export async function GET(
 // PATCH /api/products/[id] - Atualizar produto
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -72,7 +74,7 @@ export async function PATCH(
   // Verificar se o produto existe
   const existingProduct = await db.product.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
   });
@@ -103,7 +105,7 @@ export async function PATCH(
   if (body.data.featured !== undefined) updateData.featured = body.data.featured;
 
   const product = await db.product.update({
-    where: { id: params.id },
+    where: { id: id },
     data: updateData,
     include: {
       prices: {
@@ -124,8 +126,9 @@ export async function PATCH(
 // DELETE /api/products/[id] - Deletar produto
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string> } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -133,7 +136,7 @@ export async function DELETE(
 
   const product = await db.product.findFirst({
     where: {
-      id: params.id,
+      id: id,
       companyId: authResult.companyId,
     },
     include: {
@@ -165,7 +168,7 @@ export async function DELETE(
   }
 
   await db.product.delete({
-    where: { id: params.id },
+    where: { id: id },
   });
 
   return NextResponse.json({ success: true });
