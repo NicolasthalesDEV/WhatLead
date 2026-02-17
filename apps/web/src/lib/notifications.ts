@@ -1,4 +1,5 @@
 import { PrismaClient } from "@wacrm/db";
+import crypto from "crypto";
 
 type NotificationType =
   | "ORDER_CREATED"
@@ -11,6 +12,14 @@ type NotificationType =
   | "CUSTOMER_CREATED"
   | "LOW_STOCK"
   | "SYSTEM";
+
+async function getUserCompanyId(db: PrismaClient, userId: string): Promise<string | null> {
+  const user = await (db as any).user.findUnique({
+    where: { id: userId },
+    select: { companyId: true },
+  });
+  return user?.companyId || null;
+}
 
 type CreateNotificationParams = {
   userId: string;
@@ -52,7 +61,9 @@ export async function createNotification(
   // Criar notificação
   const notification = await notificationModel.create({
     data: {
+      id: crypto.randomUUID(),
       userId,
+      companyId: (await getUserCompanyId(db, userId))!,
       type,
       title,
       message,

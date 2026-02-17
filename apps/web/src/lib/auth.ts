@@ -252,6 +252,7 @@ export async function createAuditLog(params: {
 
   await auditLogModel.create({
     data: {
+      id: crypto.randomUUID(),
       userId: params.userId,
       companyId: params.companyId,
       action: params.action,

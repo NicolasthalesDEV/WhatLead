@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { requireAuth } from "@/lib/auth";
+import crypto from "crypto";
 
 // GET /api/notifications - Listar notificações do usuário
 export async function GET(req: NextRequest) {
@@ -71,7 +72,9 @@ export async function POST(req: NextRequest) {
   try {
     const createdNotification = await notification.create({
       data: {
+        id: crypto.randomUUID(),
         userId,
+        companyId: authResult.companyId,
         type,
         title,
         message,
