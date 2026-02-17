@@ -6,6 +6,11 @@ import { prisma } from "@wacrm/db";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotAnalytics = (prisma as any).chatbotAnalytics;
+
+  if (!chatbotAnalytics) {
+    return NextResponse.json({ analytics: [], summary: { totalExecutions: 0, completed: 0, failed: 0, handoffs: 0 } });
+  }
 
   const { searchParams } = new URL(req.url);
   const flowId = searchParams.get("flowId");
@@ -23,18 +28,23 @@ export async function GET(req: NextRequest) {
     where.flowId = flowId;
   }
 
-  const analytics = await prisma.chatbotAnalytics.findMany({
+  const analytics = (await chatbotAnalytics.findMany({
     where,
     orderBy: { date: "desc" },
-  });
+  })) as Array<{
+    totalExecutions?: number;
+    completed?: number;
+    failed?: number;
+    handoffs?: number;
+  }>;
 
   // Calculate summary
   const summary = analytics.reduce(
-    (acc, curr) => ({
-      totalExecutions: acc.totalExecutions + curr.totalExecutions,
-      completed: acc.completed + curr.completed,
-      failed: acc.failed + curr.failed,
-      handoffs: acc.handoffs + curr.handoffs,
+    (acc: { totalExecutions: number; completed: number; failed: number; handoffs: number }, curr) => ({
+      totalExecutions: acc.totalExecutions + (curr.totalExecutions || 0),
+      completed: acc.completed + (curr.completed || 0),
+      failed: acc.failed + (curr.failed || 0),
+      handoffs: acc.handoffs + (curr.handoffs || 0),
     }),
     { totalExecutions: 0, completed: 0, failed: 0, handoffs: 0 }
   );

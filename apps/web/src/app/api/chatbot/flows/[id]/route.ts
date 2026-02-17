@@ -10,8 +10,16 @@ export async function GET(
   const { id } = await params;
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
 
-  const flow = await prisma.chatbotFlow.findFirst({
+  if (!chatbotFlow) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Chatbot feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
+
+  const flow = await chatbotFlow.findFirst({
     where: {
       id: id,
       companyId: auth.companyId,
@@ -41,10 +49,18 @@ export async function PUT(
   const { id } = await params;
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
+
+  if (!chatbotFlow) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Chatbot feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
 
   const data = await req.json();
 
-  const flow = await prisma.chatbotFlow.updateMany({
+  const flow = await chatbotFlow.updateMany({
     where: {
       id: id,
       companyId: auth.companyId,
@@ -76,8 +92,16 @@ export async function DELETE(
   const { id } = await params;
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
 
-  const deleted = await prisma.chatbotFlow.deleteMany({
+  if (!chatbotFlow) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Chatbot feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
+
+  const deleted = await chatbotFlow.deleteMany({
     where: {
       id: id,
       companyId: auth.companyId,

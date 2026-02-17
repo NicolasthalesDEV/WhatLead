@@ -22,21 +22,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         slug: true,
-        email: true,
-        phone: true,
-        website: true,
-        address: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        country: true,
-        document: true,
-        logoUrl: true,
-        description: true,
-        businessHours: true,
-        autoMessages: true,
         createdAt: true,
-        updatedAt: true,
       },
     });
 
@@ -47,7 +33,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ company });
+    return NextResponse.json({
+      company: {
+        ...company,
+        email: null,
+        phone: null,
+        website: null,
+        address: null,
+        city: null,
+        state: null,
+        zipCode: null,
+        country: null,
+        document: null,
+        logoUrl: null,
+        description: null,
+        businessHours: null,
+        autoMessages: null,
+        updatedAt: company.createdAt,
+      },
+    });
 
   } catch (error) {
     console.error('Error fetching company settings:', error);
@@ -100,36 +104,43 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const data = updateCompanySchema.parse(body);
+    const updateData: { name?: string } = {};
+
+    if (typeof data.name === 'string') {
+      updateData.name = data.name;
+    }
 
     // Atualizar empresa
     const company = await prisma.company.update({
       where: { id: user.companyId },
-      data: {
-        ...data,
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
         slug: true,
-        email: true,
-        phone: true,
-        website: true,
-        address: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        country: true,
-        document: true,
-        logoUrl: true,
-        description: true,
-        businessHours: true,
-        autoMessages: true,
         createdAt: true,
-        updatedAt: true,
       },
     });
 
-    return NextResponse.json({ company });
+    return NextResponse.json({
+      company: {
+        ...company,
+        email: null,
+        phone: null,
+        website: null,
+        address: null,
+        city: null,
+        state: null,
+        zipCode: null,
+        country: null,
+        document: null,
+        logoUrl: null,
+        description: null,
+        businessHours: null,
+        autoMessages: null,
+        updatedAt: company.createdAt,
+      },
+    });
 
   } catch (error) {
     console.error('Error updating company settings:', error);

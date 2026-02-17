@@ -5,11 +5,7 @@ import { z } from "zod";
 
 const updateSurveySchema = z.object({
   name: z.string().min(1).optional(),
-  description: z.string().optional(),
-  question: z.string().min(1).optional(),
   active: z.boolean().optional(),
-  sendAfterOrderPaid: z.boolean().optional(),
-  sendDelayMinutes: z.number().int().min(0).optional(),
 });
 
 /**
@@ -25,28 +21,6 @@ export async function GET(
 
   const survey = await prisma.nPSSurvey.findUnique({
     where: { id },
-    include: {
-      responses: {
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phoneE164: true,
-            },
-          },
-          order: {
-            select: {
-              id: true,
-              total: true,
-              createdAt: true,
-            },
-          },
-        },
-        orderBy: { respondedAt: "desc" },
-      },
-    },
   });
 
   if (!survey || survey.companyId !== auth.companyId) {
@@ -56,36 +30,54 @@ export async function GET(
     );
   }
 
+  const responses = (await prisma.nPSResponse.findMany({
+    where: { surveyId: id },
+    orderBy: { createdAt: "desc" },
+  })) as Array<{
+    id: string;
+    customerId: string;
+    score: number;
+    comment: string | null;
+    createdAt: Date;
+  }>;
+
+  const uniqueCustomerIds = Array.from(new Set(responses.map((response) => response.customerId)));
+  const customers = await prisma.customer.findMany({
+    where: { id: { in: uniqueCustomerIds } },
+    select: { id: true, name: true },
+  });
+  const customerNameById = new Map(customers.map((customer) => [customer.id, customer.name]));
+
   // Calcular métricas
-  const totalResponses = survey.responses.length;
-  const promoters = survey.responses.filter((r) => r.score >= 9).length;
-  const passives = survey.responses.filter((r) => r.score >= 7 && r.score <= 8).length;
-  const detractors = survey.responses.filter((r) => r.score <= 6).length;
+  const totalResponses = responses.length;
+  const promoters = responses.filter((r) => r.score >= 9).length;
+  const passives = responses.filter((r) => r.score >= 7 && r.score <= 8).length;
+  const detractors = responses.filter((r) => r.score <= 6).length;
 
   const npsScore = totalResponses > 0
     ? Math.round(((promoters - detractors) / totalResponses) * 100)
     : null;
 
   const averageScore = totalResponses > 0
-    ? survey.responses.reduce((sum, r) => sum + r.score, 0) / totalResponses
+    ? responses.reduce((sum, r) => sum + r.score, 0) / totalResponses
     : null;
 
   // Distribuição de scores
   const scoreDistribution = Array.from({ length: 11 }, (_, i) => ({
     score: i,
-    count: survey.responses.filter((r) => r.score === i).length,
+    count: responses.filter((r) => r.score === i).length,
   }));
 
   // Comentários recentes
-  const recentComments = survey.responses
+  const recentComments = responses
     .filter((r) => r.comment)
     .slice(0, 10)
     .map((r) => ({
       id: r.id,
       score: r.score,
       comment: r.comment,
-      customerName: r.customer.name,
-      respondedAt: r.respondedAt,
+      customerName: customerNameById.get(r.customerId) || "Cliente",
+      respondedAt: r.createdAt,
     }));
 
   return NextResponse.json({
@@ -164,11 +156,6 @@ export async function DELETE(
 
   const survey = await prisma.nPSSurvey.findUnique({
     where: { id },
-    include: {
-      _count: {
-        select: { responses: true },
-      },
-    },
   });
 
   if (!survey || survey.companyId !== auth.companyId) {
@@ -179,7 +166,8 @@ export async function DELETE(
   }
 
   // Não permitir deletar se tiver respostas
-  if (survey._count.responses > 0) {
+  const responsesCount = await prisma.nPSResponse.count({ where: { surveyId: id } });
+  if (responsesCount > 0) {
     return NextResponse.json(
       { error: { code: "HAS_RESPONSES", message: "Cannot delete survey with responses" } },
       { status: 400 }

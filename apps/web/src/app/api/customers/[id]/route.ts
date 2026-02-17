@@ -7,11 +7,6 @@ const UpdateCustomerBody = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional().or(z.literal("")),
   tags: z.array(z.string()).optional(),
-  notes: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
 });
 
 // GET /api/customers/[id] - Get customer details
@@ -27,44 +22,37 @@ export async function GET(
         companyId: "company-1", // TODO: Get from auth
       },
       include: {
-        orders: {
+        Order: {
           orderBy: { createdAt: "desc" },
           take: 10,
           include: {
-            items: {
+            OrderItem: {
               include: {
-                product: true,
+                Product: true,
               },
             },
           },
         },
-        quotes: {
+        Quote: {
           orderBy: { createdAt: "desc" },
           take: 10,
           include: {
-            items: {
+            QuoteItem: {
               include: {
-                product: true,
+                Product: true,
               },
             },
           },
         },
-        messages: {
+        WhatsMessage: {
           orderBy: { createdAt: "desc" },
           take: 20,
         },
-        funnelCards: {
-          orderBy: { createdAt: "desc" },
-          take: 10,
-          include: {
-            stage: true,
-          },
-        },
         _count: {
           select: {
-            orders: true,
-            quotes: true,
-            messages: true,
+            Order: true,
+            Quote: true,
+            WhatsMessage: true,
           },
         },
       },
@@ -97,16 +85,24 @@ export async function GET(
     return NextResponse.json({
       customer: {
         ...customer,
+        orders: customer.Order,
+        quotes: customer.Quote,
+        messages: customer.WhatsMessage,
         metrics: {
           totalSpent: totalSpent._sum?.total || 0,
-          totalOrders: customer._count.orders,
-          totalQuotes: customer._count.quotes,
-          totalMessages: customer._count.messages,
+          totalOrders: customer._count.Order,
+          totalQuotes: customer._count.Quote,
+          totalMessages: customer._count.WhatsMessage,
           firstOrderDate: firstOrder?.createdAt || null,
           averageTicket:
-            customer._count.orders > 0
-              ? (totalSpent._sum?.total || 0) / customer._count.orders
+            customer._count.Order > 0
+              ? (totalSpent._sum?.total || 0) / customer._count.Order
               : 0,
+        },
+        _count: {
+          orders: customer._count.Order,
+          quotes: customer._count.Quote,
+          messages: customer._count.WhatsMessage,
         },
       },
     });
@@ -151,24 +147,28 @@ export async function PATCH(
         ...(data.name && { name: data.name }),
         ...(data.email !== undefined && { email: data.email || null }),
         ...(data.tags && { tags: data.tags }),
-        ...(data.notes !== undefined && { notes: data.notes || null }),
-        ...(data.address !== undefined && { address: data.address || null }),
-        ...(data.city !== undefined && { city: data.city || null }),
-        ...(data.state !== undefined && { state: data.state || null }),
-        ...(data.zipCode !== undefined && { zipCode: data.zipCode || null }),
       },
       include: {
         _count: {
           select: {
-            orders: true,
-            quotes: true,
-            messages: true,
+            Order: true,
+            Quote: true,
+            WhatsMessage: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ customer });
+    return NextResponse.json({
+      customer: {
+        ...customer,
+        _count: {
+          orders: customer._count.Order,
+          quotes: customer._count.Quote,
+          messages: customer._count.WhatsMessage,
+        },
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -201,8 +201,8 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            orders: true,
-            quotes: true,
+            Order: true,
+            Quote: true,
           },
         },
       },
@@ -215,7 +215,7 @@ export async function DELETE(
       );
     }
 
-    if (customer._count.orders > 0 || customer._count.quotes > 0) {
+    if (customer._count.Order > 0 || customer._count.Quote > 0) {
       return NextResponse.json(
         {
           error: "Não é possível deletar cliente com pedidos ou orçamentos existentes",

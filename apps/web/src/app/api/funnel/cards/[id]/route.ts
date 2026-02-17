@@ -12,8 +12,16 @@ export async function GET(
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
 
-  const card = await db.funnelCard.findFirst({
+  if (!funnelCard) {
+    return NextResponse.json(
+      { error: "Funnel cards are not available in current database schema" },
+      { status: 501 }
+    );
+  }
+
+  const card = await funnelCard.findFirst({
     where: {
       id: id,
       companyId: authResult.companyId,
@@ -48,6 +56,15 @@ export async function PATCH(
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
+  const funnelStage = (db as any).funnelStage;
+
+  if (!funnelCard || !funnelStage) {
+    return NextResponse.json(
+      { error: "Funnel cards are not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const {
@@ -64,7 +81,7 @@ export async function PATCH(
   } = body;
 
   // Verificar se o card pertence à empresa
-  const existingCard = await db.funnelCard.findFirst({
+  const existingCard = await funnelCard.findFirst({
     where: {
       id: id,
       companyId: authResult.companyId,
@@ -90,7 +107,7 @@ export async function PATCH(
   // Se mudou de estágio
   if (stageId && stageId !== existingCard.stageId) {
     // Verificar se o novo estágio existe
-    const newStage = await db.funnelStage.findFirst({
+    const newStage = await funnelStage.findFirst({
       where: {
         id: stageId,
         companyId: authResult.companyId,
@@ -102,7 +119,7 @@ export async function PATCH(
     }
 
     // Encontrar a próxima posição no novo estágio
-    const lastCardInNewStage = await db.funnelCard.findFirst({
+    const lastCardInNewStage = await funnelCard.findFirst({
       where: { stageId },
       orderBy: { position: "desc" },
     });
@@ -112,7 +129,7 @@ export async function PATCH(
     updateData.enteredStageAt = new Date();
 
     // Reorganizar cards no estágio antigo
-    await db.funnelCard.updateMany({
+    await funnelCard.updateMany({
       where: {
         stageId: existingCard.stageId,
         position: {
@@ -129,7 +146,7 @@ export async function PATCH(
     // Se mudou a posição dentro do mesmo estágio
     if (position > existingCard.position) {
       // Movendo para baixo
-      await db.funnelCard.updateMany({
+      await funnelCard.updateMany({
         where: {
           stageId: existingCard.stageId,
           position: {
@@ -145,7 +162,7 @@ export async function PATCH(
       });
     } else {
       // Movendo para cima
-      await db.funnelCard.updateMany({
+      await funnelCard.updateMany({
         where: {
           stageId: existingCard.stageId,
           position: {
@@ -163,7 +180,7 @@ export async function PATCH(
     updateData.position = position;
   }
 
-  const card = await db.funnelCard.update({
+  const card = await funnelCard.update({
     where: { id: id },
     data: updateData,
     include: {
@@ -199,8 +216,16 @@ export async function DELETE(
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
 
-  const card = await db.funnelCard.findFirst({
+  if (!funnelCard) {
+    return NextResponse.json(
+      { error: "Funnel cards are not available in current database schema" },
+      { status: 501 }
+    );
+  }
+
+  const card = await funnelCard.findFirst({
     where: {
       id: id,
       companyId: authResult.companyId,
@@ -211,12 +236,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }
 
-  await db.funnelCard.delete({
+  await funnelCard.delete({
     where: { id: id },
   });
 
   // Reorganizar posições dos cards restantes no estágio
-  await db.funnelCard.updateMany({
+  await funnelCard.updateMany({
     where: {
       stageId: card.stageId,
       position: {

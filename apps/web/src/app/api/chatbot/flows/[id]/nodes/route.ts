@@ -9,12 +9,21 @@ export async function POST(
 ) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
+  const chatbotNode = (prisma as any).chatbotNode;
+
+  if (!chatbotFlow || !chatbotNode) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Chatbot feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
 
   const { id } = await params;
   const { nodes } = await req.json();
 
   // Verify flow belongs to company
-  const flow = await prisma.chatbotFlow.findFirst({
+  const flow = await chatbotFlow.findFirst({
     where: {
       id,
       companyId: auth.companyId,
@@ -29,12 +38,12 @@ export async function POST(
   }
 
   // Delete existing nodes and create new ones
-  await prisma.chatbotNode.deleteMany({
+  await chatbotNode.deleteMany({
     where: { flowId: id },
   });
 
   if (nodes && nodes.length > 0) {
-    await prisma.chatbotNode.createMany({
+    await chatbotNode.createMany({
       data: nodes.map((node: any, index: number) => ({
         flowId: id,
         type: node.type,

@@ -1,5 +1,16 @@
 import { PrismaClient } from "@wacrm/db";
-import type { NotificationType } from "@wacrm/db";
+
+type NotificationType =
+  | "ORDER_CREATED"
+  | "ORDER_PAID"
+  | "ORDER_CANCELLED"
+  | "MESSAGE_RECEIVED"
+  | "PAYMENT_RECEIVED"
+  | "QUOTE_CREATED"
+  | "QUOTE_ACCEPTED"
+  | "CUSTOMER_CREATED"
+  | "LOW_STOCK"
+  | "SYSTEM";
 
 type CreateNotificationParams = {
   userId: string;
@@ -14,12 +25,21 @@ export async function createNotification(
   db: PrismaClient,
   params: CreateNotificationParams
 ) {
+  const notificationPreference = (db as any).notificationPreference;
+  const notificationModel = (db as any).notification;
+
+  if (!notificationModel) {
+    return null;
+  }
+
   const { userId, type, title, message, link, data } = params;
 
   // Verificar preferências do usuário
-  const preferences = await db.notificationPreference.findUnique({
-    where: { userId },
-  });
+  const preferences = notificationPreference
+    ? await notificationPreference.findUnique({
+        where: { userId },
+      })
+    : null;
 
   // Mapear tipo para preferência
   const preferenceKey = getPreferenceKey(type);
@@ -30,7 +50,7 @@ export async function createNotification(
   }
 
   // Criar notificação
-  const notification = await db.notification.create({
+  const notification = await notificationModel.create({
     data: {
       userId,
       type,

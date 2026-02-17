@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@wacrm/db";
+import crypto from "crypto";
 
 // Validation schemas
 const CreateCustomerBody = z.object({
@@ -8,11 +9,6 @@ const CreateCustomerBody = z.object({
   phoneE164: z.string().min(1, "Telefone é obrigatório"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   tags: z.array(z.string()).optional(),
-  notes: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zipCode: z.string().optional(),
 });
 
 // GET /api/customers - List customers with filters
@@ -49,9 +45,9 @@ export async function GET(request: NextRequest) {
         include: {
           _count: {
             select: {
-              orders: true,
-              quotes: true,
-              messages: true,
+              Order: true,
+              Quote: true,
+              WhatsMessage: true,
             },
           },
         },
@@ -63,7 +59,14 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      customers,
+      customers: customers.map((customer) => ({
+        ...customer,
+        _count: {
+          orders: customer._count.Order,
+          quotes: customer._count.Quote,
+          messages: customer._count.WhatsMessage,
+        },
+      })),
       pagination: {
         page,
         limit,
@@ -100,29 +103,37 @@ export async function POST(request: NextRequest) {
 
     const customer = await prisma.customer.create({
       data: {
+        id: crypto.randomUUID(),
         companyId: "company-1", // TODO: Get from auth
         name: data.name,
         phoneE164: data.phoneE164,
         email: data.email || null,
         tags: data.tags || [],
-        notes: data.notes || null,
-        address: data.address || null,
-        city: data.city || null,
-        state: data.state || null,
-        zipCode: data.zipCode || null,
       },
       include: {
         _count: {
           select: {
-            orders: true,
-            quotes: true,
-            messages: true,
+            Order: true,
+            Quote: true,
+            WhatsMessage: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ customer }, { status: 201 });
+    return NextResponse.json(
+      {
+        customer: {
+          ...customer,
+          _count: {
+            orders: customer._count.Order,
+            quotes: customer._count.Quote,
+            messages: customer._count.WhatsMessage,
+          },
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

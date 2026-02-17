@@ -6,8 +6,13 @@ import { prisma } from "@wacrm/db";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const quickResponse = (prisma as any).quickResponse;
 
-  const responses = await prisma.quickResponse.findMany({
+  if (!quickResponse) {
+    return NextResponse.json({ responses: [] });
+  }
+
+  const responses = await quickResponse.findMany({
     where: { companyId: auth.companyId },
     orderBy: { usageCount: "desc" },
   });
@@ -19,10 +24,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const quickResponse = (prisma as any).quickResponse;
+
+  if (!quickResponse) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Quick responses feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
 
   const { shortcut, message } = await req.json();
 
-  const response = await prisma.quickResponse.create({
+  const response = await quickResponse.create({
     data: {
       companyId: auth.companyId,
       shortcut,
@@ -38,6 +51,14 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const quickResponse = (prisma as any).quickResponse;
+
+  if (!quickResponse) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Quick responses feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
 
   const { id, shortcut, message, active } = await req.json();
 
@@ -48,7 +69,7 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  const response = await prisma.quickResponse.updateMany({
+  const response = await quickResponse.updateMany({
     where: {
       id,
       companyId: auth.companyId,

@@ -12,6 +12,15 @@ export async function POST(
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
+  const funnelStage = (db as any).funnelStage;
+
+  if (!funnelCard || !funnelStage) {
+    return NextResponse.json(
+      { error: "Funnel cards are not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const { stageId, position } = body;
@@ -24,7 +33,7 @@ export async function POST(
   }
 
   // Verificar se o card existe e pertence à empresa
-  const card = await db.funnelCard.findFirst({
+  const card = await funnelCard.findFirst({
     where: {
       id: id,
       companyId: authResult.companyId,
@@ -36,7 +45,7 @@ export async function POST(
   }
 
   // Verificar se o novo estágio existe e pertence à empresa
-  const newStage = await db.funnelStage.findFirst({
+  const newStage = await funnelStage.findFirst({
     where: {
       id: stageId,
       companyId: authResult.companyId,
@@ -53,7 +62,7 @@ export async function POST(
   // Se mudou de estágio
   if (stageId !== oldStageId) {
     // 1. Remover do estágio antigo (reorganizar posições)
-    await db.funnelCard.updateMany({
+    await funnelCard.updateMany({
       where: {
         stageId: oldStageId,
         position: {
@@ -68,7 +77,7 @@ export async function POST(
     });
 
     // 2. Abrir espaço no novo estágio
-    await db.funnelCard.updateMany({
+    await funnelCard.updateMany({
       where: {
         stageId: stageId,
         position: {
@@ -83,7 +92,7 @@ export async function POST(
     });
 
     // 3. Mover o card
-    const movedCard = await db.funnelCard.update({
+    const movedCard = await funnelCard.update({
       where: { id: id },
       data: {
         stageId,
@@ -118,7 +127,7 @@ export async function POST(
   if (position !== oldPosition) {
     if (position > oldPosition) {
       // Movendo para baixo: decrementar cards entre oldPosition e position
-      await db.funnelCard.updateMany({
+      await funnelCard.updateMany({
         where: {
           stageId: oldStageId,
           position: {
@@ -134,7 +143,7 @@ export async function POST(
       });
     } else {
       // Movendo para cima: incrementar cards entre position e oldPosition
-      await db.funnelCard.updateMany({
+      await funnelCard.updateMany({
         where: {
           stageId: oldStageId,
           position: {
@@ -150,7 +159,7 @@ export async function POST(
       });
     }
 
-    const movedCard = await db.funnelCard.update({
+    const movedCard = await funnelCard.update({
       where: { id: id },
       data: {
         position,

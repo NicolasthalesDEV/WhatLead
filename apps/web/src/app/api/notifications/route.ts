@@ -8,13 +8,18 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json({ notifications: [], unreadCount: 0 });
+  }
 
   const { searchParams } = new URL(req.url);
   const unreadOnly = searchParams.get("unreadOnly") === "true";
   const limit = parseInt(searchParams.get("limit") || "50");
 
   try {
-    const notifications = await prisma.notification.findMany({
+    const notifications = await notification.findMany({
       where: {
         userId: authResult.userId,
         ...(unreadOnly ? { isRead: false } : {}),
@@ -23,7 +28,7 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    const unreadCount = await prisma.notification.count({
+    const unreadCount = await notification.count({
       where: {
         userId: authResult.userId,
         isRead: false,
@@ -46,6 +51,14 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json(
+      { error: "Notifications feature is not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   // Apenas admins podem criar notificações via API
   if (authResult.role !== "ADMIN") {
@@ -56,7 +69,7 @@ export async function POST(req: NextRequest) {
   const { userId, type, title, message, link, data } = body;
 
   try {
-    const notification = await prisma.notification.create({
+    const createdNotification = await notification.create({
       data: {
         userId,
         type,
@@ -67,7 +80,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ notification }, { status: 201 });
+    return NextResponse.json({ notification: createdNotification }, { status: 201 });
   } catch (error) {
     console.error("Failed to create notification:", error);
     return NextResponse.json(

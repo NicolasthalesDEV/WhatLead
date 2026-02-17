@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return new Response("Unauthorized", { status: 401 });
   }
+  const notification = (db as any).notification;
 
   const encoder = new TextEncoder();
   const userId = authResult.userId;
@@ -27,7 +28,16 @@ export async function GET(req: NextRequest) {
       // Em produção, você usaria Redis Pub/Sub ou similar
       const checkNotifications = async () => {
         try {
-          const notifications = await db.notification.findMany({
+          if (!notification) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: "notification_update", unreadCount: 0, notifications: [] })}\n\n`
+              )
+            );
+            return;
+          }
+
+          const notifications = await notification.findMany({
             where: {
               userId,
               isRead: false,

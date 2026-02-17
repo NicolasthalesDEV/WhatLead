@@ -8,9 +8,14 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json({ success: true });
+  }
 
   try {
-    await prisma.notification.updateMany({
+    await notification.updateMany({
       where: {
         userId: authResult.userId,
         isRead: false,

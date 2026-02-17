@@ -23,6 +23,7 @@ export async function GET(
   }
 
   const { user } = authResult.data;
+  const ticketComment = (prisma as any).ticketComment;
 
   try {
     // Verify ticket exists and belongs to company
@@ -40,7 +41,11 @@ export async function GET(
       );
     }
 
-    const comments = await prisma.ticketComment.findMany({
+    if (!ticketComment) {
+      return NextResponse.json({ comments: [] });
+    }
+
+    const comments = await ticketComment.findMany({
       where: {
         ticketId: id,
       },
@@ -82,6 +87,7 @@ export async function POST(
   }
 
   const { user } = authResult.data;
+  const ticketComment = (prisma as any).ticketComment;
 
   try {
     // Verify ticket exists and belongs to company
@@ -101,6 +107,13 @@ export async function POST(
 
     const body = await req.json();
     const data = CreateCommentSchema.parse(body);
+
+    if (!ticketComment) {
+      return NextResponse.json(
+        { error: 'Comentários não estão disponíveis no schema atual' },
+        { status: 501 }
+      );
+    }
 
     // Create comment and update firstResponseAt if this is the first comment
     const comment = await prisma.$transaction(async (tx: any) => {

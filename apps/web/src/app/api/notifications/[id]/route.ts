@@ -12,13 +12,21 @@ export async function GET(
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json(
+      { error: "Notifications feature is not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   try {
-    const notification = await prisma.notification.findUnique({
+    const foundNotification = await notification.findUnique({
       where: { id: id },
     });
 
-    if (!notification) {
+    if (!foundNotification) {
       return NextResponse.json(
         { error: "Notification not found" },
         { status: 404 }
@@ -26,11 +34,11 @@ export async function GET(
     }
 
     // Verificar se a notificação pertence ao usuário
-    if (notification.userId !== authResult.userId) {
+    if (foundNotification.userId !== authResult.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ notification });
+    return NextResponse.json({ notification: foundNotification });
   } catch (error) {
     console.error("Failed to fetch notification:", error);
     return NextResponse.json(
@@ -50,27 +58,35 @@ export async function PATCH(
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json(
+      { error: "Notifications feature is not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const { isRead } = body;
 
   try {
-    const notification = await prisma.notification.findUnique({
+    const foundNotification = await notification.findUnique({
       where: { id: id },
     });
 
-    if (!notification) {
+    if (!foundNotification) {
       return NextResponse.json(
         { error: "Notification not found" },
         { status: 404 }
       );
     }
 
-    if (notification.userId !== authResult.userId) {
+    if (foundNotification.userId !== authResult.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const updated = await prisma.notification.update({
+    const updated = await notification.update({
       where: { id: id },
       data: {
         isRead,
@@ -98,24 +114,32 @@ export async function DELETE(
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notification = (prisma as any).notification;
+
+  if (!notification) {
+    return NextResponse.json(
+      { error: "Notifications feature is not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   try {
-    const notification = await prisma.notification.findUnique({
+    const foundNotification = await notification.findUnique({
       where: { id: id },
     });
 
-    if (!notification) {
+    if (!foundNotification) {
       return NextResponse.json(
         { error: "Notification not found" },
         { status: 404 }
       );
     }
 
-    if (notification.userId !== authResult.userId) {
+    if (foundNotification.userId !== authResult.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await prisma.notification.delete({
+    await notification.delete({
       where: { id: id },
     });
 

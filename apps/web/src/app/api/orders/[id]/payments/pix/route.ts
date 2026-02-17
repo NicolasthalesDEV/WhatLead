@@ -14,10 +14,10 @@ export async function POST(
   const order = await prisma.order.findUnique({ 
     where: { id },
     include: {
-      customer: true,
-      items: {
+      Customer: true,
+      OrderItem: {
         include: {
-          product: true,
+          Product: true,
         },
       },
     },
@@ -54,13 +54,13 @@ export async function POST(
     const provider = getPixProvider();
     
     // Montar descrição do pedido
-    const description = `Pedido #${order.id.slice(0, 8)} - ${order.items.length} ${order.items.length === 1 ? 'item' : 'itens'}`;
+    const description = `Pedido #${order.id.slice(0, 8)} - ${order.OrderItem.length} ${order.OrderItem.length === 1 ? 'item' : 'itens'}`;
     
     // Dados do cliente (se disponível)
-    const customer = order.customer ? {
-      name: order.customer.name || undefined,
-      email: order.customer.email || undefined,
-      phone: order.customer.phoneE164 || undefined,
+    const customer = order.Customer ? {
+      name: order.Customer.name || undefined,
+      email: order.Customer.email || undefined,
+      phone: order.Customer.phoneE164 || undefined,
     } : undefined;
 
     const charge = await provider.createCharge(
@@ -117,7 +117,7 @@ export async function GET(
   const order = await prisma.order.findUnique({ 
     where: { id },
     include: {
-      payments: {
+      Payment: {
         where: { provider: "PIX" },
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -132,7 +132,7 @@ export async function GET(
     );
   }
 
-  const payment = order.payments[0];
+  const payment = order.Payment[0];
 
   if (!payment || !payment.chargeId) {
     return NextResponse.json(
@@ -152,7 +152,6 @@ export async function GET(
         where: { id: payment.id },
         data: {
           status: normalizedStatus,
-          ...(status.paidAt && { paidAt: new Date(status.paidAt) }),
           ...(status.paidAmount && { amount: status.paidAmount }),
         },
       });

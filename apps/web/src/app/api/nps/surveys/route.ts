@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { requireAuth } from "@/lib/auth";
 import { z } from "zod";
+import crypto from "crypto";
 
 const createSurveySchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
-  description: z.string().optional(),
-  question: z.string().min(1, "Pergunta é obrigatória"),
-  sendAfterOrderPaid: z.boolean().default(true),
-  sendDelayMinutes: z.number().int().min(0).default(60),
+  active: z.boolean().optional(),
 });
 
 /**
@@ -26,11 +24,6 @@ export async function GET(req: NextRequest) {
       companyId: auth.companyId,
       ...(active !== null && { active: active === "true" }),
     },
-    include: {
-      _count: {
-        select: { responses: true },
-      },
-    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -39,7 +32,7 @@ export async function GET(req: NextRequest) {
     surveys.map(async (survey) => {
       const responses = await prisma.nPSResponse.findMany({
         where: { surveyId: survey.id },
-        select: { score: true, sentiment: true },
+        select: { score: true },
       });
 
       const totalResponses = responses.length;
@@ -80,8 +73,10 @@ export async function POST(req: NextRequest) {
 
     const survey = await prisma.nPSSurvey.create({
       data: {
-        ...data,
+        id: crypto.randomUUID(),
         companyId: auth.companyId,
+        name: data.name,
+        active: data.active ?? true,
       },
     });
 

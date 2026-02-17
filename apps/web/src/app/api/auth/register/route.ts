@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Create company and user in a transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const companyId = crypto.randomUUID();
     const userId = crypto.randomUUID();
 

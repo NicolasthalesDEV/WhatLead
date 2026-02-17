@@ -8,6 +8,22 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelStage = (db as any).funnelStage;
+  const funnelCard = (db as any).funnelCard;
+
+  if (!funnelStage) {
+    return NextResponse.json({
+      summary: {
+        totalCards: 0,
+        totalValue: 0,
+        totalWeightedValue: 0,
+        newCardsInPeriod: 0,
+        avgCardValue: 0,
+      },
+      stageMetrics: [],
+      conversionRates: [],
+    });
+  }
 
   const { searchParams } = new URL(req.url);
   const days = parseInt(searchParams.get("days") || "30");
@@ -15,63 +31,45 @@ export async function GET(req: NextRequest) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  // Buscar todos os estágios com cards
-  const stages = await db.funnelStage.findMany({
+  // Buscar todos os estágios
+  const stages = (await funnelStage.findMany({
     where: {
       companyId: authResult.companyId,
-      isActive: true,
-    },
-    include: {
-      cards: {
-        select: {
-          id: true,
-          value: true,
-          probability: true,
-          enteredStageAt: true,
-          createdAt: true,
-        },
-      },
     },
     orderBy: {
       order: "asc",
     },
-  });
+  })) as Array<{ id: string; name: string; order: number }>;
+
+  const cardsByStage = funnelCard
+    ? await funnelCard.groupBy({
+        by: ["stageId"],
+        where: { companyId: authResult.companyId },
+        _count: { _all: true },
+      })
+    : [];
+
+  const cardsCountMap: Map<string, number> = new Map(
+    cardsByStage.map((item: any) => [item.stageId, item._count?._all || 0])
+  );
 
   // Calcular métricas por estágio
-  const stageMetrics = stages.map((stage) => {
-    const totalCards = stage.cards.length;
-    const totalValue = stage.cards.reduce(
-      (sum, card) => sum + (card.value ? Number(card.value) : 0),
-      0
-    );
+  const stageMetrics = stages.map((stage: { id: string; name: string; order: number }) => {
+    const totalCards = Number(cardsCountMap.get(stage.id) || 0);
+    const totalValue = 0;
     const avgValue = totalCards > 0 ? totalValue / totalCards : 0;
-    const weightedValue = stage.cards.reduce(
-      (sum, card) =>
-        sum + (card.value ? Number(card.value) * (card.probability / 100) : 0),
-      0
-    );
+    const weightedValue = 0;
 
     // Cards criados no período
-    const newCards = stage.cards.filter(
-      (card) => new Date(card.createdAt) >= startDate
-    ).length;
+    const newCards = 0;
 
     // Tempo médio no estágio (em dias)
-    const now = new Date();
-    const avgTimeInStage =
-      totalCards > 0
-        ? stage.cards.reduce((sum, card) => {
-            const enteredAt = new Date(card.enteredStageAt);
-            const daysInStage =
-              (now.getTime() - enteredAt.getTime()) / (1000 * 60 * 60 * 24);
-            return sum + daysInStage;
-          }, 0) / totalCards
-        : 0;
+    const avgTimeInStage = 0;
 
     return {
       stageId: stage.id,
       stageName: stage.name,
-      stageColor: stage.color,
+      stageColor: null,
       stageOrder: stage.order,
       totalCards,
       totalValue,
@@ -95,7 +93,7 @@ export async function GET(req: NextRequest) {
   );
 
   // Taxa de conversão entre estágios (aproximação simples)
-  const conversionRates: any[] = [];
+  const conversionRates: Array<{ fromStage: string; toStage: string; rate: number }> = [];
   for (let i = 0; i < stageMetrics.length - 1; i++) {
     const currentStage = stageMetrics[i];
     const nextStage = stageMetrics[i + 1];

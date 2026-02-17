@@ -8,6 +8,11 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
+
+  if (!funnelCard) {
+    return NextResponse.json({ cards: [] });
+  }
 
   const { searchParams } = new URL(req.url);
   const stageId = searchParams.get("stageId");
@@ -20,7 +25,7 @@ export async function GET(req: NextRequest) {
     where.stageId = stageId;
   }
 
-  const cards = await db.funnelCard.findMany({
+  const cards = await funnelCard.findMany({
     where,
     include: {
       stage: true,
@@ -55,6 +60,15 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const funnelCard = (db as any).funnelCard;
+  const funnelStage = (db as any).funnelStage;
+
+  if (!funnelCard || !funnelStage) {
+    return NextResponse.json(
+      { error: "Funnel cards are not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
   const {
@@ -78,7 +92,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Verificar se o estágio existe e pertence à empresa
-  const stage = await db.funnelStage.findFirst({
+  const stage = await funnelStage.findFirst({
     where: {
       id: stageId,
       companyId: authResult.companyId,
@@ -90,14 +104,14 @@ export async function POST(req: NextRequest) {
   }
 
   // Encontrar a próxima posição no estágio
-  const lastCard = await db.funnelCard.findFirst({
+  const lastCard = await funnelCard.findFirst({
     where: { stageId },
     orderBy: { position: "desc" },
   });
 
   const nextPosition = lastCard ? lastCard.position + 1 : 1;
 
-  const card = await db.funnelCard.create({
+  const card = await funnelCard.create({
     data: {
       companyId: authResult.companyId,
       stageId,

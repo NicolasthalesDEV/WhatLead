@@ -6,8 +6,13 @@ import { prisma } from "@wacrm/db";
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
 
-  const flows = await prisma.chatbotFlow.findMany({
+  if (!chatbotFlow) {
+    return NextResponse.json({ flows: [] });
+  }
+
+  const flows = await chatbotFlow.findMany({
     where: { companyId: auth.companyId },
     include: {
       nodes: true,
@@ -25,10 +30,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
+  const chatbotFlow = (prisma as any).chatbotFlow;
+
+  if (!chatbotFlow) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE", message: "Chatbot feature is not available in current database schema" } },
+      { status: 501 }
+    );
+  }
 
   const { name, description, triggers, priority } = await req.json();
 
-  const flow = await prisma.chatbotFlow.create({
+  const flow = await chatbotFlow.create({
     data: {
       companyId: auth.companyId,
       name,

@@ -1,6 +1,8 @@
 import { prisma } from "@wacrm/db";
 import { sendWhatsText } from "@/lib/wa/client";
 
+const chatbotDb = prisma as any;
+
 type NodeData = {
   message?: string;
   variable?: string;
@@ -44,7 +46,11 @@ export class ChatbotEngine {
   }
 
   async start(flowId: string, initialMessage?: string) {
-    const flow = await prisma.chatbotFlow.findUnique({
+    if (!chatbotDb.chatbotFlow || !chatbotDb.chatbotExecution) {
+      throw new Error("Chatbot feature is not available in current database schema");
+    }
+
+    const flow = await chatbotDb.chatbotFlow.findUnique({
       where: { id: flowId },
       include: { nodes: true },
     });
@@ -60,7 +66,7 @@ export class ChatbotEngine {
     }
 
     // Initialize execution
-    await prisma.chatbotExecution.create({
+    await chatbotDb.chatbotExecution.create({
       data: {
         id: this.executionId,
         flowId: flow.id,
@@ -80,7 +86,11 @@ export class ChatbotEngine {
   }
 
   async resume(userInput: string) {
-    const execution = await prisma.chatbotExecution.findUnique({
+    if (!chatbotDb.chatbotExecution) {
+      throw new Error("Chatbot feature is not available in current database schema");
+    }
+
+    const execution = await chatbotDb.chatbotExecution.findUnique({
       where: { id: this.executionId },
       include: { flow: { include: { nodes: true } } },
     });
@@ -98,7 +108,7 @@ export class ChatbotEngine {
     }
 
     // Update execution
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "RUNNING",
@@ -188,7 +198,7 @@ export class ChatbotEngine {
       return;
     }
 
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: { currentNode: nodeId },
     });
@@ -210,7 +220,7 @@ export class ChatbotEngine {
   }
 
   private async waitForInput(currentNodeId: string) {
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "WAITING_INPUT",
@@ -264,7 +274,7 @@ export class ChatbotEngine {
         console.log(`Action ${action} not implemented`);
     }
 
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: { context: this.context },
     });
@@ -290,7 +300,7 @@ export class ChatbotEngine {
       const result = await response.json();
       this.context.variables.apiResponse = result;
 
-      await prisma.chatbotExecution.update({
+      await chatbotDb.chatbotExecution.update({
         where: { id: this.executionId },
         data: { context: this.context },
       });
@@ -312,7 +322,7 @@ export class ChatbotEngine {
   }
 
   private async handoffToHuman() {
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "HANDOFF",
@@ -334,7 +344,7 @@ export class ChatbotEngine {
   }
 
   private async completeExecution() {
-    await prisma.chatbotExecution.update({
+    await chatbotDb.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "COMPLETED",
@@ -365,7 +375,11 @@ export async function matchFlowByMessage(
   companyId: string,
   message: string
 ): Promise<string | null> {
-  const flows = await prisma.chatbotFlow.findMany({
+  if (!chatbotDb.chatbotFlow) {
+    return null;
+  }
+
+  const flows = await chatbotDb.chatbotFlow.findMany({
     where: {
       companyId,
       status: "ACTIVE",

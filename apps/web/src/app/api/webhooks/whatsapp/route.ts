@@ -235,17 +235,20 @@ async function processIncomingMessages(value: any) {
       }
 
       // 2. Verificar execução em andamento
-      const activeExecution = await db.chatbotExecution.findFirst({
-        where: {
-          customerId: customer.id,
-          status: "WAITING_INPUT",
-        },
-        include: {
-          flow: {
-            include: { nodes: true },
-          },
-        },
-      });
+      const chatbotExecution = (db as any).chatbotExecution;
+      const activeExecution = chatbotExecution
+        ? await chatbotExecution.findFirst({
+            where: {
+              customerId: customer.id,
+              status: "WAITING_INPUT",
+            },
+            include: {
+              flow: {
+                include: { nodes: true },
+              },
+            },
+          })
+        : null;
 
       if (activeExecution) {
         // Continuar fluxo existente

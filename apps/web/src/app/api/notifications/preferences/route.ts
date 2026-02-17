@@ -8,15 +8,26 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notificationPreference = (prisma as any).notificationPreference;
+
+  if (!notificationPreference) {
+    return NextResponse.json({
+      preferences: {
+        userId: authResult.userId,
+        emailEnabled: true,
+        pushEnabled: true,
+      },
+    });
+  }
 
   try {
-    let preferences = await prisma.notificationPreference.findUnique({
+    let preferences = await notificationPreference.findUnique({
       where: { userId: authResult.userId },
     });
 
     // Criar preferências padrão se não existirem
     if (!preferences) {
-      preferences = await prisma.notificationPreference.create({
+      preferences = await notificationPreference.create({
         data: { userId: authResult.userId },
       });
     }
@@ -37,11 +48,19 @@ export async function PUT(req: NextRequest) {
   if (!authResult.ok) {
     return authResult.res;
   }
+  const notificationPreference = (prisma as any).notificationPreference;
+
+  if (!notificationPreference) {
+    return NextResponse.json(
+      { error: "Notification preferences are not available in current database schema" },
+      { status: 501 }
+    );
+  }
 
   const body = await req.json();
 
   try {
-    const preferences = await prisma.notificationPreference.upsert({
+    const preferences = await notificationPreference.upsert({
       where: { userId: authResult.userId },
       update: body,
       create: {
