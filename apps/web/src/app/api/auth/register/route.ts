@@ -13,6 +13,17 @@ const Body = z.object({
   name: z.string().min(2),
 });
 
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      Allow: "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   // Rate limiting by IP
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";

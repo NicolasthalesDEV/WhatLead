@@ -72,12 +72,18 @@ export default function RegisterContent() {
         }),
       });
 
-      const data = await res.json();
+      const raw = await res.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
 
       if (res.ok) {
         router.push("/login?registered=true");
       } else {
-        setMessage(data?.error?.message || "Erro ao criar conta");
+        setMessage(data?.error?.message || `Erro ao criar conta (HTTP ${res.status})`);
       }
     } catch (error) {
       setMessage("Erro de conexão. Tente novamente.");
