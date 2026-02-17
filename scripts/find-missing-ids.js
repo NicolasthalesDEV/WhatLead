@@ -31,14 +31,14 @@ function findCreatesWithoutId() {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Procurar por .create({ ou .create({
       if (line.includes('.create({')) {
         // Verificar se a próxima linha tem 'data:'
         if (lines[i + 1] && lines[i + 1].includes('data:')) {
           const dataLineIdx = i + 1;
           const dataStartIdx = i + 1;
-          
+
           // Buscar as próximas 5 linhas para ver se tem 'id:'
           let hasId = false;
           for (let j = dataStartIdx; j < Math.min(dataStartIdx + 10, lines.length); j++) {
