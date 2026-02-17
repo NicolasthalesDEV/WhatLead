@@ -16,9 +16,11 @@ import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { NotificationBell } from "@/components/notification-bell";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const router = useRouter();
+  const { user, loading, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -134,26 +136,15 @@ export function Header() {
     };
   }, []);
 
-  const handleLogout = () => {
-    // Limpar dados de autenticação (localStorage, cookies, etc.)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user-data');
-
-    // Redirecionar para página de login
-    router.push('/login');
-  };
-
   const navigateToSettings = () => {
     router.push('/dashboard/settings');
   };
 
   const navigateToProfile = () => {
-    // Assumindo que haverá uma página de perfil
     router.push('/dashboard/profile');
   };
 
   const openHelp = () => {
-    // Pode abrir um modal de ajuda ou navegar para uma página de help
     window.open('https://help.exemplo.com', '_blank');
   };
 
@@ -246,9 +237,11 @@ export function Header() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">João Silva</p>
+                    <p className="text-sm font-medium leading-none">
+                      {loading ? "Carregando..." : user?.name || "Usuário"}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      joao@empresa.com
+                      {loading ? "..." : user?.email || ""}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -266,7 +259,7 @@ export function Header() {
                   <span>Ajuda</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+                <DropdownMenuItem className="cursor-pointer text-red-600" onClick={logout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sair</span>
                 </DropdownMenuItem>

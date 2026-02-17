@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Users,
   CalendarCheck,
@@ -68,6 +69,7 @@ const periodOptions: PeriodOption[] = [
 ];
 
 export default function Dashboard() {
+  const { user, loading: userLoading } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>('30d');
   const [isLoading, setIsLoading] = useState(false);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -150,7 +152,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {userLoading ? "Dashboard" : `Bem-vindo, ${user?.name?.split(" ")[0] || "Usuário"}!`}
+          </h1>
           <p className="text-muted-foreground">
             Visão geral da gestão hoteleira
           </p>

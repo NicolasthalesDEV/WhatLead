@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Settings,
   User,
@@ -22,28 +23,51 @@ import {
   Plus,
   Trash2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
+  const { user, loading, updateUser, refresh } = useAuth();
 
   // Profile state
   const [profile, setProfile] = useState({
-    firstName: "João",
-    lastName: "Silva",
-    email: "joao@empresa.com",
-    phone: "(11) 99999-9999",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
   });
 
   // Company state
   const [company, setCompany] = useState({
-    name: "Empresa Exemplo LTDA",
-    cnpj: "12.345.678/0001-90",
-    ie: "123.456.789.012",
-    address: "Rua Exemplo, 123 - Centro - São Paulo/SP",
+    name: "",
+    cnpj: "",
+    ie: "",
+    address: "",
   });
+
+  // Carregar dados do usuário quando disponível
+  useEffect(() => {
+    if (user && !loading) {
+      const [firstName = "", lastName = ""] = (user.name || "").split(" ", 2);
+      setProfile({
+        firstName,
+        lastName,
+        email: user.email || "",
+        phone: "",
+      });
+
+      if (user.company) {
+        setCompany({
+          name: user.company.name || "",
+          cnpj: "",
+          ie: "",
+          address: "",
+        });
+      }
+    }
+  }, [user, loading]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -55,17 +79,43 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Simulating API call - replace with actual API endpoints
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Salvar perfil do usuário
+      const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+      const response = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: fullName,
+          email: profile.email,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao salvar configurações");
+      }
+
+      const data = await response.json();
       
-      // Here you would call your API endpoints to save the data
-      // await fetch('/api/user/profile', { method: 'PUT', body: JSON.stringify(profile) });
-      // await fetch('/api/user/company', { method: 'PUT', body: JSON.stringify(company) });
+      // Atualizar contexto de autenticação
+      updateUser({
+        name: data.user.name,
+        email: data.user.email,
+      });
+
+      // Salvar configurações da empresa (se houver endpoint)
+      // await fetch('/api/company/settings', {
+      //   method: 'PUT',
+      //   body: JSON.stringify(company)
+      // });
       
       showToast("Configurações salvas com sucesso!", "success");
-    } catch (error) {
+      
+      // Recarregar dados do usuário para garantir sincronização
+      await refresh();
+    } catch (error: any) {
       console.error("Failed to save settings:", error);
-      showToast("Erro ao salvar configurações", "error");
+      showToast(error.message || "Erro ao salvar configurações", "error");
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
   Hotel,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
 
 const sidebarNavItems = [
   {
@@ -73,16 +74,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, isOpen = true }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const handleLogout = () => {
-    // Limpar dados de autenticação (localStorage, cookies, etc.)
-    localStorage.removeItem('token');
-    localStorage.removeItem('user-data');
-
-    // Redirecionar para página de login
-    router.push('/login');
-  };
+  const { user, logout } = useAuth();
 
   return (
     <TooltipProvider>
@@ -149,7 +141,7 @@ export function Sidebar({ className, isOpen = true }: SidebarProps) {
         <div className={cn("absolute bottom-4 left-0 right-0 px-3", !isOpen && "px-2")}>
           {isOpen ? (
             <button
-              onClick={handleLogout}
+              onClick={logout}
               className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <LogOut className="mr-2 h-4 w-4" />
@@ -159,7 +151,7 @@ export function Sidebar({ className, isOpen = true }: SidebarProps) {
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="flex w-full items-center justify-center rounded-md p-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   <LogOut className="h-5 w-5" />

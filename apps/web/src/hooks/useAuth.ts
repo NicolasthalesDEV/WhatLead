@@ -1,0 +1,137 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string | null;
+  company: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  createdAt?: string;
+}
+
+interface AuthState {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+}
+
+export function useAuth() {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    loading: true,
+    error: null,
+  });
+  const router = useRouter();
+
+  const loadUser = async () => {
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      const response = await fetch("/api/user/profile", {
+        credentials: "include",
+      });
+
+      if (response.status === 401) {
+        // Não autenticado, redirecionar para login
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Falha ao carregar perfil do usuário");
+      }
+
+      const data = await response.json();
+      
+      setState({
+        user: data.user,
+        loading: false,
+        error: null,
+      });
+
+      // Armazenar no localStorage para acesso rápido
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user-data", JSON.stringify(data.user));
+      }
+    } catch (error: any) {
+      console.error("Error loading user:", error);
+      setState({
+        user: null,
+        loading: false,
+        error: error.message || "Erro ao carregar usuário",
+      });
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Limpar dados locais
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user-data");
+      }
+      
+      // Redirecionar para login
+      router.push("/login");
+    }
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    setState((prev) => ({
+      ...prev,
+      user: prev.user ? { ...prev.user, ...updates } : null,
+    }));
+
+    // Atualizar localStorage também
+    if (typeof window !== "undefined" && state.user) {
+      const updatedUser = { ...state.user, ...updates };
+      localStorage.setItem("user-data", JSON.stringify(updatedUser));
+    }
+  };
+
+  useEffect(() => {
+    // Tentar carregar do localStorage primeiro (mais rápido)
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("user-data");
+      if (cached) {
+        try {
+          const user = JSON.parse(cached);
+          setState({
+            user,
+            loading: false,
+            error: null,
+          });
+        } catch (e) {
+          console.error("Failed to parse cached user:", e);
+        }
+      }
+    }
+
+    // Sempre buscar dados atualizados do servidor
+    loadUser();
+  }, []);
+
+  return {
+    user: state.user,
+    loading: state.loading,
+    error: state.error,
+    logout,
+    updateUser,
+    refresh: loadUser,
+  };
+}
