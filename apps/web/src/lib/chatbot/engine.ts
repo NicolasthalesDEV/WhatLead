@@ -1,5 +1,6 @@
 import { prisma } from "@wacrm/db";
 import { sendWhatsText } from "@/lib/wa/client";
+import crypto from "crypto";
 
 const chatbotDb = prisma as any;
 
@@ -259,15 +260,15 @@ export class ChatbotEngine {
         break;
 
       case "create_quote":
-        // TODO: Create quote logic
+        await this.createQuote(data);
         break;
 
       case "create_order":
-        // TODO: Create order logic
+        await this.createOrder(data);
         break;
 
       case "update_customer":
-        // TODO: Update customer logic
+        await this.updateCustomer(data);
         break;
 
       default:
@@ -367,6 +368,110 @@ export class ChatbotEngine {
     }
 
     return processed;
+  }
+
+  private async createQuote(data: NodeData) {
+    try {
+      const customer = await prisma.customer.findUnique({
+        where: { id: this.customerId },
+      });
+
+      if (!customer) return;
+
+      // Create quote with items from variables
+      const items = this.context.variables.quoteItems || [];
+      const total = items.reduce((sum: number, item: any) => sum + (item.qty * item.priceCents || 0), 0);
+
+      const quote = await prisma.quote.create({
+        data: {
+          id: crypto.randomUUID(),
+          companyId: customer.companyId,
+          customerId: customer.id,
+          status: "DRAFT",
+          total,
+          QuoteItem: {
+            create: items.map((item: any) => ({
+              id: crypto.randomUUID(),
+              productId: item.productId,
+              qty: item.qty,
+              priceCents: item.priceCents,
+            })),
+          },
+        },
+      });
+
+      this.context.variables.quoteId = quote.id;
+      console.log(`Quote created: ${quote.id}`);
+    } catch (error) {
+      console.error("Failed to create quote:", error);
+      this.context.variables.quoteError = error;
+    }
+  }
+
+  private async createOrder(data: NodeData) {
+    try {
+      const customer = await prisma.customer.findUnique({
+        where: { id: this.customerId },
+      });
+
+      if (!customer) return;
+
+      // Create order with items from variables
+      const items = this.context.variables.orderItems || [];
+      const total = items.reduce((sum: number, item: any) => sum + (item.qty * item.priceCents || 0), 0);
+
+      const order = await prisma.order.create({
+        data: {
+          id: crypto.randomUUID(),
+          companyId: customer.companyId,
+          customerId: customer.id,
+          status: "PENDING",
+          total,
+          OrderItem: {
+            create: items.map((item: any) => ({
+              id: crypto.randomUUID(),
+              productId: item.productId,
+              qty: item.qty,
+              priceCents: item.priceCents,
+            })),
+          },
+        },
+      });
+
+      this.context.variables.orderId = order.id;
+      console.log(`Order created: ${order.id}`);
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      this.context.variables.orderError = error;
+    }
+  }
+
+  private async updateCustomer(data: NodeData) {
+    try {
+      const updates: any = {};
+
+      // Update customer fields from variables
+      if (this.context.variables.customerName) {
+        updates.name = this.context.variables.customerName;
+      }
+      if (this.context.variables.customerEmail) {
+        updates.email = this.context.variables.customerEmail;
+      }
+      if (this.context.variables.customerTags) {
+        updates.tags = this.context.variables.customerTags;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await prisma.customer.update({
+          where: { id: this.customerId },
+          data: updates,
+        });
+        console.log(`Customer updated: ${this.customerId}`);
+      }
+    } catch (error) {
+      console.error("Failed to update customer:", error);
+      this.context.variables.updateError = error;
+    }
   }
 }
 

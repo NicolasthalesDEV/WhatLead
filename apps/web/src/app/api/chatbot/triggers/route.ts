@@ -50,3 +50,61 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ trigger }, { status: 201 });
 }
+
+// PUT /api/chatbot/triggers - Update trigger
+export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.res;
+  const chatbotTrigger = (prisma as any).chatbotTrigger;
+
+  if (!chatbotTrigger) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE" } },
+      { status: 501 }
+    );
+  }
+
+  const { id, name, description, type, flowId, conditions, priority, enabled } = await req.json();
+
+  const trigger = await chatbotTrigger.update({
+    where: { id, companyId: auth.companyId },
+    data: {
+      name,
+      description,
+      type,
+      flowId,
+      conditions,
+      priority,
+      enabled,
+    },
+  });
+
+  return NextResponse.json({ trigger });
+}
+
+// DELETE /api/chatbot/triggers/{id}
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth.ok) return auth.res;
+  const chatbotTrigger = (prisma as any).chatbotTrigger;
+
+  if (!chatbotTrigger) {
+    return NextResponse.json(
+      { error: { code: "NOT_AVAILABLE" } },
+      { status: 501 }
+    );
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "ID required" }, { status: 400 });
+  }
+
+  await chatbotTrigger.delete({
+    where: { id, companyId: auth.companyId },
+  });
+
+  return NextResponse.json({ success: true });
+}

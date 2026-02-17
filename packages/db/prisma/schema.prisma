@@ -18,6 +18,7 @@ model Company {
   AuditLog               AuditLog[]
   ChatbotAnalytics       ChatbotAnalytics[]
   ChatbotFlow            ChatbotFlow[]
+  ChatbotTrigger         ChatbotTrigger[]
   Customer               Customer[]
   DailyMetric            DailyMetric[]
   FunnelCard             FunnelCard[]
@@ -356,6 +357,25 @@ model ChatbotExecution {
   @@index([flowId])
   @@index([customerId])
   @@index([status])
+}
+
+model ChatbotTrigger {
+  id          String   @id
+  companyId   String
+  flowId      String
+  name        String
+  type        String
+  conditions  Json?
+  enabled     Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([flowId])
+  @@index([type])
+  @@index([enabled])
 }
 
 model QuickResponse {
