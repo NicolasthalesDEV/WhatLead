@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { prisma as db } from "@/../../packages/db/src/client";
+import { prisma as db } from "@wacrm/db";
 
 // SSE endpoint para notificações em tempo real
 export async function GET(req: NextRequest) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/../../packages/db/src/client";
+import { prisma as db } from "@wacrm/db";
 import { ChatbotEngine } from "@/lib/chatbot/engine";
 import { TriggerManager } from "@/lib/chatbot/triggers";
 import { validateWebhook, markMessageAsRead, getMediaUrl } from "@/lib/wa/client";
