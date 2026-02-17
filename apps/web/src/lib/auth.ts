@@ -148,11 +148,21 @@ export async function requireAuth(req: NextRequest): Promise<
   | { ok: true; userId: string; companyId: string; role: string; sessionId?: string }
   | { ok: false; res: NextResponse }
 > {
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
+  // Tentar obter token de cookies primeiro
+  let token = req.cookies.get('accessToken')?.value;
+  
+  // Se não houver em cookies, tentar Authorization header
+  if (!token) {
+    const auth = req.headers.get("authorization");
+    if (auth?.startsWith("Bearer ")) {
+      token = auth.slice(7);
+    }
+  }
+  
+  if (!token) {
     return { ok: false, res: NextResponse.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 }) };
   }
-  const token = auth.slice(7);
+  
   try {
     const claims = await verifyJwt(token);
     
@@ -179,11 +189,21 @@ export async function requireAuth(req: NextRequest): Promise<
 
 // Simpler auth verification that returns claims or null
 export async function verifyAuth(req: NextRequest): Promise<Claims | null> {
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) {
+  // Tentar obter token de cookies primeiro
+  let token = req.cookies.get('accessToken')?.value;
+  
+  // Se não houver em cookies, tentar Authorization header
+  if (!token) {
+    const auth = req.headers.get("authorization");
+    if (auth?.startsWith("Bearer ")) {
+      token = auth.slice(7);
+    }
+  }
+  
+  if (!token) {
     return null;
   }
-  const token = auth.slice(7);
+  
   try {
     const claims = await verifyJwt(token);
     

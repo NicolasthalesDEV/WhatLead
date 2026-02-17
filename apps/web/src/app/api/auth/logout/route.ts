@@ -35,5 +35,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  
+  // Limpar cookies de autenticação
+  response.cookies.delete('accessToken');
+  response.cookies.delete('refreshToken');
+
+  return response;
 }

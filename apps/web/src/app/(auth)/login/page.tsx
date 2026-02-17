@@ -20,23 +20,16 @@ function LoginPageContent() {
   useEffect(() => {
     // Se já estiver autenticado, redirecionar para dashboard
     const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
       try {
-        const response = await fetch("/api/auth/refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const response = await fetch("/api/user/profile", {
           credentials: "include",
         });
 
         if (response.ok) {
           router.push("/dashboard");
-        } else {
-          localStorage.removeItem("token");
         }
       } catch (error) {
-        localStorage.removeItem("token");
+        // Ignorar erros
       }
     };
 
@@ -52,13 +45,17 @@ function LoginPageContent() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Importante para cookies
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
 
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        router.push("/dashboard");
+      if (res.ok && data.success) {
+        // Login bem-sucedido - cookies já foram configurados pelo servidor
+        // Redirecionar após pequeno delay para garantir que cookies foram salvos
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 100);
       } else {
         setMessage(data?.error?.message || "Erro no login");
       }

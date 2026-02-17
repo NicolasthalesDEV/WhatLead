@@ -168,11 +168,9 @@ export async function POST(req: NextRequest) {
     });
 
     const requestId = crypto.randomUUID();
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-        expiresIn: session.expiresIn,
+        success: true,
         user: {
           id: result.user.id,
           email: result.user.email,
@@ -194,6 +192,25 @@ export async function POST(req: NextRequest) {
         },
       }
     );
+
+    // Configurar cookies HttpOnly para segurança
+    response.cookies.set('accessToken', session.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 900, // 15 minutos
+      path: '/'
+    });
+
+    response.cookies.set('refreshToken', session.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 dias
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
     console.error("[register] error:", error);
     return errorResponse(error as Error, "api/auth/register");

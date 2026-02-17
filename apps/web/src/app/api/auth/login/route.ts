@@ -64,10 +64,8 @@ export async function POST(req: NextRequest) {
       req,
     });
 
-    return NextResponse.json({
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-      expiresIn: session.expiresIn,
+    const response = NextResponse.json({
+      success: true,
       user: {
         id: user.id,
         email: user.email,
@@ -77,6 +75,25 @@ export async function POST(req: NextRequest) {
         twoFactorEnabled: false,
       },
     });
+
+    // Configurar cookies HttpOnly para segurança
+    response.cookies.set('accessToken', session.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 900, // 15 minutos
+      path: '/'
+    });
+
+    response.cookies.set('refreshToken', session.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 dias
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
     console.error("[login] error:", error);
     return errorResponse(error as Error, "api/auth/login");

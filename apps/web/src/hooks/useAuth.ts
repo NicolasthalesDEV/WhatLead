@@ -40,8 +40,12 @@ export function useAuth() {
       });
 
       if (response.status === 401) {
-        // Não autenticado, redirecionar para login
-        router.push("/login");
+        // Não autenticado - apenas limpar estado, não redirecionar
+        setState({
+          user: null,
+          loading: false,
+          error: null,
+        });
         return;
       }
 
