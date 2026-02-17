@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
-import { prisma } from "@wacrm/db";
 import crypto from "crypto";
+
+async function getPrisma() {
+  const db = await import("@wacrm/db");
+  return db.prisma as any;
+}
 
 const alg = "HS256";
 const secret = new TextEncoder().encode(process.env.JWT_SECRET || "devsecret");
@@ -27,6 +31,7 @@ export async function verifyJwt(token: string) {
 }
 
 export async function createSession(userId: string, companyId: string, role: string, req: NextRequest) {
+  const prisma = await getPrisma();
   const sessionModel = (prisma as any).session;
 
   const accessToken = await signJwt({ uid: userId, companyId, role }, ACCESS_TOKEN_EXPIRY);
@@ -66,6 +71,7 @@ export async function createSession(userId: string, companyId: string, role: str
 }
 
 export async function refreshSession(refreshToken: string) {
+  const prisma = await getPrisma();
   const sessionModel = (prisma as any).session;
 
   if (!sessionModel?.findUnique) {
@@ -116,6 +122,7 @@ export async function refreshSession(refreshToken: string) {
 }
 
 export async function revokeSession(sessionId: string) {
+  const prisma = await getPrisma();
   const sessionModel = (prisma as any).session;
   if (!sessionModel?.update) return;
 
@@ -126,6 +133,7 @@ export async function revokeSession(sessionId: string) {
 }
 
 export async function revokeAllUserSessions(userId: string) {
+  const prisma = await getPrisma();
   const sessionModel = (prisma as any).session;
   if (!sessionModel?.updateMany) return;
 
@@ -149,6 +157,7 @@ export async function requireAuth(req: NextRequest): Promise<
     
     // Verify session is still valid if sessionId is present
     if (claims.sessionId) {
+      const prisma = await getPrisma();
       const sessionModel = (prisma as any).session;
       if (sessionModel?.findUnique) {
         const session = await sessionModel.findUnique({
@@ -179,6 +188,7 @@ export async function verifyAuth(req: NextRequest): Promise<Claims | null> {
     
     // Verify session is still valid if sessionId is present
     if (claims.sessionId) {
+      const prisma = await getPrisma();
       const sessionModel = (prisma as any).session;
       if (sessionModel?.findUnique) {
         const session = await sessionModel.findUnique({
@@ -234,6 +244,7 @@ export async function createAuditLog(params: {
   const ipAddress = params.req?.headers.get("x-forwarded-for") || params.req?.headers.get("x-real-ip") || undefined;
   const userAgent = params.req?.headers.get("user-agent") || undefined;
 
+  const prisma = await getPrisma();
   const auditLogModel = (prisma as any).auditLog;
   if (!auditLogModel?.create) {
     return;

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@wacrm/db';
 
 /**
  * Health Check Endpoint
@@ -26,12 +25,14 @@ export async function GET(request: NextRequest) {
 
   // Check database connectivity
   try {
+    const { prisma } = await import('@wacrm/db');
     await prisma.$queryRaw`SELECT 1`;
     checks.database.status = 'healthy';
-    checks.database.latency = Date.now() - Date.now(); // Simplified
+    checks.database.latency = 0;
   } catch (error) {
     checks.database.status = 'unhealthy';
     checks.database.error = error instanceof Error ? error.message : 'Unknown error';
+    checks.database.code = 'DB_UNAVAILABLE';
     overallStatus = 'unhealthy';
   }
 

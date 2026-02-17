@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@wacrm/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -83,6 +82,8 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
+    const { prisma } = await import("@wacrm/db");
+
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
     if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
       return jsonError(req, 429, "RATE_LIMIT", "Too many registration attempts. Try again later.");
