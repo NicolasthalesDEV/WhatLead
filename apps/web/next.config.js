@@ -17,13 +17,13 @@ const nextConfig = {
     if (isServer) {
       config.externals.push('@prisma/client');
     }
-    
+
     // Ensure @ alias works correctly
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
     };
-    
+
     return config;
   },
 
