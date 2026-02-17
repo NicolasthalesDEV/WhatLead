@@ -17,7 +17,7 @@ const UpdateProductBody = z.object({
 // GET /api/products/[id] - Obter detalhes do produto
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -52,7 +52,7 @@ export async function GET(
 // PATCH /api/products/[id] - Atualizar produto
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -124,7 +124,7 @@ export async function PATCH(
 // DELETE /api/products/[id] - Deletar produto
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {

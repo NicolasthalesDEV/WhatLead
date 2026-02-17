@@ -17,7 +17,7 @@ const UpdateCustomerBody = z.object({
 // GET /api/customers/[id] - Get customer details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   try {
     const customer = await prisma.customer.findFirst({
@@ -121,7 +121,7 @@ export async function GET(
 // PATCH /api/customers/[id] - Update customer
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   try {
     const body = await request.json();
@@ -186,7 +186,7 @@ export async function PATCH(
 // DELETE /api/customers/[id] - Delete customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   try {
     // Check if customer exists and has no orders/quotes

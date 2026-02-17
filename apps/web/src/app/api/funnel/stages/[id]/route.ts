@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/funnel/stages/[id] - Obter detalhes de um estágio
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -36,7 +36,7 @@ export async function GET(
 // PATCH /api/funnel/stages/[id] - Atualizar estágio
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -121,7 +121,7 @@ export async function PATCH(
 // DELETE /api/funnel/stages/[id] - Deletar estágio
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {

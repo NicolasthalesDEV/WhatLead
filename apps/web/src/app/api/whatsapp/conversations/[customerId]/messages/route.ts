@@ -46,7 +46,7 @@ const sendMessageSchema = z.discriminatedUnion('type', [
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { customerId: string } }
+  { params }: { params: Promise<{ customerId: string> } }
 ) {
   try {
     const user = await verifyAuth(req);

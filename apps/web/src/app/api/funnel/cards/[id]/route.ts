@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/funnel/cards/[id] - Obter detalhes de um card
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -40,7 +40,7 @@ export async function GET(
 // PATCH /api/funnel/cards/[id] - Atualizar card
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -190,7 +190,7 @@ export async function PATCH(
 // DELETE /api/funnel/cards/[id] - Deletar card
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {

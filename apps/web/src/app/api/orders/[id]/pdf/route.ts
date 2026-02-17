@@ -5,7 +5,7 @@ import { generatePdf, generateOrderHtml } from '@/lib/pdf';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   try {
     const claims = await verifyAuth(req);

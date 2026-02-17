@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 // GET /api/notifications/[id] - Buscar notificação específica
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -42,7 +42,7 @@ export async function GET(
 // PATCH /api/notifications/[id] - Marcar como lida
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {
@@ -89,7 +89,7 @@ export async function PATCH(
 // DELETE /api/notifications/[id] - Deletar notificação
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const authResult = await requireAuth(req);
   if (!authResult.ok) {

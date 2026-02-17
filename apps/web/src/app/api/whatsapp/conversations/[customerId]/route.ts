@@ -24,7 +24,7 @@ const querySchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { customerId: string } }
+  { params }: { params: Promise<{ customerId: string> } }
 ) {
   try {
     const user = await verifyAuth(req);

@@ -5,7 +5,7 @@ import { prisma } from "@wacrm/db";
 // GET /api/chatbot/flows/:id
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
@@ -35,7 +35,7 @@ export async function GET(
 // PUT /api/chatbot/flows/:id
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
@@ -69,7 +69,7 @@ export async function PUT(
 // DELETE /api/chatbot/flows/:id
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string> } }
 ) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
