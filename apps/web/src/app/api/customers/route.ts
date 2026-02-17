@@ -3,6 +3,14 @@ import { z } from "zod";
 import { prisma } from "@wacrm/db";
 import { requireAuth } from "@/lib/auth";
 import crypto from "crypto";
+import {
+  errorResponse,
+  UnauthorizedError,
+  ValidationError,
+  DuplicatePhoneError,
+  InvalidPhoneError,
+  MissingFieldError
+} from "@/lib/errors";
 
 // Validation schemas
 const CreateCustomerBody = z.object({
@@ -14,12 +22,11 @@ const CreateCustomerBody = z.object({
 
 // GET /api/customers - List customers with filters
 export async function GET(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  if (!authResult.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    const authResult = await requireAuth(request);
+    if (!authResult.ok) {
+      throw new UnauthorizedError();
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const tag = searchParams.get("tag");
@@ -82,23 +89,35 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error fetching customers:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar clientes" },
-      { status: 500 }
-    );
+    return errorResponse(error as Error, "api/customers");
   }
 }
 
 // POST /api/customers - Create customer
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
-  if (!authResult.ok) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    const authResult = await requireAuth(request);
+    if (!authResult.ok) {
+      throw new UnauthorizedError();
+    }
+
     const body = await request.json();
-    const data = CreateCustomerBody.parse(body);
+    const parseResult = CreateCustomerBody.safeParse(body);
+    
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0];
+      throw new ValidationError(
+        firstError.message || "Dados inválidos",
+        parseResult.error.issues
+      );
+    }
+    
+    const data = parseResult.data;
+
+    // Validate phone format
+    if (!data.phoneE164.startsWith("+")) {
+      throw new InvalidPhoneError();
+    }
 
     // Check if phone already exists
     const existing = await prisma.customer.findUnique({
@@ -106,10 +125,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: "Cliente com este telefone já existe" },
-        { status: 400 }
-      );
+      throw new DuplicatePhoneError();
     }
 
     const customer = await prisma.customer.create({
@@ -146,17 +162,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Dados inválidos", details: error.errors },
-        { status: 400 }
-      );
-    }
-
     console.error("Error creating customer:", error);
-    return NextResponse.json(
-      { error: "Erro ao criar cliente" },
-      { status: 500 }
-    );
+    return errorResponse(error as Error, "api/customers");
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { requireAuth } from "@/lib/auth";
+import crypto from "crypto";
 
 // GET /api/notifications/preferences - Obter preferências
 export async function GET(req: NextRequest) {
@@ -28,7 +29,10 @@ export async function GET(req: NextRequest) {
     // Criar preferências padrão se não existirem
     if (!preferences) {
       preferences = await notificationPreference.create({
-        data: { userId: authResult.userId },
+        data: { 
+          id: crypto.randomUUID(),
+          userId: authResult.userId 
+        },
       });
     }
 

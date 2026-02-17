@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { z } from "zod";
 import { requireAuth } from "@/lib/auth";
+import crypto from "crypto";
 
 const Body = z.object({
   customerId: z.string(),
@@ -22,11 +23,12 @@ export async function POST(req: NextRequest) {
   const total = body.data.items.reduce((sum, i) => sum + i.priceCents * i.qty, 0);
   const q = await prisma.quote.create({
     data: {
+      id: crypto.randomUUID(),
       companyId: auth.companyId!,
       customerId: body.data.customerId,
       status: "DRAFT",
       total,
-      items: { create: body.data.items.map(i => ({ productId: i.productId, qty: i.qty, priceCents: i.priceCents })) }
+      items: { create: body.data.items.map(i => ({ id: crypto.randomUUID(), productId: i.productId, qty: i.qty, priceCents: i.priceCents })) }
     }
   });
   return NextResponse.json({ quote: q });

@@ -43,12 +43,13 @@ export async function POST(req: NextRequest) {
 
   const flow = await chatbotFlow.create({
     data: {
+      id: crypto.randomUUID(),
       companyId: auth.companyId,
       name,
       description,
-      triggers: triggers || [],
-      priority: priority || 0,
-      status: "DRAFT",
+      triggerType: "KEYWORD",
+      triggerKeywords: triggers || [],
+      active: false,
     },
   });
 

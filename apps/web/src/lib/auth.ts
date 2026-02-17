@@ -53,6 +53,7 @@ export async function createSession(userId: string, companyId: string, role: str
 
   const session = await sessionModel.create({
     data: {
+      id: crypto.randomUUID(),
       userId,
       refreshToken,
       accessToken,

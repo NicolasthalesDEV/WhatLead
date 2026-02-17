@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
 
   const card = await funnelCard.create({
     data: {
+      id: crypto.randomUUID(),
       companyId: authResult.companyId,
       stageId,
       customerId: customerId || null,
@@ -120,8 +121,6 @@ export async function POST(req: NextRequest) {
       description,
       value: value ? parseFloat(value) : null,
       probability: probability || 50,
-      email,
-      phone,
       tags: tags || [],
       assignedToId: assignedToId || null,
       position: nextPosition,

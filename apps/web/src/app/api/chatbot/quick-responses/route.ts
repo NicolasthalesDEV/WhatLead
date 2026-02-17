@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
 
   const response = await quickResponse.create({
     data: {
+      id: crypto.randomUUID(),
       companyId: auth.companyId,
       shortcut,
       message,
-      active: true,
     },
   });
 

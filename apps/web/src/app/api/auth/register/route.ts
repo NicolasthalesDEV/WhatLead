@@ -3,6 +3,16 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { createSession, createAuditLog, checkRateLimit } from "@/lib/auth";
+import {
+  errorResponse,
+  RateLimitError,
+  ValidationError,
+  DuplicateEmailError,
+  DuplicateSlugError,
+  WeakPasswordError,
+  InvalidEmailError,
+  MissingFieldError
+} from "@/lib/errors";
 
 const Body = z.object({
   email: z.string().email(),
@@ -86,30 +96,37 @@ export async function POST(req: NextRequest) {
 
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
     if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
-      return jsonError(req, 429, "RATE_LIMIT", "Too many registration attempts. Try again later.");
+      throw new RateLimitError(3600);
     }
 
     let json: unknown;
     try {
       json = await req.json();
     } catch {
-      return jsonError(req, 400, "BAD_JSON", "Invalid JSON body");
+      throw new ValidationError("Dados inválidos. Verifique o formato da requisição");
     }
 
     const body = Body.safeParse(json);
 
     if (!body.success) {
-      return jsonError(req, 400, "BAD_REQUEST", "Invalid input", {}, body.error.issues);
+      const firstError = body.error.issues[0];
+      const fieldName = firstError.path.join(".");
+      throw new ValidationError(`Campo inválido: ${fieldName}`, body.error.issues);
+    }
+
+    // Validações adicionais
+    if (body.data.password.length < 8) {
+      throw new WeakPasswordError();
     }
 
     const existingEmail = await prisma.user.findUnique({ where: { email: body.data.email } });
     if (existingEmail) {
-      return jsonError(req, 409, "CONFLICT", "Email already in use");
+      throw new DuplicateEmailError();
     }
 
     const exists = await prisma.company.findUnique({ where: { slug: body.data.slug } });
     if (exists) {
-      return jsonError(req, 409, "CONFLICT", "Company slug already in use");
+      throw new DuplicateSlugError();
     }
 
     const result = await prisma.$transaction(async (tx: any) => {
@@ -178,8 +195,8 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("[register] unexpected error", error);
-    return jsonError(req, 500, "INTERNAL_ERROR", "Unexpected server error while creating account");
+    console.error("[register] error:", error);
+    return errorResponse(error as Error, "api/auth/register");
   }
 }
 

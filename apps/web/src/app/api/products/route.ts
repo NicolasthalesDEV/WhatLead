@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
     .replace(/^-+|-+$/g, "");
 
   const productData: any = {
+    id: crypto.randomUUID(),
     companyId: user.companyId,
     title: body.data.title,
     slug,
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
   if (body.data.priceAmount !== undefined) {
     productData.prices = {
       create: {
+        id: crypto.randomUUID(),
         amount: body.data.priceAmount,
       },
     };

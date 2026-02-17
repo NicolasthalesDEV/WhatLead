@@ -33,13 +33,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { name, description, type, flowId, conditions, priority } = await req.json();
+  const { name, type, flowId, conditions, priority } = await req.json();
 
   const trigger = await chatbotTrigger.create({
     data: {
+      id: crypto.randomUUID(),
       companyId: auth.companyId,
       name,
-      description,
       type,
       flowId,
       conditions: conditions || {},
