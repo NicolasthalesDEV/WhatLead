@@ -1,311 +1,312 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import {
-  ArrowLeft,
-  Save,
-  Eye,
-  MessageSquare
-} from "lucide-react";
+import { ArrowLeft, Save, Plus, X } from "lucide-react";
+import Link from "next/link";
 
-export default function EditCustomerPage() {
-  const params = useParams();
+interface Customer {
+  id: string;
+  name: string;
+  phoneE164: string;
+  email?: string;
+  tags: string[];
+  notes?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+}
+
+export default function EditCustomerPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const customerId = params.id as string;
-
-  // Estados do formulário
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  
   const [formData, setFormData] = useState({
-    name: "João Silva",
-    email: "joao.silva@email.com",
-    phone: "(11) 99999-9999",
-    status: "online",
-    address: {
-      street: "Rua das Flores, 123",
-      neighborhood: "Centro",
-      city: "São Paulo",
-      state: "SP",
-      zipCode: "01234-567"
-    },
-    segment: "VIP"
+    name: "",
+    email: "",
+    tags: [] as string[],
+    notes: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
   });
 
-  const [loading, setLoading] = useState(false);
+  const [newTag, setNewTag] = useState("");
 
-  const handleInputChange = (field: string, value: string) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      if (parent === 'address') {
-        setFormData(prev => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            [child]: value
-          }
-        }));
+  useEffect(() => {
+    loadCustomer();
+  }, [params.id]);
+
+  const loadCustomer = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/customers/${params.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const cust = data.customer;
+        setCustomer(cust);
+        setFormData({
+          name: cust.name,
+          email: cust.email || "",
+          tags: cust.tags || [],
+          notes: cust.notes || "",
+          address: cust.address || "",
+          city: cust.city || "",
+          state: cust.state || "",
+          zipCode: cust.zipCode || "",
+        });
+      } else {
+        alert("Cliente não encontrado");
+        router.push("/dashboard/customers");
       }
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value
-      }));
+    } catch (error) {
+      console.error("Erro ao carregar cliente:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
 
-    // Simular salvamento
-    setTimeout(() => {
-      setLoading(false);
-      router.push(`/dashboard/customers/${customerId}`);
-    }, 1000);
+    try {
+      const body: any = {
+        name: formData.name,
+        email: formData.email,
+        tags: formData.tags,
+        notes: formData.notes,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+      };
+
+      const res = await fetch(`/api/customers/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        router.push(`/dashboard/customers/${params.id}`);
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao atualizar cliente");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar cliente:", error);
+      alert("Erro ao atualizar cliente");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleBack = () => {
-    router.push(`/dashboard/customers/${customerId}`);
+  const addTag = () => {
+    if (newTag && !formData.tags.includes(newTag)) {
+      setFormData({ ...formData, tags: [...formData.tags, newTag] });
+      setNewTag("");
+    }
   };
 
-  const handleViewDetails = () => {
-    router.push(`/dashboard/customers/${customerId}`);
+  const removeTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((tag) => tag !== tagToRemove),
+    });
   };
 
-  const handleOpenChat = () => {
-    router.push(`/dashboard/whatsapp?contact=${encodeURIComponent(formData.name)}`);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando cliente...</p>
+      </div>
+    );
+  }
+
+  if (!customer) {
+    return null;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href={`/dashboard/customers/${params.id}`}>
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Editar Hóspede</h1>
-            <p className="text-muted-foreground">Atualize as informações do hóspede</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handleViewDetails}>
-            <Eye className="h-4 w-4 mr-2" />
-            Ver Detalhes
-          </Button>
-          <Button variant="outline" onClick={handleOpenChat}>
-            <MessageSquare className="h-4 w-4 mr-2" />
-            WhatsApp
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Salvando..." : "Salvar"}
-          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Cliente</h1>
+          <p className="text-muted-foreground">Atualize os dados do cliente</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Formulário Principal */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Básicas</CardTitle>
-              <CardDescription>Dados pessoais e de contato do cliente</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Avatar e Status */}
-              <div className="flex items-center space-x-6">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                  <span className="text-primary font-semibold text-2xl">
-                    {formData.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <Badge variant={formData.status === 'online' ? 'default' : 'secondary'}>
-                    {formData.status === 'online' ? 'Online' : 'Offline'}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">
-                    Cliente desde março de 2024
-                  </p>
-                </div>
+      <form onSubmit={handleSubmit}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações do Cliente</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                Nome <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+                placeholder="Nome completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={customer.phoneE164}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">
+                O telefone não pode ser alterado
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                placeholder="Rua, número, complemento"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
+                  placeholder="Cidade"
+                />
               </div>
 
-              {/* Campos do formulário */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Nome do cliente"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="segment">Segmento</Label>
-                  <select
-                    id="segment"
-                    value={formData.segment}
-                    onChange={(e) => handleInputChange('segment', e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="Regular">Regular</option>
-                    <option value="VIP">VIP</option>
-                    <option value="Premium">Premium</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Endereço */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Endereço</CardTitle>
-              <CardDescription>Informações de localização do cliente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="street">Endereço</Label>
-                  <Input
-                    id="street"
-                    value={formData.address.street}
-                    onChange={(e) => handleInputChange('address.street', e.target.value)}
-                    placeholder="Rua, número"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="neighborhood">Bairro</Label>
-                  <Input
-                    id="neighborhood"
-                    value={formData.address.neighborhood}
-                    onChange={(e) => handleInputChange('address.neighborhood', e.target.value)}
-                    placeholder="Bairro"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zipCode">CEP</Label>
-                  <Input
-                    id="zipCode"
-                    value={formData.address.zipCode}
-                    onChange={(e) => handleInputChange('address.zipCode', e.target.value)}
-                    placeholder="00000-000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={formData.address.city}
-                    onChange={(e) => handleInputChange('address.city', e.target.value)}
-                    placeholder="Cidade"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    value={formData.address.state}
-                    onChange={(e) => handleInputChange('address.state', e.target.value)}
-                    placeholder="UF"
-                    maxLength={2}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar com Ações */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Status do Cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Status de Presença</Label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                >
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
-                </select>
+                <Label htmlFor="state">Estado</Label>
+                <Input
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) =>
+                    setFormData({ ...formData, state: e.target.value })
+                  }
+                  placeholder="UF"
+                  maxLength={2}
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Ações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full" onClick={handleOpenChat}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Abrir WhatsApp
-              </Button>
-              <Button variant="outline" className="w-full" onClick={handleViewDetails}>
-                <Eye className="h-4 w-4 mr-2" />
-                Ver Detalhes
-              </Button>
-              <Button
-                className="w-full"
-                onClick={handleSave}
-                disabled={loading}
-              >
+            <div className="space-y-2">
+              <Label htmlFor="zipCode">CEP</Label>
+              <Input
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={(e) =>
+                  setFormData({ ...formData, zipCode: e.target.value })
+                }
+                placeholder="00000-000"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                  placeholder="Adicionar tag"
+                />
+                <Button type="button" onClick={addTag} variant="outline">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas e Observações</Label>
+              <textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Observações internas sobre o cliente"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                {loading ? "Salvando..." : "Salvar Alterações"}
+                {saving ? "Salvando..." : "Salvar Alterações"}
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <strong>Criado em:</strong> 15/03/2024
-              </div>
-              <div>
-                <strong>Última edição:</strong> Hoje às 14:30
-              </div>
-              <div>
-                <strong>Total de pedidos:</strong> 12
-              </div>
-              <div>
-                <strong>Valor total gasto:</strong> R$ 2.450,00
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <Link href={`/dashboard/customers/${params.id}`}>
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
     </div>
   );
 }

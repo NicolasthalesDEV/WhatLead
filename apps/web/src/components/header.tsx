@@ -15,68 +15,19 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { NotificationBell } from "@/components/notification-bell";
 
 export function Header() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Dados simulados para busca - Hotelaria
-  const mockData = {
-    customers: [
-      { id: 1, name: "João Silva", phone: "(11) 99999-9999", type: "customer" },
-      { id: 2, name: "Maria Santos", phone: "(11) 88888-8888", type: "customer" },
-      { id: 3, name: "Pedro Costa", phone: "(11) 77777-7777", type: "customer" },
-      { id: 4, name: "Ana Oliveira", phone: "(11) 66666-6666", type: "customer" },
-    ],
-    products: [
-      { id: 1, name: "Suíte Master", sku: "SUITE01", price: "R$ 450,00/noite", type: "product" },
-      { id: 2, name: "Quarto Duplo", sku: "DUPLO01", price: "R$ 280,00/noite", type: "product" },
-      { id: 3, name: "Quarto Solteiro", sku: "SOLT01", price: "R$ 180,00/noite", type: "product" },
-      { id: 4, name: "Suíte Presidencial", sku: "PRES01", price: "R$ 850,00/noite", type: "product" },
-    ],
-    orders: [
-      { id: 1, number: "#R1234", customer: "João Silva", total: "R$ 1.350,00", status: "Confirmada", type: "order" },
-      { id: 2, number: "#R1235", customer: "Maria Santos", total: "R$ 560,00", status: "Pendente", type: "order" },
-      { id: 3, number: "#R1236", customer: "Pedro Costa", total: "R$ 2.550,00", status: "Check-in", type: "order" },
-    ],
-    messages: [
-      { id: 1, contact: "João Silva", preview: "Qual horário do café da manhã?", time: "10 min", type: "message" },
-      { id: 2, contact: "Maria Santos", preview: "Obrigada pelo atendimento!", time: "1h", type: "message" },
-      { id: 3, contact: "Pedro Costa", preview: "Posso fazer early check-in?", time: "2h", type: "message" },
-    ]
-  };
-
-  const [notifications, setNotifications] = useState([
-    {
-      id: "novo-pedido-1234",
-      title: "Novo pedido recebido",
-      description: "Pedido #1234 de João Silva",
-      time: "2 min",
-      read: false
-    },
-    {
-      id: "estoque-baixo-led20w",
-      title: "Produto com estoque baixo",
-      description: "Painel LED 20W - 5 unidades restantes",
-      time: "1h",
-      read: false
-    },
-    {
-      id: "whatsapp-maria-santos",
-      title: "Mensagem no WhatsApp",
-      description: "Nova mensagem de Maria Santos",
-      time: "3h",
-      read: true
-    }
-  ]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  // Função de busca global
-  const handleSearch = (query: string) => {
+  // Função de busca global (agora chamando API real)
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
 
     if (query.length < 2) {
@@ -85,72 +36,39 @@ export function Header() {
       return;
     }
 
-    const results: any[] = [];
-    const queryLower = query.toLowerCase().trim();
-
-    // Buscar clientes - busca mais precisa
-    const customerResults = mockData.customers
-      .filter(customer => {
-        // Busca no nome
-        const nameMatch = customer.name.toLowerCase().includes(queryLower);
-
-        // Busca no telefone apenas se a query for claramente numérica
-        // (contém pelo menos 2 dígitos e apenas números, espaços, parênteses, traços)
-        const hasEnoughDigits = (query.match(/\d/g) || []).length >= 2;
-        const isPhoneQuery = hasEnoughDigits && /^[\d\s\(\)\-\+]+$/.test(query.trim());
-
-        const phoneMatch = isPhoneQuery && (
-          customer.phone.includes(query) ||
-          customer.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
-        );
-
-        return nameMatch || phoneMatch;
-      })
-      .slice(0, 3);
-
-    // Buscar produtos - busca mais precisa
-    const productResults = mockData.products
-      .filter(product => {
-        const nameMatch = product.name.toLowerCase().includes(queryLower);
-        const skuMatch = product.sku.toLowerCase().includes(queryLower);
-        return nameMatch || skuMatch;
-      })
-      .slice(0, 3);
-
-    // Buscar pedidos - busca mais precisa
-    const orderResults = mockData.orders
-      .filter(order => {
-        const numberMatch = order.number.toLowerCase().includes(queryLower);
-        const customerMatch = order.customer.toLowerCase().includes(queryLower);
-        return numberMatch || customerMatch;
-      })
-      .slice(0, 3);
-
-    // Buscar mensagens - busca mais precisa
-    const messageResults = mockData.messages
-      .filter(message => {
-        const contactMatch = message.contact.toLowerCase().includes(queryLower);
-        const previewMatch = message.preview.toLowerCase().includes(queryLower);
-        return contactMatch || previewMatch;
-      })
-      .slice(0, 3);
-
-    // Combinar resultados com categorias apenas se houver resultados
-    if (customerResults.length > 0) {
-      results.push({ category: 'Clientes', items: customerResults });
-    }
-    if (productResults.length > 0) {
-      results.push({ category: 'Produtos', items: productResults });
-    }
-    if (orderResults.length > 0) {
-      results.push({ category: 'Pedidos', items: orderResults });
-    }
-    if (messageResults.length > 0) {
-      results.push({ category: 'Mensagens', items: messageResults });
+    // Cancelar requisição anterior se existir
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
 
-    setSearchResults(results);
-    setShowResults(results.length > 0);
+    // Criar novo AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setIsSearching(true);
+
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=5`, {
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro na busca');
+      }
+
+      const data = await response.json();
+      setSearchResults(data.results || []);
+      setShowResults(data.results.length > 0);
+    } catch (error: any) {
+      // Ignorar erros de abort (quando usuário digita rápido)
+      if (error.name !== 'AbortError') {
+        console.error('Erro ao buscar:', error);
+        setSearchResults([]);
+        setShowResults(false);
+      }
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   // Função para navegar para resultado
@@ -166,12 +84,23 @@ export function Header() {
         router.push(`/dashboard/orders/${item.id}`);
         break;
       case 'message':
-        router.push(`/dashboard/whatsapp?contact=${item.contact}`);
+        router.push(`/dashboard/whatsapp?customer=${item.id}`);
         break;
     }
     setShowResults(false);
     setSearchQuery("");
   };
+
+  // Debounce para busca (esperar 300ms após usuário parar de digitar)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        handleSearch(searchQuery);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Fechar resultados ao clicar fora
   useEffect(() => {
@@ -205,13 +134,9 @@ export function Header() {
     };
   }, []);
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
   const handleLogout = () => {
     // Limpar dados de autenticação (localStorage, cookies, etc.)
-    localStorage.removeItem('auth-token');
+    localStorage.removeItem('token');
     localStorage.removeItem('user-data');
 
     // Redirecionar para página de login
@@ -240,12 +165,17 @@ export function Header() {
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Buscar hóspedes, quartos, reservas... (Ctrl+K)"
+              placeholder="Buscar clientes, produtos, pedidos... (Ctrl+K)"
               className="w-[320px] pl-9 h-9"
               value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
             />
+            {isSearching && (
+              <div className="absolute right-3 top-2.5">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              </div>
+            )}
 
             {/* Dropdown de Resultados */}
             {showResults && (
@@ -274,16 +204,10 @@ export function Header() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900 truncate">
-                              {item.type === 'customer' && item.name}
-                              {item.type === 'product' && item.name}
-                              {item.type === 'order' && `Reserva ${item.number}`}
-                              {item.type === 'message' && item.contact}
+                              {item.title}
                             </div>
                             <div className="text-xs text-gray-500 truncate">
-                              {item.type === 'customer' && item.phone}
-                              {item.type === 'product' && `${item.sku} • ${item.price}`}
-                              {item.type === 'order' && `${item.customer} • ${item.total}`}
-                              {item.type === 'message' && item.preview}
+                              {item.subtitle}
                             </div>
                           </div>
                         </div>
@@ -308,62 +232,8 @@ export function Header() {
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <nav className="flex items-center space-x-2">
-            {/* Dropdown de Notificações */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-4 w-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-black text-white text-xs flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                  <span className="sr-only">Notificações</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel className="flex items-center justify-between">
-                  Notificações
-                  {unreadCount > 0 && (
-                    <Badge variant="secondary">{unreadCount} novas</Badge>
-                  )}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <Link key={notification.id} href={`/dashboard/notifications/${notification.id}`}>
-                      <DropdownMenuItem className="flex flex-col items-start p-3 cursor-pointer">
-                        <div className="flex items-start justify-between w-full">
-                          <div className="flex-1">
-                            <div className={`font-medium text-sm ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {notification.title}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {notification.description}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2 ml-2">
-                            <span className="text-xs text-muted-foreground">{notification.time}</span>
-                            {!notification.read && (
-                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                            )}
-                          </div>
-                        </div>
-                      </DropdownMenuItem>
-                    </Link>
-                  ))}
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-center cursor-pointer" onClick={markAllAsRead}>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Marcar todas como lidas
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-center cursor-pointer" onClick={() => router.push('/dashboard/notifications')}>
-                  <Bell className="h-4 w-4 mr-2" />
-                  Ver todas as notificações
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Notificações em tempo real */}
+            <NotificationBell />
 
             {/* Dropdown do Usuário */}
             <DropdownMenu>

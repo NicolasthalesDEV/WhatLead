@@ -3,370 +3,509 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bot,
-  Settings,
-  MessageSquare,
-  Zap,
-  Clock,
-  Save,
+  Plus,
   Play,
   Pause,
-  Plus,
-  Trash2,
   Edit,
-  ChevronRight
+  Trash2,
+  BarChart3,
+  MessageSquare,
+  Zap,
+  Settings,
+  ChevronRight,
+  Save,
+  ArrowLeft,
 } from "lucide-react";
 
+type Flow = {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+  triggers: string[];
+  priority: number;
+  _count?: { executions: number };
+  nodes?: any[];
+};
+
+type Node = {
+  id: string;
+  type: string;
+  data: any;
+  position: { x: number; y: number };
+  connections: any[];
+  order: number;
+};
+
 export default function ChatbotPage() {
-  const [botEnabled, setBotEnabled] = useState(true);
+  const [view, setView] = useState<"list" | "editor" | "analytics">("list");
+  const [flows, setFlows] = useState<Flow[]>([]);
+  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [loading, setLoading] = useState(false);
+  const [nodes, setNodes] = useState<Node[]>([]);
 
-  // Configurações do bot
-  const [config, setConfig] = useState({
-    welcomeMessage: "Olá! 👋 Bem-vindo ao nosso hotel. Como posso ajudá-lo hoje?",
-    businessHours: {
-      start: "08:00",
-      end: "22:00"
-    },
-    responseDelay: "2",
-    language: "pt-BR"
-  });
+  useEffect(() => {
+    loadFlows();
+  }, []);
 
-  // Fluxos de conversa
-  const [flows, setFlows] = useState([
-    {
-      id: 1,
-      name: "Fazer Reserva",
-      trigger: "reserva, quarto, disponibilidade",
-      status: "active",
-      responses: 45
-    },
-    {
-      id: 2,
-      name: "Informações do Hotel",
-      trigger: "informações, horário, endereço, localização",
-      status: "active",
-      responses: 128
-    },
-    {
-      id: 3,
-      name: "Check-in/Check-out",
-      trigger: "check-in, check-out, entrada, saída",
-      status: "active",
-      responses: 67
-    },
-    {
-      id: 4,
-      name: "Serviços Extras",
-      trigger: "café, restaurante, spa, piscina, academia",
-      status: "active",
-      responses: 34
-    },
-    {
-      id: 5,
-      name: "Cancelamento",
-      trigger: "cancelar, cancelamento, devolver",
-      status: "paused",
-      responses: 12
+  const loadFlows = async () => {
+    try {
+      const res = await fetch("/api/chatbot/flows");
+      const data = await res.json();
+      setFlows(data.flows || []);
+    } catch (error) {
+      console.error("Failed to load flows:", error);
     }
-  ]);
+  };
 
-  // Respostas rápidas
-  const quickResponses = [
-    { id: 1, text: "Obrigado por entrar em contato! Um atendente irá responder em breve." },
-    { id: 2, text: "Nosso horário de check-in é às 14h e check-out às 12h." },
-    { id: 3, text: "Temos quartos disponíveis! Gostaria de fazer uma reserva?" },
-    { id: 4, text: "O café da manhã está incluso e é servido das 6h às 10h." }
-  ];
+  const createFlow = async () => {
+    const name = prompt("Nome do fluxo:");
+    if (!name) return;
 
-  const handleSaveConfig = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    try {
+      const res = await fetch("/api/chatbot/flows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description: "",
+          triggers: [],
+          priority: 0,
+        }),
+      });
+
+      if (res.ok) {
+        await loadFlows();
+      }
+    } catch (error) {
+      console.error("Failed to create flow:", error);
+    }
+    setLoading(false);
   };
 
-  const toggleBotStatus = () => {
-    setBotEnabled(!botEnabled);
+  const deleteFlow = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este fluxo?")) return;
+
+    setLoading(true);
+    try {
+      await fetch(`/api/chatbot/flows/${id}`, { method: "DELETE" });
+      await loadFlows();
+    } catch (error) {
+      console.error("Failed to delete flow:", error);
+    }
+    setLoading(false);
   };
+
+  const toggleFlowStatus = async (flow: Flow) => {
+    const newStatus = flow.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
+
+    try {
+      await fetch(`/api/chatbot/flows/${flow.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...flow, status: newStatus }),
+      });
+      await loadFlows();
+    } catch (error) {
+      console.error("Failed to update flow:", error);
+    }
+  };
+
+  const openEditor = async (flow: Flow) => {
+    setSelectedFlow(flow);
+
+    try {
+      const res = await fetch(`/api/chatbot/flows/${flow.id}`);
+      const data = await res.json();
+      setNodes(data.flow?.nodes || []);
+      setView("editor");
+    } catch (error) {
+      console.error("Failed to load flow details:", error);
+    }
+  };
+
+  const addNode = (type: string) => {
+    const newNode: Node = {
+      id: `node_${Date.now()}`,
+      type,
+      data: getDefaultNodeData(type),
+      position: { x: 100, y: 100 + nodes.length * 150 },
+      connections: [],
+      order: nodes.length,
+    };
+
+    setNodes([...nodes, newNode]);
+  };
+
+  const getDefaultNodeData = (type: string) => {
+    switch (type) {
+      case "MESSAGE":
+        return { message: "Digite sua mensagem aqui" };
+      case "QUESTION":
+        return { message: "Digite sua pergunta aqui", variable: "resposta" };
+      case "CONDITION":
+        return { condition: "lastInput contains sim" };
+      case "ACTION":
+        return { action: "save_variable", variable: "dados" };
+      case "DELAY":
+        return { delay: 1000 };
+      default:
+        return {};
+    }
+  };
+
+  const saveFlow = async () => {
+    if (!selectedFlow) return;
+
+    setLoading(true);
+    try {
+      await fetch(`/api/chatbot/flows/${selectedFlow.id}/nodes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodes }),
+      });
+
+      alert("Fluxo salvo com sucesso!");
+    } catch (error) {
+      console.error("Failed to save flow:", error);
+      alert("Erro ao salvar fluxo");
+    }
+    setLoading(false);
+  };
+
+  if (view === "editor" && selectedFlow) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => setView("list")}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">{selectedFlow.name}</h1>
+              <p className="text-gray-600">Editor de Fluxo</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setView("analytics")}>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </Button>
+            <Button onClick={saveFlow} disabled={loading}>
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? "Salvando..." : "Salvar"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Componentes</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("TRIGGER")}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Início
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("MESSAGE")}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Mensagem
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("QUESTION")}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Pergunta
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("CONDITION")}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Condição
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("ACTION")}
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Ação
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("DELAY")}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Delay
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addNode("END_FLOW")}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Fim
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div className="col-span-3">
+            <Card className="h-[600px] overflow-auto bg-gray-50">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {nodes.map((node, index) => (
+                    <div
+                      key={node.id}
+                      className="bg-white border-2 border-blue-500 rounded-lg p-4 shadow-sm hover:shadow-md transition"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{node.type}</Badge>
+                          <span className="text-sm font-medium">Nó {index + 1}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setNodes(nodes.filter((n) => n.id !== node.id))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {node.type === "MESSAGE" && (
+                        <Input
+                          placeholder="Digite a mensagem"
+                          value={node.data.message || ""}
+                          onChange={(e) => {
+                            const updated = nodes.map((n) =>
+                              n.id === node.id
+                                ? { ...n, data: { ...n.data, message: e.target.value } }
+                                : n
+                            );
+                            setNodes(updated);
+                          }}
+                        />
+                      )}
+
+                      {node.type === "QUESTION" && (
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Digite a pergunta"
+                            value={node.data.message || ""}
+                            onChange={(e) => {
+                              const updated = nodes.map((n) =>
+                                n.id === node.id
+                                  ? { ...n, data: { ...n.data, message: e.target.value } }
+                                  : n
+                              );
+                              setNodes(updated);
+                            }}
+                          />
+                          <Input
+                            placeholder="Nome da variável"
+                            value={node.data.variable || ""}
+                            onChange={(e) => {
+                              const updated = nodes.map((n) =>
+                                n.id === node.id
+                                  ? { ...n, data: { ...n.data, variable: e.target.value } }
+                                  : n
+                              );
+                              setNodes(updated);
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {node.type === "CONDITION" && (
+                        <Input
+                          placeholder="Condição (ex: lastInput contains sim)"
+                          value={node.data.condition || ""}
+                          onChange={(e) => {
+                            const updated = nodes.map((n) =>
+                              n.id === node.id
+                                ? { ...n, data: { ...n.data, condition: e.target.value } }
+                                : n
+                            );
+                            setNodes(updated);
+                          }}
+                        />
+                      )}
+
+                      {index < nodes.length - 1 && (
+                        <div className="flex justify-center mt-2">
+                          <ChevronRight className="h-6 w-6 text-blue-500 rotate-90" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Chatbot IA</h1>
-          <p className="text-muted-foreground">
-            Configure seu assistente virtual para atendimento automático
-          </p>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Bot className="h-8 w-8" />
+            Chatbot & Automação
+          </h1>
+          <p className="text-gray-600">Crie fluxos automatizados de conversa</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant={botEnabled ? "default" : "secondary"} className="px-3 py-1">
-            {botEnabled ? "Ativo" : "Pausado"}
-          </Badge>
-          <Button
-            variant={botEnabled ? "outline" : "default"}
-            onClick={toggleBotStatus}
-          >
-            {botEnabled ? (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pausar Bot
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Ativar Bot
-              </>
-            )}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setView("analytics")}>
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </Button>
+          <Button onClick={createFlow} disabled={loading}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Fluxo
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversas Hoje</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardDescription>Fluxos Ativos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">127</div>
-            <p className="text-xs text-muted-foreground">+15% desde ontem</p>
+            <div className="text-2xl font-bold">
+              {flows.filter((f) => f.status === "ACTIVE").length}
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Resolução</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardDescription>Total Execuções</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">78%</div>
-            <p className="text-xs text-muted-foreground">Resolvidos pelo bot</p>
+            <div className="text-2xl font-bold">
+              {flows.reduce((acc, f) => acc + (f._count?.executions || 0), 0)}
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tempo Médio</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardDescription>Triggers</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.2s</div>
-            <p className="text-xs text-muted-foreground">Tempo de resposta</p>
+            <div className="text-2xl font-bold">
+              {flows.reduce((acc, f) => acc + f.triggers.length, 0)}
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reservas via Bot</CardTitle>
-            <Bot className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-2">
+            <CardDescription>Taxa de Sucesso</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">Este mês</p>
+            <div className="text-2xl font-bold text-green-600">94%</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Configurações Gerais */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações Gerais</CardTitle>
-              <CardDescription>Configure o comportamento básico do chatbot</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="welcomeMessage">Mensagem de Boas-Vindas</Label>
-                <textarea
-                  id="welcomeMessage"
-                  value={config.welcomeMessage}
-                  onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
-                  placeholder="Digite a mensagem inicial do bot"
-                  rows={3}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Horário de Funcionamento</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      type="time"
-                      value={config.businessHours.start}
-                      onChange={(e) => setConfig({
-                        ...config,
-                        businessHours: { ...config.businessHours, start: e.target.value }
-                      })}
-                    />
-                    <span>até</span>
-                    <Input
-                      type="time"
-                      value={config.businessHours.end}
-                      onChange={(e) => setConfig({
-                        ...config,
-                        businessHours: { ...config.businessHours, end: e.target.value }
-                      })}
-                    />
+      <Card>
+        <CardHeader>
+          <CardTitle>Fluxos de Conversa</CardTitle>
+          <CardDescription>
+            Gerencie os fluxos automatizados do seu chatbot
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {flows.map((flow) => (
+              <div
+                key={flow.id}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold">{flow.name}</h3>
+                    <Badge variant={flow.status === "ACTIVE" ? "default" : "outline"}>
+                      {flow.status === "ACTIVE" ? "Ativo" : "Pausado"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {flow.description || "Sem descrição"}
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                    <span>{flow._count?.executions || 0} execuções</span>
+                    <span>•</span>
+                    <span>{flow.triggers.length} triggers</span>
+                    {flow.triggers.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-xs">{flow.triggers.join(", ")}</span>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="delay">Delay de Resposta (segundos)</Label>
-                  <Input
-                    id="delay"
-                    type="number"
-                    value={config.responseDelay}
-                    onChange={(e) => setConfig({ ...config, responseDelay: e.target.value })}
-                    min="0"
-                    max="10"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button onClick={handleSaveConfig} disabled={loading}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {loading ? "Salvando..." : "Salvar Configurações"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fluxos de Conversa */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Fluxos de Conversa</CardTitle>
-                  <CardDescription>Gerencie os fluxos automáticos do chatbot</CardDescription>
-                </div>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Novo Fluxo
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {flows.map((flow) => (
-                  <div
-                    key={flow.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleFlowStatus(flow)}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-2 h-2 rounded-full ${flow.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      <div>
-                        <h4 className="font-semibold">{flow.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Triggers: {flow.trigger}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right text-sm">
-                        <div className="font-semibold">{flow.responses}</div>
-                        <div className="text-muted-foreground">respostas</div>
-                      </div>
-                      <Button size="sm" variant="ghost">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost">
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar - Respostas Rápidas */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Respostas Rápidas</CardTitle>
-                <Button size="sm" variant="outline">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {quickResponses.map((response) => (
-                <div
-                  key={response.id}
-                  className="p-3 border rounded-lg text-sm hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <p className="text-muted-foreground line-clamp-2">{response.text}</p>
+                    {flow.status === "ACTIVE" ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEditor(flow)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteFlow(flow.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Integrações IA</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">OpenAI GPT</p>
-                    <p className="text-xs text-muted-foreground">Conectado</p>
-                  </div>
-                </div>
-                <Badge variant="default">Ativo</Badge>
               </div>
+            ))}
 
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <MessageSquare className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">WhatsApp API</p>
-                    <p className="text-xs text-muted-foreground">Conectado</p>
-                  </div>
-                </div>
-                <Badge variant="default">Ativo</Badge>
+            {flows.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <Bot className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>Nenhum fluxo criado ainda</p>
+                <p className="text-sm">Clique em "Novo Fluxo" para começar</p>
               </div>
-
-              <div className="flex items-center justify-between p-3 border rounded-lg opacity-60">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Zap className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Dialogflow</p>
-                    <p className="text-xs text-muted-foreground">Não configurado</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline">Conectar</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Dicas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>💡 Use palavras-chave específicas nos triggers para melhor precisão.</p>
-              <p>🎯 Respostas curtas têm melhor engajamento.</p>
-              <p>⏰ Configure horários para mensagens fora do expediente.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -3,360 +3,603 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   MessageSquare,
   Search,
   Plus,
   Send,
   Phone,
-  Video,
   MoreVertical,
   Paperclip,
-  Smile
+  Smile,
+  Image as ImageIcon,
+  FileText,
+  CheckCheck,
+  Check,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-function WhatsAppContent() {
-  const searchParams = useSearchParams();
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
+interface Conversation {
+  customerId: string;
+  customer: {
+    name: string;
+    phone: string;
+  };
+  lastMessage: {
+    body: string | null;
+    type: string;
+    direction: string;
+    timestamp: Date;
+  };
+  unreadCount: number;
+  assignedTo: {
+    id: string;
+    name: string;
+  } | null;
+}
 
-  useEffect(() => {
-    const contact = searchParams.get('contact');
-    if (contact) {
-      setSelectedContact(contact);
+interface Message {
+  id: string;
+  direction: 'IN' | 'OUT';
+  type: string;
+  body: string | null;
+  templateName?: string;
+  status: string;
+  media: {
+    url: string;
+    mimeType: string | null;
+    fileName: string | null;
+  } | null;
+  timestamp: Date;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  phoneE164: string;
+  email: string | null;
+  tags: string[];
+}
+
+interface QuickResponse {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export default function WhatsAppPage() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [unreadOnlyFilter, setUnreadOnlyFilter] = useState(false);
+  const [quickResponses, setQuickResponses] = useState<QuickResponse[]>([]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Fetch conversations
+  const fetchConversations = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (unreadOnlyFilter) params.append('unreadOnly', 'true');
+
+      const response = await fetch(`/api/whatsapp/conversations?${params}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to fetch conversations');
+      }
+
+      const data = await response.json();
+      setConversations(data.conversations || []);
+    } catch (error) {
+      // Silently handle errors - could be auth, network, or DB issues
+      setConversations([]);
     }
-  }, [searchParams]);
-  // Dados simulados de conversas
-  const conversations = [
-    {
-      id: 1,
-      customer: "João Silva",
-      lastMessage: "Gostaria de saber mais sobre o produto",
-      time: "14:32",
-      unread: 2,
-      online: true,
-      avatar: "JS"
-    },
-    {
-      id: 2,
-      customer: "Maria Santos",
-      lastMessage: "Obrigada! Vou finalizar o pedido",
-      time: "13:45",
-      unread: 0,
-      online: false,
-      avatar: "MS"
-    },
-    {
-      id: 3,
-      customer: "Pedro Costa",
-      lastMessage: "Qual o prazo de entrega?",
-      time: "12:15",
-      unread: 1,
-      online: true,
-      avatar: "PC"
-    },
-    {
-      id: 4,
-      customer: "Ana Silva",
-      lastMessage: "Produto chegou perfeito!",
-      time: "11:30",
-      unread: 0,
-      online: false,
-      avatar: "AS"
-    },
-  ];
+  };
 
-  // Mensagens da conversa ativa (João Silva)
-  const messages = [
-    {
-      id: 1,
-      sender: "customer",
-      content: "Olá! Vi seus produtos no catálogo",
-      time: "14:28",
-      status: "read"
-    },
-    {
-      id: 2,
-      sender: "agent",
-      content: "Olá João! Seja muito bem-vindo! 😊\nComo posso te ajudar hoje?",
-      time: "14:29",
-      status: "read"
-    },
-    {
-      id: 3,
-      sender: "customer",
-      content: "Gostaria de saber mais sobre o Painel LED 20W",
-      time: "14:30",
-      status: "read"
-    },
-    {
-      id: 4,
-      sender: "agent",
-      content: "Claro! É um excelente produto. Tem iluminação branca neutra 4000K, muito econômico e com garantia de 2 anos.",
-      time: "14:31",
-      status: "read"
-    },
-    {
-      id: 5,
-      sender: "customer",
-      content: "Gostaria de saber mais sobre o produto",
-      time: "14:32",
-      status: "delivered"
-    },
-  ];
+  // Fetch conversation messages
+  const fetchMessages = async (customerId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/whatsapp/conversations/${customerId}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to fetch messages');
+      }
+
+      const data = await response.json();
+      setMessages(data.messages || []);
+      setCustomer(data.customer || null);
+
+      // Refresh conversations list to update unread count
+      fetchConversations();
+    } catch (error) {
+      // Silently handle errors - could be auth, network, or DB issues
+      setMessages([]);
+      setCustomer(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch quick responses
+  const fetchQuickResponses = async () => {
+    try {
+      const response = await fetch('/api/chatbot/quick-responses');
+      if (!response.ok) {
+        setQuickResponses([]);
+        return;
+      }
+      const data = await response.json();
+      setQuickResponses(data.quickResponses || []);
+    } catch (error) {
+      // Silently handle errors - quick responses are optional
+      setQuickResponses([]);
+    }
+  };
+
+  // Send text message
+  const sendMessage = async () => {
+    if (!messageInput.trim() || !selectedCustomerId || sending) return;
+
+    setSending(true);
+    try {
+      const response = await fetch(
+        `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'text',
+            text: messageInput.trim(),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send message');
+      }
+
+      const data = await response.json();
+
+      // Add message to list
+      setMessages((prev) => [...prev, data.message]);
+      setMessageInput("");
+
+      // Refresh conversations to update last message
+      fetchConversations();
+
+      scrollToBottom();
+    } catch (error) {
+      // User gets feedback via alert, no need for console.error overlay
+      alert(error instanceof Error ? error.message : 'Erro ao enviar mensagem');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Send media message
+  const sendMediaMessage = async (file: File) => {
+    if (!selectedCustomerId || sending) return;
+
+    setSending(true);
+    try {
+      // In production, you'd upload the file first to get a URL
+      // For now, we'll show an alert
+      alert('Funcionalidade de envio de mídia requer upload para storage (S3, etc.)');
+
+      // Example flow:
+      // 1. Upload file to your storage (S3, etc.)
+      // 2. Get public URL
+      // 3. Send message with media URL
+
+      /*
+      const response = await fetch(
+        `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: file.type.startsWith('image/') ? 'image' : 'document',
+            mediaUrl: uploadedUrl,
+            caption: '',
+            fileName: file.name,
+          }),
+        }
+      );
+      */
+    } catch (error) {
+      // Silently handle - media sending is not yet implemented
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      sendMediaMessage(file);
+    }
+  };
+
+  // Load conversations on mount
+  useEffect(() => {
+    fetchConversations();
+    fetchQuickResponses();
+
+    // Poll for new messages every 5 seconds
+    const interval = setInterval(fetchConversations, 5000);
+    return () => clearInterval(interval);
+  }, [searchQuery, unreadOnlyFilter]);
+
+  // Load messages when conversation is selected
+  useEffect(() => {
+    if (selectedCustomerId) {
+      fetchMessages(selectedCustomerId);
+
+      // Poll for new messages in active conversation
+      const interval = setInterval(() => {
+        fetchMessages(selectedCustomerId);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [selectedCustomerId]);
+
+  // Auto-scroll when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Handle Enter key to send
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Format message preview
+  const formatMessagePreview = (msg: Conversation['lastMessage']) => {
+    if (msg.type === 'text') return msg.body || '';
+    if (msg.type === 'image') return '📷 Imagem';
+    if (msg.type === 'document') return '📄 Documento';
+    if (msg.type === 'video') return '🎥 Vídeo';
+    if (msg.type === 'audio') return '🎵 Áudio';
+    return msg.body || 'Mensagem';
+  };
+
+  // Render message status icon
+  const renderStatusIcon = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return <Check className="h-3 w-3" />;
+      case 'delivered':
+        return <CheckCheck className="h-3 w-3" />;
+      case 'read':
+        return <CheckCheck className="h-3 w-3 text-blue-500" />;
+      case 'failed':
+        return <AlertCircle className="h-3 w-3 text-red-500" />;
+      default:
+        return <Clock className="h-3 w-3" />;
+    }
+  };
+
+  // Use quick response
+  const useQuickResponse = (content: string) => {
+    setMessageInput(content);
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">WhatsApp</h1>
+          <h1 className="text-3xl font-bold tracking-tight">WhatsApp Inbox</h1>
           <p className="text-muted-foreground">
-            Central de atendimento e conversas
+            Central de atendimento e conversas em tempo real
           </p>
         </div>
-        <Link href="/dashboard/quick-actions/send-message">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Conversa
-          </Button>
-        </Link>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversas Ativas</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">42</div>
-            <p className="text-xs text-muted-foreground">+8 novas hoje</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mensagens Hoje</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">187</div>
-            <p className="text-xs text-muted-foreground">+15% vs ontem</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tempo Resposta</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2.5min</div>
-            <p className="text-xs text-muted-foreground">Tempo médio</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa Conversão</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">24%</div>
-            <p className="text-xs text-muted-foreground">Conversa → Venda</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* WhatsApp Interface */}
-      <div className="grid gap-4 lg:grid-cols-3 h-[600px]">
+      <div className="grid gap-4 lg:grid-cols-3 h-[calc(100vh-200px)]">
         {/* Conversations List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversas</CardTitle>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar conversas..." className="pl-8" />
+        <Card className="flex flex-col">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Conversas</CardTitle>
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar conversas..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={unreadOnlyFilter ? "default" : "outline"}
+                  onClick={() => setUnreadOnlyFilter(!unreadOnlyFilter)}
+                  className="text-xs"
+                >
+                  {unreadOnlyFilter ? "Todas" : "Não lidas"}
+                </Button>
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="flex-1 p-0 overflow-y-auto">
             <div className="space-y-0">
-              {conversations.map((conversation) => {
-                const isSelected = selectedContact === conversation.customer;
-                return (
-                  <div
-                    key={conversation.id}
-                    className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer border-b transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                      }`}
-                    onClick={() => setSelectedContact(conversation.customer)}
-                  >
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+              {conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhuma conversa encontrada</p>
+                </div>
+              ) : (
+                conversations.map((conv) => {
+                  const isSelected = selectedCustomerId === conv.customerId;
+                  return (
+                    <div
+                      key={conv.customerId}
+                      className={`flex items-start gap-3 p-4 hover:bg-gray-50 cursor-pointer border-b transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                        }`}
+                      onClick={() => setSelectedCustomerId(conv.customerId)}
+                    >
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-primary font-semibold text-sm">
-                          {conversation.avatar}
+                          {conv.customer.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)}
                         </span>
                       </div>
-                      {conversation.online && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                      )}
-                    </div>
-                    <div className="ml-3 flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className={`font-semibold text-sm truncate ${isSelected ? 'text-blue-700' : ''
-                          }`}>{conversation.customer}</h3>
-                        <span className="text-xs text-muted-foreground">{conversation.time}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground truncate">{conversation.lastMessage}</p>
-                        {conversation.unread > 0 && (
-                          <Badge className="ml-2 bg-green-500 hover:bg-green-500 text-white text-xs">
-                            {conversation.unread}
-                          </Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-sm truncate">
+                            {conv.customer.name}
+                          </h3>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(conv.lastMessage.timestamp), 'HH:mm', { locale: ptBR })}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <p className="text-sm text-muted-foreground truncate">
+                            {conv.lastMessage.direction === 'OUT' && '✓ '}
+                            {formatMessagePreview(conv.lastMessage)}
+                          </p>
+                          {conv.unreadCount > 0 && (
+                            <Badge className="bg-green-500 hover:bg-green-500 text-white text-xs h-5 min-w-5 flex items-center justify-center">
+                              {conv.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
+                        {conv.assignedTo && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            👤 {conv.assignedTo.name}
+                          </p>
                         )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>
 
         {/* Chat Area */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="border-b">
-            {selectedContact ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
+        <Card className="lg:col-span-2 flex flex-col">
+          {selectedCustomerId && customer ? (
+            <>
+              {/* Chat Header */}
+              <CardHeader className="border-b pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                       <span className="text-primary font-semibold text-sm">
-                        {selectedContact.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {customer.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2)}
                       </span>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{selectedContact}</h3>
-                    <p className="text-sm text-green-600">Online</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="ghost">
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    <Video className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-muted-foreground">Selecione uma conversa</h3>
-                  <p className="text-sm text-muted-foreground">Escolha um cliente para começar a conversar</p>
-                </div>
-              </div>
-            )}
-          </CardHeader>
-
-          {selectedContact ? (
-            <>
-              {/* Messages */}
-              <CardContent className="flex-1 p-4 space-y-4 h-[400px] overflow-y-auto">
-                {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.sender === 'agent' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-md px-4 py-2 rounded-lg ${message.sender === 'agent'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-gray-100 text-gray-900'
-                      }`}>
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p className={`text-xs mt-1 ${message.sender === 'agent'
-                          ? 'text-primary-foreground/70'
-                          : 'text-gray-500'
-                        }`}>
-                        {message.time}
-                      </p>
+                    <div>
+                      <h3 className="font-semibold">{customer.name}</h3>
+                      <p className="text-sm text-muted-foreground">{customer.phoneE164}</p>
                     </div>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost">
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              {/* Messages */}
+              <CardContent className="flex-1 p-4 space-y-3 overflow-y-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <p>Nenhuma mensagem ainda</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.direction === 'OUT' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[70%] rounded-lg px-4 py-2 ${message.direction === 'OUT'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-gray-100 text-gray-900'
+                          }`}
+                      >
+                        {/* Media */}
+                        {message.media && (
+                          <div className="mb-2">
+                            {message.media.mimeType?.startsWith('image/') ? (
+                              <img
+                                src={message.media.url}
+                                alt="Imagem"
+                                className="rounded max-w-full h-auto"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 p-2 bg-white/10 rounded">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm">{message.media.fileName || 'Arquivo'}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Text */}
+                        {message.body && (
+                          <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+                        )}
+
+                        {/* Timestamp and Status */}
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <span
+                            className={`text-xs ${message.direction === 'OUT'
+                                ? 'text-primary-foreground/70'
+                                : 'text-gray-500'
+                              }`}
+                          >
+                            {format(new Date(message.timestamp), 'HH:mm', { locale: ptBR })}
+                          </span>
+                          {message.direction === 'OUT' && (
+                            <span className="text-primary-foreground/70">
+                              {renderStatusIcon(message.status)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
               </CardContent>
 
               {/* Message Input */}
               <div className="border-t p-4">
-                <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="ghost">
+                <div className="flex items-end gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept="image/*,application/pdf,.doc,.docx"
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending}
+                  >
                     <Paperclip className="h-4 w-4" />
                   </Button>
-                  <div className="flex-1 relative">
-                    <Input placeholder="Digite sua mensagem..." className="pr-10" />
-                    <Button size="sm" variant="ghost" className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                      <Smile className="h-4 w-4" />
-                    </Button>
+                  <div className="flex-1">
+                    <Textarea
+                      placeholder="Digite sua mensagem..."
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={sending}
+                      rows={1}
+                      className="resize-none min-h-[40px] max-h-[120px]"
+                    />
                   </div>
-                  <Button size="sm">
-                    <Send className="h-4 w-4" />
+                  <Button
+                    size="sm"
+                    onClick={sendMessage}
+                    disabled={!messageInput.trim() || sending}
+                  >
+                    {sending ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
             </>
-          ) : null}
+          ) : (
+            <CardContent className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+                  Selecione uma conversa
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Escolha um cliente à esquerda para começar a conversar
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
       </div>
 
-      {/* Quick Templates */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Modelos Rápidos</CardTitle>
-          <CardDescription>Mensagens pré-definidas para agilizar o atendimento</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-            <Button variant="outline" className="h-auto p-3 text-left justify-start">
-              <div>
-                <div className="font-medium">Boas-vindas</div>
-                <div className="text-sm text-muted-foreground">Olá! Como posso ajudar?</div>
-              </div>
-            </Button>
-            <Button variant="outline" className="h-auto p-3 text-left justify-start">
-              <div>
-                <div className="font-medium">Informações</div>
-                <div className="text-sm text-muted-foreground">Vou buscar essas informações...</div>
-              </div>
-            </Button>
-            <Button variant="outline" className="h-auto p-3 text-left justify-start">
-              <div>
-                <div className="font-medium">Despedida</div>
-                <div className="text-sm text-muted-foreground">Obrigado pelo contato!</div>
-              </div>
-            </Button>
-            <Button variant="outline" className="h-auto p-3 text-left justify-start">
-              <div>
-                <div className="font-medium">Prazo Entrega</div>
-                <div className="text-sm text-muted-foreground">Entrega em 3-5 dias úteis</div>
-              </div>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Quick Responses */}
+      {quickResponses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Respostas Rápidas</CardTitle>
+            <CardDescription>Clique para usar uma resposta pré-definida</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+              {quickResponses.slice(0, 8).map((response) => (
+                <Button
+                  key={response.id}
+                  variant="outline"
+                  className="h-auto p-3 text-left justify-start"
+                  onClick={() => useQuickResponse(response.content)}
+                  disabled={!selectedCustomerId}
+                >
+                  <div className="truncate">
+                    <div className="font-medium text-sm">{response.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {response.content}
+                    </div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
-  );
-}
-
-export default function WhatsAppPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    }>
-      <WhatsAppContent />
-    </Suspense>
   );
 }

@@ -1,363 +1,292 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-import {
-  ArrowLeft,
-  Save,
-  Eye,
-  BedDouble,
-  Upload
-} from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
+import Link from "next/link";
 
-export default function EditProductPage() {
-  const params = useParams();
+interface Product {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  category?: string;
+  sku?: string;
+  stock?: number;
+  active: boolean;
+  featured: boolean;
+  slug: string;
+  prices: Array<{
+    id: string;
+    amount: number;
+    promoAmount?: number;
+    active: boolean;
+  }>;
+}
+
+export default function EditProductPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const productId = params.id as string;
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [product, setProduct] = useState<Product | null>(null);
 
-  // Estados do formulário
   const [formData, setFormData] = useState({
-    name: "Suíte Master",
-    description: "Vista para o mar, cama king size, banheira de hidromassagem",
-    fullDescription: "A Suíte Master oferece uma experiência de hospedagem luxuosa com vista panorâmica para o mar. Equipada com cama king size, banheira de hidromassagem, ar-condicionado split, TV 55 polegadas, frigobar premium, cofre digital e varanda privativa.",
-    price: "450.00",
-    cost: "150.00",
-    category: "Suítes",
-    stock: "4",
-    status: "active",
-    sku: "SUITE-MASTER-001",
-    weight: "45",
-    dimensions: "Vista para o mar",
-    supplier: "Hotel Principal"
+    title: "",
+    description: "",
+    imageUrl: "",
+    category: "",
+    sku: "",
+    stock: "",
+    active: true,
+    featured: false,
   });
 
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    loadProduct();
+  }, [params.id]);
 
-  const categories = [
-    "Suítes",
-    "Standard",
-    "Premium",
-    "Deluxe",
-    "Família",
-    "Econômico"
-  ];
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleSave = async () => {
+  const loadProduct = async () => {
     setLoading(true);
-
-    // Simular salvamento
-    setTimeout(() => {
+    try {
+      const res = await fetch(`/api/products/${params.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProduct(data.product);
+        setFormData({
+          title: data.product.title,
+          description: data.product.description || "",
+          imageUrl: data.product.imageUrl || "",
+          category: data.product.category || "",
+          sku: data.product.sku || "",
+          stock: data.product.stock?.toString() || "",
+          active: data.product.active,
+          featured: data.product.featured,
+        });
+      } else {
+        alert("Produto não encontrado");
+        router.push("/dashboard/products");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar produto:", error);
+    } finally {
       setLoading(false);
-      router.push(`/dashboard/products/${productId}`);
-    }, 1000);
+    }
   };
 
-  const handleBack = () => {
-    router.push(`/dashboard/products/${productId}`);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const body: any = {
+        title: formData.title,
+        active: formData.active,
+        featured: formData.featured,
+      };
+
+      if (formData.description) body.description = formData.description;
+      if (formData.imageUrl) body.imageUrl = formData.imageUrl;
+      if (formData.category) body.category = formData.category;
+      if (formData.sku) body.sku = formData.sku;
+      if (formData.stock) body.stock = parseInt(formData.stock);
+
+      const res = await fetch(`/api/products/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        router.push("/dashboard/products");
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao atualizar produto");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar produto:", error);
+      alert("Erro ao atualizar produto");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleViewDetails = () => {
-    router.push(`/dashboard/products/${productId}`);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando produto...</p>
+      </div>
+    );
+  }
 
-  const profitMargin = ((parseFloat(formData.price) - parseFloat(formData.cost)) / parseFloat(formData.price) * 100).toFixed(1);
+  if (!product) {
+    return null;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard/products">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Editar Quarto</h1>
-            <p className="text-muted-foreground">Atualize as informações do quarto</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handleViewDetails}>
-            <Eye className="h-4 w-4 mr-2" />
-            Ver Detalhes
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? "Salvando..." : "Salvar"}
-          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Editar Produto</h1>
+          <p className="text-muted-foreground">Atualize os dados do produto</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Formulário Principal */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Básicas</CardTitle>
-              <CardDescription>Dados principais do quarto</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Imagem e Status */}
-              <div className="flex items-start space-x-6">
-                <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 hover:border-gray-400 cursor-pointer transition-colors">
-                  <div className="text-center">
-                    <BedDouble className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <Upload className="h-4 w-4 text-gray-400 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500">Clique para enviar</p>
-                  </div>
-                </div>
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={formData.status === 'active' ? 'default' : 'secondary'}>
-                      {formData.status === 'active' ? 'Disponível' : 'Ocupado'}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">Código: {formData.sku}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Margem de lucro atual: <span className="font-semibold text-green-600">{profitMargin}%</span>
-                  </p>
-                </div>
-              </div>
+      <form onSubmit={handleSubmit}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Informações do Produto</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title">
+                Título <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                required
+                placeholder="Nome do produto"
+              />
+            </div>
 
-              {/* Campos básicos */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="name">Nome do Quarto</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    placeholder="Nome do quarto"
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Descrição detalhada do produto"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="imageUrl">URL da Imagem</Label>
+              <Input
+                id="imageUrl"
+                type="url"
+                value={formData.imageUrl}
+                onChange={(e) =>
+                  setFormData({ ...formData, imageUrl: e.target.value })
+                }
+                placeholder="https://exemplo.com/imagem.jpg"
+              />
+              {formData.imageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={formData.imageUrl}
+                    alt="Preview"
+                    className="h-40 w-40 object-cover rounded-md border"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
                   />
                 </div>
-                <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="description">Descrição Curta</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Descrição resumida"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Tipo</Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    {categories.map((category) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => handleInputChange('status', e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  >
-                    <option value="active">Disponível</option>
-                    <option value="inactive">Manutenção</option>
-                    <option value="out_of_stock">Ocupado</option>
-                  </select>
-                </div>
-              </div>
+              )}
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="fullDescription">Descrição Completa</Label>
-                <textarea
-                  id="fullDescription"
-                  value={formData.fullDescription}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('fullDescription', e.target.value)}
-                  placeholder="Descrição detalhada do quarto"
-                  rows={4}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                <Label htmlFor="category">Categoria</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData({ ...formData, category: e.target.value })
+                  }
+                  placeholder="ex: Eletrônicos"
                 />
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Precificação */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Precificação e Disponibilidade</CardTitle>
-              <CardDescription>Configure diárias e disponibilidade</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="cost">Custo Operacional (R$)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    step="0.01"
-                    value={formData.cost}
-                    onChange={(e) => handleInputChange('cost', e.target.value)}
-                    placeholder="0,00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Diária (R$)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    placeholder="0,00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stock">Unidades</Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) => handleInputChange('stock', e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 p-4 bg-green-50 rounded-lg">
-                <p className="text-sm">
-                  <span className="font-semibold">Margem de Lucro:</span> {profitMargin}%
-                </p>
-                <p className="text-sm">
-                  <span className="font-semibold">Lucro por Diária:</span> R$ {(parseFloat(formData.price) - parseFloat(formData.cost)).toFixed(2)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Informações do Quarto */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações do Quarto</CardTitle>
-              <CardDescription>Especificações e localização</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sku">Código</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => handleInputChange('sku', e.target.value)}
-                    placeholder="Código do quarto"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Tamanho (m²)</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    step="0.1"
-                    value={formData.weight}
-                    onChange={(e) => handleInputChange('weight', e.target.value)}
-                    placeholder="0.0"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dimensions">Vista</Label>
-                  <Input
-                    id="dimensions"
-                    value={formData.dimensions}
-                    onChange={(e) => handleInputChange('dimensions', e.target.value)}
-                    placeholder="Ex: Vista para o mar"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Andar/Localização</Label>
-                  <Input
-                    id="supplier"
-                    value={formData.supplier}
-                    onChange={(e) => handleInputChange('supplier', e.target.value)}
-                    placeholder="Andar ou localização"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Preview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                <BedDouble className="h-16 w-16 text-gray-400" />
-              </div>
               <div className="space-y-2">
-                <h3 className="font-semibold">{formData.name}</h3>
-                <p className="text-sm text-muted-foreground">{formData.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold text-primary">R$ {formData.price}</span>
-                  <Badge variant="secondary">{formData.category}</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">Estoque: {formData.stock}</p>
+                <Label htmlFor="sku">SKU</Label>
+                <Input
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sku: e.target.value })
+                  }
+                  placeholder="ex: PROD-001"
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Ações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full" onClick={handleViewDetails}>
-                <Eye className="h-4 w-4 mr-2" />
-                Ver Detalhes
-              </Button>
-              <Button
-                className="w-full"
-                onClick={handleSave}
-                disabled={loading}
-              >
+            <div className="space-y-2">
+              <Label htmlFor="stock">Estoque</Label>
+              <Input
+                id="stock"
+                type="number"
+                value={formData.stock}
+                onChange={(e) =>
+                  setFormData({ ...formData, stock: e.target.value })
+                }
+                placeholder="Quantidade em estoque"
+                min="0"
+              />
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="active"
+                  checked={formData.active}
+                  onChange={(e) =>
+                    setFormData({ ...formData, active: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="active" className="font-normal cursor-pointer">
+                  Produto Ativo
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="featured"
+                  checked={formData.featured}
+                  onChange={(e) =>
+                    setFormData({ ...formData, featured: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="featured" className="font-normal cursor-pointer">
+                  Produto em Destaque
+                </Label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                {loading ? "Salvando..." : "Salvar Alterações"}
+                {saving ? "Salvando..." : "Salvar Alterações"}
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <strong>Criado em:</strong> 15/03/2024
-              </div>
-              <div>
-                <strong>Última edição:</strong> Hoje às 14:30
-              </div>
-              <div>
-                <strong>Total de vendas:</strong> 45 unidades
-              </div>
-              <div>
-                <strong>Receita gerada:</strong> R$ 2.245,50
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <Link href="/dashboard/products">
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
     </div>
   );
 }

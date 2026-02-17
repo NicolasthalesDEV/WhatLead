@@ -1,305 +1,326 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Edit,
-  BedDouble,
-  DollarSign,
-  TrendingUp,
-  Eye,
-  BarChart3,
-  Users,
-  Calendar
-} from "lucide-react";
+import { ArrowLeft, Edit, Package, ShoppingCart, FileText, Star, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-export default function ProductDetailsPage() {
-  const params = useParams();
+interface Product {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  category?: string;
+  sku?: string;
+  stock?: number;
+  active: boolean;
+  featured: boolean;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  prices: Array<{
+    id: string;
+    amount: number;
+    promoAmount?: number;
+    active: boolean;
+    createdAt: string;
+  }>;
+  _count: {
+    quoteItems: number;
+    orderItems: number;
+  };
+}
+
+export default function ProductDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const productId = params.id as string;
+  const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<Product | null>(null);
 
-  // Dados simulados do quarto
-  const product = {
-    id: productId,
-    name: "Suíte Master",
-    description: "Vista para o mar, cama king size, banheira de hidromassagem",
-    fullDescription: "A Suíte Master oferece uma experiência de hospedagem luxuosa com vista panorâmica para o mar. Equipada com cama king size, banheira de hidromassagem, ar-condicionado split, TV 55 polegadas, frigobar premium, cofre digital e varanda privativa. Ideal para casais em lua de mel ou viagens especiais.",
-    price: "R$ 450,00/noite",
-    cost: "R$ 150,00",
-    category: "Suítes",
-    stock: 4,
-    status: "active",
-    sku: "SUITE-MASTER-001",
-    weight: "45m²",
-    dimensions: "Vista para o mar",
-    supplier: "Hotel Principal",
-    createdAt: "15/03/2024",
-    updatedAt: "10/09/2024",
-    analytics: {
-      totalSales: 45,
-      totalRevenue: "R$ 20.250,00",
-      averageRating: 4.8,
-      reviews: 23,
-      conversionRate: "85%",
-      viewsLastMonth: 1250
-    },
-    recentSales: [
-      {
-        id: 1,
-        customer: "João Silva",
-        date: "18/09/2024",
-        quantity: 3,
-        total: "R$ 1.350,00"
-      },
-      {
-        id: 2,
-        customer: "Maria Santos",
-        date: "15/09/2024",
-        quantity: 2,
-        total: "R$ 900,00"
-      },
-      {
-        id: 3,
-        customer: "Pedro Costa",
-        date: "12/09/2024",
-        quantity: 5,
-        total: "R$ 2.250,00"
+  useEffect(() => {
+    loadProduct();
+  }, [params.id]);
+
+  const loadProduct = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/products/${params.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProduct(data.product);
+      } else {
+        alert("Produto não encontrado");
+        router.push("/dashboard/products");
       }
-    ]
+    } catch (error) {
+      console.error("Erro ao carregar produto:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEdit = () => {
-    router.push(`/dashboard/products/${productId}/edit`);
+  const deleteProduct = async () => {
+    if (!confirm("Tem certeza que deseja deletar este produto?")) return;
+
+    try {
+      const res = await fetch(`/api/products/${params.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        router.push("/dashboard/products");
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao deletar produto");
+      }
+    } catch (error) {
+      console.error("Erro ao deletar produto:", error);
+    }
   };
 
-  const handleBack = () => {
-    router.push('/dashboard/products');
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(cents / 100);
   };
 
-  const profitMargin = ((parseFloat(product.price.replace('R$ ', '').replace(',', '.')) -
-    parseFloat(product.cost.replace('R$ ', '').replace(',', '.'))) /
-    parseFloat(product.price.replace('R$ ', '').replace(',', '.')) * 100).toFixed(1);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando produto...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return null;
+  }
+
+  const latestPrice = product.prices[0];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/products">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+          </Link>
           <div>
-            <h1 className="text-2xl font-bold">Detalhes do Quarto</h1>
-            <p className="text-muted-foreground">Informações completas sobre {product.name}</p>
+            <h1 className="text-3xl font-bold">{product.title}</h1>
+            <p className="text-muted-foreground">Detalhes do produto</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button onClick={handleEdit}>
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
+        <div className="flex gap-2">
+          <Link href={`/dashboard/products/${product.id}/edit`}>
+            <Button>
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+          </Link>
+          <Button variant="destructive" onClick={deleteProduct}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Deletar
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Informações Principais */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Informações do Quarto</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Informações Básicas</CardTitle>
+                <div className="flex gap-2">
+                  {product.active ? (
+                    <Badge className="bg-green-600">Ativo</Badge>
+                  ) : (
+                    <Badge variant="secondary">Inativo</Badge>
+                  )}
+                  {product.featured && (
+                    <Badge className="bg-yellow-500">
+                      <Star className="h-3 w-3 mr-1" />
+                      Destaque
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-start space-x-6">
-                <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <BedDouble className="h-16 w-16 text-gray-400" />
+            <CardContent className="space-y-4">
+              {product.imageUrl && (
+                <div className="aspect-video bg-muted rounded-md overflow-hidden">
+                  <img
+                    src={product.imageUrl}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <div className="space-y-4 flex-1">
+              )}
+
+              {product.description && (
+                <div>
+                  <h3 className="font-semibold mb-2">Descrição</h3>
+                  <p className="text-muted-foreground">{product.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                {product.category && (
                   <div>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h2 className="text-xl font-semibold">{product.name}</h2>
-                      <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
-                        {product.status === 'active' ? 'Disponível' : 'Ocupado'}
-                      </Badge>
-                    </div>
-                    <p className="text-muted-foreground">{product.description}</p>
+                    <p className="text-sm text-muted-foreground">Categoria</p>
+                    <p className="font-medium">{product.category}</p>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <span className="text-sm text-muted-foreground">Diária</span>
-                      <div className="text-2xl font-bold text-primary">{product.price}</div>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Margem de Lucro</span>
-                      <div className="text-2xl font-bold text-green-600">{profitMargin}%</div>
-                    </div>
+                )}
+
+                {product.sku && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">SKU</p>
+                    <p className="font-medium">{product.sku}</p>
                   </div>
+                )}
+
+                {product.stock !== null && product.stock !== undefined && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Estoque</p>
+                    <p className={`font-medium ${product.stock <= 0 ? "text-red-600" : ""}`}>
+                      {product.stock} unidades
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Slug</p>
+                  <p className="font-medium text-sm">{product.slug}</p>
                 </div>
-              </div>
 
-              <div className="border-t my-4"></div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Detalhes do Quarto</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Código:</span>
-                      <span>{product.sku}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tipo:</span>
-                      <span>{product.category}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tamanho:</span>
-                      <span>{product.weight}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Vista:</span>
-                      <span>{product.dimensions}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Andar:</span>
-                      <span>{product.supplier}</span>
-                    </div>
-                  </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Criado em</p>
+                  <p className="font-medium text-sm">
+                    {format(new Date(product.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
                 </div>
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Histórico</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Criado em:</span>
-                      <span>{product.createdAt}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Última edição:</span>
-                      <span>{product.updatedAt}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Unidades disponíveis:</span>
-                      <span className="font-semibold">{product.stock} quartos</span>
-                    </div>
-                  </div>
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Atualizado em</p>
+                  <p className="font-medium text-sm">
+                    {format(new Date(product.updatedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  </p>
                 </div>
-              </div>
-
-              <div className="border-t my-4"></div>
-
-              <div>
-                <h3 className="font-semibold mb-2">Descrição Completa</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {product.fullDescription}
-                </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Reservas Recentes */}
+          {/* Prices History */}
           <Card>
             <CardHeader>
-              <CardTitle>Reservas Recentes</CardTitle>
-              <CardDescription>Últimas reservas deste quarto</CardDescription>
+              <CardTitle>Histórico de Preços</CardTitle>
+              <CardDescription>
+                {product.prices.length} {product.prices.length === 1 ? "preço registrado" : "preços registrados"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {product.recentSales.map((sale) => (
-                  <div key={sale.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold">{sale.customer}</h4>
-                        <Badge variant="outline">{sale.quantity} noites</Badge>
+              {product.prices.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum preço cadastrado</p>
+              ) : (
+                <div className="space-y-3">
+                  {product.prices.map((price, index) => (
+                    <div
+                      key={price.id}
+                      className="flex items-center justify-between p-3 border rounded-md"
+                    >
+                      <div>
+                        <p className="font-semibold">{formatCurrency(price.amount)}</p>
+                        {price.promoAmount && (
+                          <p className="text-sm text-muted-foreground line-through">
+                            {formatCurrency(price.promoAmount)}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(price.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {sale.date}
-                      </p>
+                      <div className="flex gap-2">
+                        {index === 0 && <Badge>Atual</Badge>}
+                        {price.active ? (
+                          <Badge className="bg-green-600">Ativo</Badge>
+                        ) : (
+                          <Badge variant="secondary">Inativo</Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{sale.total}</p>
-                      <Button size="sm" variant="ghost">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Sidebar com Analytics */}
+        {/* Sidebar */}
         <div className="space-y-6">
+          {/* Price Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Performance</CardTitle>
+              <CardTitle>Preço Atual</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total de Reservas</span>
-                  <span className="font-semibold text-lg">{product.analytics.totalSales}</span>
+            <CardContent>
+              {latestPrice ? (
+                <div>
+                  <p className="text-3xl font-bold">
+                    {formatCurrency(latestPrice.amount)}
+                  </p>
+                  {latestPrice.promoAmount && (
+                    <p className="text-muted-foreground line-through mt-1">
+                      {formatCurrency(latestPrice.promoAmount)}
+                    </p>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Receita Total</span>
-                  <span className="font-semibold">{product.analytics.totalRevenue}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Avaliação Média</span>
-                  <span className="font-semibold">{product.analytics.averageRating} ⭐</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Taxa de Ocupação</span>
-                  <span className="font-semibold">{product.analytics.conversionRate}</span>
-                </div>
-              </div>
-
-              <div className="border-t my-4"></div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold">Ações Rápidas</h3>
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Ver Relatório
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Users className="h-4 w-4 mr-2" />
-                    Ver Avaliações
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Histórico de Preços
-                  </Button>
-                </div>
-              </div>
+              ) : (
+                <p className="text-muted-foreground">Sem preço definido</p>
+              )}
             </CardContent>
           </Card>
 
+          {/* Stats Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Análise Financeira</CardTitle>
+              <CardTitle>Estatísticas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Preço de Custo</span>
-                  <span className="font-semibold">{product.cost}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Vendas</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Preço de Venda</span>
-                  <span className="font-semibold">{product.price}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Margem de Lucro</span>
-                  <span className="font-semibold text-green-600">{profitMargin}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Taxa de Conversão</span>
-                  <span className="font-semibold">{product.analytics.conversionRate}</span>
-                </div>
+                <span className="font-semibold">{product._count.orderItems}</span>
               </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Orçamentos</span>
+                </div>
+                <span className="font-semibold">{product._count.quoteItems}</span>
+              </div>
+
+              {product.stock !== null && product.stock !== undefined && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Estoque</span>
+                  </div>
+                  <span className={`font-semibold ${product.stock <= 0 ? "text-red-600" : ""}`}>
+                    {product.stock}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

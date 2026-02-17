@@ -1,241 +1,363 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { Input } from "@/components/ui/input";
 import {
-  CalendarCheck,
-  Search,
-  Plus,
-  Eye,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Package,
   DollarSign,
+  Search,
+  Filter,
+  Eye,
+  X,
+  Check,
   Clock,
-  CheckCircle,
-  XCircle,
-  BedDouble
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
+interface Order {
+  id: string;
+  status: string;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
+  customer: {
+    id: string;
+    name: string;
+    phoneE164: string;
+    email?: string;
+  };
+  items: Array<{
+    id: string;
+    qty: number;
+    priceCents: number;
+    product: {
+      id: string;
+      title: string;
+      imageUrl?: string;
+    };
+  }>;
+  payments: Array<{
+    id: string;
+    status: string;
+    amount: number;
+    provider: string;
+    createdAt: string;
+  }>;
+  _count: {
+    items: number;
+    payments: number;
+  };
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
 export default function OrdersPage() {
-  // Dados simulados de reservas
-  const orders = [
-    {
-      id: "#1234",
-      customer: "João Silva",
-      date: "2024-01-15",
-      status: "paid",
-      total: "R$ 1.350,00",
-      items: 3,
-      paymentMethod: "PIX",
-      shippingAddress: "Suíte Master - 3 noites",
-      checkIn: "15/01/2024",
-      checkOut: "18/01/2024"
-    },
-    {
-      id: "#1233",
-      customer: "Maria Santos",
-      date: "2024-01-14",
-      status: "pending",
-      total: "R$ 540,00",
-      items: 1,
-      paymentMethod: "PIX",
-      shippingAddress: "Quarto Standard - 3 noites",
-      checkIn: "20/01/2024",
-      checkOut: "23/01/2024"
-    },
-    {
-      id: "#1232",
-      customer: "Pedro Costa",
-      date: "2024-01-14",
-      status: "awaiting_payment",
-      total: "R$ 960,00",
-      items: 2,
-      paymentMethod: "PIX",
-      shippingAddress: "Suíte Premium - 3 noites",
-      checkIn: "22/01/2024",
-      checkOut: "25/01/2024"
-    },
-    {
-      id: "#1231",
-      customer: "Ana Silva",
-      date: "2024-01-13",
-      status: "canceled",
-      total: "R$ 450,00",
-      items: 1,
-      paymentMethod: "PIX",
-      shippingAddress: "Suíte Master - 1 noite",
-      checkIn: "16/01/2024",
-      checkOut: "17/01/2024"
-    },
-  ];
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0,
+  });
+
+  useEffect(() => {
+    loadOrders();
+  }, [statusFilter, pagination.page]);
+
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+      });
+
+      if (statusFilter !== "ALL") {
+        params.append("status", statusFilter);
+      }
+
+      const res = await fetch(`/api/orders?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+        setPagination(data.pagination);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar pedidos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "paid":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Confirmada</Badge>;
-      case "pending":
-        return <Badge variant="secondary">Pendente</Badge>;
-      case "awaiting_payment":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Aguardando Pagamento</Badge>;
-      case "canceled":
-        return <Badge variant="destructive">Cancelada</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
+    const variants: Record<string, { variant: any; icon: any; label: string }> = {
+      PENDING: {
+        variant: "secondary",
+        icon: Clock,
+        label: "Pendente",
+      },
+      AWAITING_PAYMENT: {
+        variant: "default",
+        icon: DollarSign,
+        label: "Aguardando Pagamento",
+      },
+      PAID: {
+        variant: "default",
+        icon: Check,
+        label: "Pago",
+      },
+      CANCELED: {
+        variant: "destructive",
+        icon: X,
+        label: "Cancelado",
+      },
+    };
+
+    const config = variants[status] || variants.PENDING;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "paid":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case "pending":
-        return <Clock className="h-4 w-4 text-gray-600" />;
-      case "awaiting_payment":
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      case "canceled":
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
-    }
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(cents / 100);
   };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      order.customer.name.toLowerCase().includes(search) ||
+      order.id.toLowerCase().includes(search) ||
+      order.customer.phoneE164.includes(search)
+    );
+  });
+
+  const stats = {
+    total: orders.length,
+    pending: orders.filter((o) => o.status === "PENDING").length,
+    awaitingPayment: orders.filter((o) => o.status === "AWAITING_PAYMENT").length,
+    paid: orders.filter((o) => o.status === "PAID").length,
+    canceled: orders.filter((o) => o.status === "CANCELED").length,
+    totalValue: orders.reduce((sum, o) => sum + o.total, 0),
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando pedidos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reservas</h1>
-          <p className="text-muted-foreground">
-            Gerencie todas as reservas do hotel
-          </p>
-        </div>
-        <Link href="/dashboard/quick-actions/create-order">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Reserva
-          </Button>
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold">Pedidos</h1>
+        <p className="text-muted-foreground">Gerencie todos os pedidos da sua empresa</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Reservas</CardTitle>
-            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Total de Pedidos</CardDescription>
+            <CardTitle className="text-2xl">{stats.total}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2,847</div>
-            <p className="text-xs text-muted-foreground">+15% em relação ao mês anterior</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Pendentes</CardDescription>
+            <CardTitle className="text-2xl">{stats.pending}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 84.290</div>
-            <p className="text-xs text-muted-foreground">+22% vs mês anterior</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aguardando Confirmação</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Aguardando Pgto</CardDescription>
+            <CardTitle className="text-2xl">{stats.awaitingPayment}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">R$ 2.489 em valor</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Diária Média</CardTitle>
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Pagos</CardDescription>
+            <CardTitle className="text-2xl text-green-600">{stats.paid}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 250</div>
-            <p className="text-xs text-muted-foreground">+8% vs mês anterior</p>
-          </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Valor Total</CardDescription>
+            <CardTitle className="text-2xl">{formatCurrency(stats.totalValue)}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente, ID ou telefone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Status: {statusFilter === "ALL" ? "Todos" : statusFilter}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setStatusFilter("ALL")}>
+              Todos
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter("PENDING")}>
+              Pendentes
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter("AWAITING_PAYMENT")}>
+              Aguardando Pagamento
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter("PAID")}>
+              Pagos
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter("CANCELED")}>
+              Cancelados
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Orders List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Lista de Reservas</CardTitle>
-          <CardDescription>Visualize e gerencie todas as reservas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2 mb-6">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar reservas..." className="pl-8" />
+        <CardContent className="p-0">
+          {filteredOrders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Package className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Nenhum pedido encontrado</p>
             </div>
-            <Button variant="outline">Filtros</Button>
-            <Button variant="outline">Status</Button>
-            <Button variant="outline">Data</Button>
-          </div>
+          ) : (
+            <div className="divide-y">
+              {filteredOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold">{order.customer.name}</h3>
+                        {getStatusBadge(order.status)}
+                      </div>
 
-          {/* Orders Table */}
-          <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                    {getStatusIcon(order.status)}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-semibold">{order.id}</h3>
-                      {getStatusBadge(order.status)}
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p>Pedido #{order.id.slice(0, 8)}</p>
+                        <p>
+                          {order._count.items} {order._count.items === 1 ? "item" : "itens"} •{" "}
+                          {formatDate(order.createdAt)}
+                        </p>
+                        {order.items.slice(0, 2).map((item) => (
+                          <p key={item.id} className="text-xs">
+                            {item.qty}x {item.product.title}
+                          </p>
+                        ))}
+                        {order._count.items > 2 && (
+                          <p className="text-xs">
+                            +{order._count.items - 2} {order._count.items - 2 === 1 ? "item" : "itens"}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <span>Hóspede: <strong>{order.customer}</strong></span>
-                      <span>Check-in: {order.checkIn}</span>
-                      <span>Check-out: {order.checkOut}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {order.shippingAddress} • {order.paymentMethod}
+
+                    <div className="text-right space-y-2">
+                      <p className="text-2xl font-bold">{formatCurrency(order.total)}</p>
+                      <Link href={`/dashboard/orders/${order.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Ver Detalhes
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-6">
-                  <div className="text-right">
-                    <div className="text-lg font-semibold">{order.total}</div>
-                    <div className="text-sm text-muted-foreground">Total</div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Editar
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t">
-            <p className="text-sm text-muted-foreground">
-              Mostrando 1-4 de 2,847 reservas
-            </p>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" disabled>
-                Anterior
-              </Button>
-              <Button variant="outline" size="sm">
-                Próximo
-              </Button>
+              ))}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Página {pagination.page} de {pagination.pages} • {pagination.total} pedidos
+          </p>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+              disabled={pagination.page === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+              disabled={pagination.page === pagination.pages}
+            >
+              Próxima
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

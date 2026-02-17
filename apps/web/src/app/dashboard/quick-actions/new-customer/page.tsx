@@ -1,257 +1,261 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  Users,
-  Save,
-  Phone,
-  Mail,
-  MapPin,
-  Building2,
-  Calendar,
-  Tag,
-  MessageSquare
-} from "lucide-react";
+import { ArrowLeft, Save, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 export default function NewCustomerPage() {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: "",
+    phoneE164: "",
     email: "",
-    phone: "",
-    company: "",
+    tags: [] as string[],
+    notes: "",
     address: "",
     city: "",
     state: "",
     zipCode: "",
-    tags: "",
-    notes: ""
   });
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const [newTag, setNewTag] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const body: any = {
+        name: formData.name,
+        phoneE164: formData.phoneE164,
+      };
+
+      if (formData.email) body.email = formData.email;
+      if (formData.tags.length > 0) body.tags = formData.tags;
+      if (formData.notes) body.notes = formData.notes;
+      if (formData.address) body.address = formData.address;
+      if (formData.city) body.city = formData.city;
+      if (formData.state) body.state = formData.state;
+      if (formData.zipCode) body.zipCode = formData.zipCode;
+
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/dashboard/customers/${data.customer.id}`);
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao criar cliente");
+      }
+    } catch (error) {
+      console.error("Erro ao criar cliente:", error);
+      alert("Erro ao criar cliente");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSave = () => {
-    console.log("Salvando cliente:", formData);
-    // Aqui você implementaria a lógica de salvar
+  const addTag = () => {
+    if (newTag && !formData.tags.includes(newTag)) {
+      setFormData({ ...formData, tags: [...formData.tags, newTag] });
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((tag) => tag !== tagToRemove),
+    });
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Novo Hóspede</h1>
-            <p className="text-muted-foreground">
-              Cadastre um novo hóspede no sistema
-            </p>
-          </div>
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard/customers">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Novo Cliente</h1>
+          <p className="text-muted-foreground">Cadastre um novo cliente rapidamente</p>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" />
-          Salvar Cliente
-        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Formulário Principal */}
-        <Card className="lg:col-span-2">
+      <form onSubmit={handleSubmit}>
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="mr-2 h-5 w-5" />
-              Informações Básicas
-            </CardTitle>
-            <CardDescription>Dados principais do cliente</CardDescription>
+            <CardTitle>Informações do Cliente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Nome e Email */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="name">
+                Nome <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+                placeholder="Nome completo"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">
+                Telefone (WhatsApp) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="phone"
+                value={formData.phoneE164}
+                onChange={(e) =>
+                  setFormData({ ...formData, phoneE164: e.target.value })
+                }
+                required
+                placeholder="+5511999999999"
+              />
+              <p className="text-xs text-muted-foreground">
+                Formato internacional: +55 + DDD + número
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="email@exemplo.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                placeholder="Rua, número, complemento"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="city">Cidade</Label>
                 <Input
-                  id="name"
-                  placeholder="Ex: João Silva"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
+                  placeholder="Cidade"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
+                <Label htmlFor="state">Estado</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="joao@exemplo.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  id="state"
+                  value={formData.state}
+                  onChange={(e) =>
+                    setFormData({ ...formData, state: e.target.value })
+                  }
+                  placeholder="UF"
+                  maxLength={2}
                 />
               </div>
             </div>
 
-            {/* Telefone e Empresa */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone/WhatsApp *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="zipCode">CEP</Label>
+              <Input
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={(e) =>
+                  setFormData({ ...formData, zipCode: e.target.value })
+                }
+                placeholder="00000-000"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex gap-2 mb-2">
                 <Input
-                  id="phone"
-                  placeholder="(11) 99999-9999"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                  placeholder="Adicionar tag (ex: VIP, Premium)"
                 />
+                <Button type="button" onClick={addTag} variant="outline">
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Empresa</Label>
-                <Input
-                  id="company"
-                  placeholder="Nome da empresa"
-                  value={formData.company}
-                  onChange={(e) => handleInputChange("company", e.target.value)}
-                />
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-2 hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
               </div>
             </div>
 
-            {/* Endereço */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium flex items-center">
-                <MapPin className="mr-2 h-4 w-4" />
-                Endereço
-              </h3>
-              <div className="space-y-2">
-                <Label htmlFor="address">Endereço Completo</Label>
-                <Input
-                  id="address"
-                  placeholder="Rua, número, complemento"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    placeholder="São Paulo"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">Estado</Label>
-                  <Input
-                    id="state"
-                    placeholder="SP"
-                    value={formData.state}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="zipCode">CEP</Label>
-                  <Input
-                    id="zipCode"
-                    placeholder="01234-567"
-                    value={formData.zipCode}
-                    onChange={(e) => handleInputChange("zipCode", e.target.value)}
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas e Observações</Label>
+              <textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) =>
+                  setFormData({ ...formData, notes: e.target.value })
+                }
+                className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Observações internas sobre o cliente"
+              />
             </div>
 
-            {/* Tags e Observações */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="tags">Tags</Label>
-                <Input
-                  id="tags"
-                  placeholder="Ex: vip, atacado, fornecedor (separadas por vírgula)"
-                  value={formData.tags}
-                  onChange={(e) => handleInputChange("tags", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações</Label>
-                <textarea
-                  id="notes"
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  placeholder="Informações adicionais sobre o cliente..."
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                />
-              </div>
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? "Criando..." : "Criar Cliente"}
+              </Button>
+              <Link href="/dashboard/customers">
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Ações Rápidas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Ações Rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <Phone className="mr-2 h-4 w-4" />
-                Ligar para Cliente
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Enviar WhatsApp
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Mail className="mr-2 h-4 w-4" />
-                Enviar E-mail
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Informações */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Data de Cadastro</span>
-                <span className="font-medium">Hoje</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Origem</span>
-                <Badge variant="outline">Manual</Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Status</span>
-                <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Dicas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">💡 Dicas</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>• Campos marcados com * são obrigatórios</p>
-              <p>• Use tags para organizar seus clientes</p>
-              <p>• O WhatsApp é o meio de contato principal</p>
-              <p>• Adicione observações relevantes para futuras consultas</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </form>
     </div>
   );
 }

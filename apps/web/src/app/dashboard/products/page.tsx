@@ -1,395 +1,413 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import {
-  BedDouble,
+  Package,
   Search,
   Plus,
   Edit,
-  Eye,
-  DollarSign,
-  TrendingUp,
-  Filter,
-  MoreVertical,
   Trash2,
-  ChevronDown
+  Eye,
+  Filter,
+  Star,
+  MoreVertical,
+  ShoppingCart,
+  FileText,
 } from "lucide-react";
+
+interface Product {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  category?: string;
+  sku?: string;
+  stock?: number;
+  active: boolean;
+  featured: boolean;
+  slug: string;
+  createdAt: string;
+  prices: Array<{
+    id: string;
+    amount: number;
+    promoAmount?: number;
+    active: boolean;
+  }>;
+  _count: {
+    quoteItems: number;
+    orderItems: number;
+  };
+}
 
 export default function ProductsPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; productId: number | null }>({
-    open: false,
-    productId: null
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [activeFilter, setActiveFilter] = useState<string>("ALL");
 
-  // Função para editar quarto
-  const handleEditProduct = (productId: number) => {
-    router.push(`/dashboard/products/${productId}/edit`);
-  };
+  useEffect(() => {
+    loadProducts();
+  }, [categoryFilter, activeFilter]);
 
-  // Função para ver detalhes do quarto
-  const handleViewProduct = (productId: number) => {
-    router.push(`/dashboard/products/${productId}`);
-  };
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
 
-  // Dados simulados de quartos (com estado local)
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: "Suíte Master",
-      description: "Vista para o mar, cama king size, banheira de hidromassagem",
-      price: "R$ 450,00/noite",
-      category: "Suítes",
-      stock: 4,
-      status: "active",
-      image: "/placeholder-product.jpg",
-      sales: 45
-    },
-    {
-      id: 2,
-      name: "Quarto Standard",
-      description: "Cama de casal, ar-condicionado, TV 42 polegadas",
-      price: "R$ 180,00/noite",
-      category: "Standard",
-      stock: 12,
-      status: "active",
-      image: "/placeholder-product.jpg",
-      sales: 32
-    },
-    {
-      id: 3,
-      name: "Suíte Premium",
-      description: "2 camas queen, varanda privativa, frigobar premium",
-      price: "R$ 320,00/noite",
-      category: "Suítes",
-      stock: 0,
-      status: "out_of_stock",
-      image: "/placeholder-product.jpg",
-      sales: 18
-    },
-  ]);
+      if (categoryFilter !== "ALL") {
+        params.append("category", categoryFilter);
+      }
 
-  // Função para deletar produto
-  const handleDeleteProduct = (productId: number) => {
-    setDeleteModal({ open: true, productId });
-  };
+      if (activeFilter !== "ALL") {
+        params.append("active", activeFilter === "ACTIVE" ? "true" : "false");
+      }
 
-  const confirmDelete = () => {
-    if (deleteModal.productId) {
-      setProducts(prev => prev.filter(product => product.id !== deleteModal.productId));
-      setDeleteModal({ open: false, productId: null });
+      const res = await fetch(`/api/products?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar produtos:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const cancelDelete = () => {
-    setDeleteModal({ open: false, productId: null });
+  const deleteProduct = async (productId: string) => {
+    if (!confirm("Tem certeza que deseja deletar este produto?")) return;
+
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        await loadProducts();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao deletar produto");
+      }
+    } catch (error) {
+      console.error("Erro ao deletar produto:", error);
+    }
   };
 
-  // Categorias únicas para o filtro
-  const categories = [...new Set(products.map(product => product.category))];
+  const toggleActive = async (productId: string, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !currentActive }),
+      });
+
+      if (res.ok) {
+        await loadProducts();
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar produto:", error);
+    }
+  };
+
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(cents / 100);
+  };
+
+  const filteredProducts = products.filter((product) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      product.title.toLowerCase().includes(search) ||
+      product.description?.toLowerCase().includes(search) ||
+      product.sku?.toLowerCase().includes(search) ||
+      product.category?.toLowerCase().includes(search)
+    );
+  });
+
+  // Get unique categories
+  const categories = Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean))
+  );
+
+  const stats = {
+    total: products.length,
+    active: products.filter((p) => p.active).length,
+    inactive: products.filter((p) => !p.active).length,
+    featured: products.filter((p) => p.featured).length,
+    outOfStock: products.filter((p) => p.stock !== null && p.stock !== undefined && p.stock <= 0).length,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando produtos...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quartos</h1>
-          <p className="text-muted-foreground">
-            Gerencie os quartos e acomodações do hotel
-          </p>
+          <h1 className="text-3xl font-bold">Produtos</h1>
+          <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
         </div>
-        <Link href="/dashboard/quick-actions/add-product">
+        <Link href="/dashboard/products/new">
           <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Quarto
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Produto
           </Button>
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Quartos</CardTitle>
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Total</CardDescription>
+            <CardTitle className="text-2xl">{stats.total}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">157</div>
-            <p className="text-xs text-muted-foreground">Em todas as categorias</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Quartos Disponíveis</CardTitle>
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Ativos</CardDescription>
+            <CardTitle className="text-2xl text-green-600">{stats.active}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">142</div>
-            <p className="text-xs text-muted-foreground">90% disponibilidade</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ocupados Hoje</CardTitle>
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Inativos</CardDescription>
+            <CardTitle className="text-2xl text-muted-foreground">{stats.inactive}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">15</div>
-            <p className="text-xs text-muted-foreground">Taxa de ocupação</p>
-          </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Receita Diária</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="pb-3">
+            <CardDescription>Em Destaque</CardDescription>
+            <CardTitle className="text-2xl text-yellow-600">{stats.featured}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 24.890</div>
-            <p className="text-xs text-muted-foreground">+12% vs dia anterior</p>
-          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Sem Estoque</CardDescription>
+            <CardTitle className="text-2xl text-red-600">{stats.outOfStock}</CardTitle>
+          </CardHeader>
         </Card>
       </div>
 
-      {/* Products List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Catálogo de Quartos</CardTitle>
-          <CardDescription>Visualize e gerencie os quartos do hotel</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar quartos..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, descrição, SKU ou categoria..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Categoria: {categoryFilter === "ALL" ? "Todas" : categoryFilter}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setCategoryFilter("ALL")}>
+              Todas
+            </DropdownMenuItem>
+            {categories.map((category) => (
+              <DropdownMenuItem
+                key={category}
+                onClick={() => setCategoryFilter(category!)}
+              >
+                {category}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Status: {activeFilter === "ALL" ? "Todos" : activeFilter === "ACTIVE" ? "Ativos" : "Inativos"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setActiveFilter("ALL")}>
+              Todos
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setActiveFilter("ACTIVE")}>
+              Ativos
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setActiveFilter("INACTIVE")}>
+              Inativos
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Products Grid */}
+      {filteredProducts.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Package className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Nenhum produto encontrado</p>
+            <Link href="/dashboard/products/new">
+              <Button className="mt-4">
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Primeiro Produto
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProducts.map((product) => (
+            <Card key={product.id} className="overflow-hidden">
+              <div className="aspect-video bg-muted relative">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Package className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+                {product.featured && (
+                  <div className="absolute top-2 right-2">
+                    <Badge className="bg-yellow-500">
+                      <Star className="h-3 w-3 mr-1" />
+                      Destaque
+                    </Badge>
+                  </div>
+                )}
+                {!product.active && (
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="secondary">Inativo</Badge>
+                  </div>
+                )}
               </div>
 
-              {/* Filtro por Status */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <Filter className="h-4 w-4 mr-2" />
-                    Status
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Filtrar por Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("all")}
-                    className={statusFilter === "all" ? "bg-accent" : ""}
-                  >
-                    Todos os quartos
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("active")}
-                    className={statusFilter === "active" ? "bg-accent" : ""}
-                  >
-                    Disponíveis
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setStatusFilter("out_of_stock")}
-                    className={statusFilter === "out_of_stock" ? "bg-accent" : ""}
-                  >
-                    Ocupados
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Filtro por Categoria */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
-                    <BedDouble className="h-4 w-4 mr-2" />
-                    Tipo
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Filtrar por Tipo</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setCategoryFilter("all")}
-                    className={categoryFilter === "all" ? "bg-accent" : ""}
-                  >
-                    Todos os tipos
-                  </DropdownMenuItem>
-                  {categories.map((category) => (
-                    <DropdownMenuItem
-                      key={category}
-                      onClick={() => setCategoryFilter(category)}
-                      className={categoryFilter === category ? "bg-accent" : ""}
-                    >
-                      {category}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Products Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {products
-              .filter(product => {
-                // Filtro por busca
-                const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  product.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-                // Filtro por status
-                const matchesStatus = statusFilter === "all" || product.status === statusFilter;
-
-                // Filtro por categoria
-                const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-
-                return matchesSearch && matchesStatus && matchesCategory;
-              })
-              .map((product) => (
-                <Card key={product.id} className="overflow-hidden">
-                  <div className="aspect-square bg-gray-100 relative">
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                      <BedDouble className="h-12 w-12" />
-                    </div>
-                    {product.status === 'out_of_stock' && (
-                      <div className="absolute top-2 right-2">
-                        <Badge variant="destructive">Ocupado</Badge>
-                      </div>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <CardTitle className="line-clamp-1">{product.title}</CardTitle>
+                    {product.category && (
+                      <Badge variant="outline" className="mt-2">
+                        {product.category}
+                      </Badge>
                     )}
                   </div>
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{product.name}</h3>
-                      <p className="text-sm text-muted-foreground">{product.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">{product.price}</span>
-                        <Badge variant="secondary">{product.category}</Badge>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Unidades: {product.stock}</span>
-                        <div className="flex items-center">
-                          <TrendingUp className="h-3 w-3 mr-1" />
-                          {product.sales} reservas
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewProduct(product.id)}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/dashboard/products/${product.id}`)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        Ver
-                      </Button>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditProduct(product.id)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-
-                        {/* Dropdown de Ações */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="outline">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleViewProduct(product.id)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Ver detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditProduct(product.id)}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDeleteProduct(product.id)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Deletar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-
-            {/* Estado vazio */}
-            {products.filter(product => {
-              const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                product.category.toLowerCase().includes(searchQuery.toLowerCase());
-              const matchesStatus = statusFilter === "all" || product.status === statusFilter;
-              const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-              return matchesSearch && matchesStatus && matchesCategory;
-            }).length === 0 && (
-                <div className="col-span-full text-center py-8">
-                  <BedDouble className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold">Nenhum quarto encontrado</h3>
-                  <p className="text-muted-foreground">
-                    {searchQuery || statusFilter !== "all" || categoryFilter !== "all"
-                      ? "Tente ajustar os filtros de busca"
-                      : "Adicione seu primeiro quarto para começar"
-                    }
-                  </p>
+                        Ver Detalhes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/dashboard/products/${product.id}/edit`)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => toggleActive(product.id, product.active)}
+                      >
+                        {product.active ? "Desativar" : "Ativar"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => deleteProduct(product.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Deletar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              )}
-          </div>
-        </CardContent>
-      </Card>
+                {product.description && (
+                  <CardDescription className="line-clamp-2 mt-2">
+                    {product.description}
+                  </CardDescription>
+                )}
+              </CardHeader>
 
-      {/* Modal de Confirmação de Delete */}
-      {deleteModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-2">Confirmar Exclusão</h3>
-            <p className="text-muted-foreground mb-6">
-              Tem certeza que deseja deletar este quarto? Esta ação não pode ser desfeita.
-            </p>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={cancelDelete}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={confirmDelete}>
-                Deletar
-              </Button>
-            </div>
-          </div>
+              <CardContent className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold">
+                    {product.prices[0]
+                      ? formatCurrency(product.prices[0].amount)
+                      : "Sem preço"}
+                  </span>
+                  {product.prices[0]?.promoAmount && (
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatCurrency(product.prices[0].promoAmount)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>{product._count.orderItems} vendas</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    <span>{product._count.quoteItems} orçamentos</span>
+                  </div>
+                </div>
+
+                {product.sku && (
+                  <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+                )}
+
+                {product.stock !== null && product.stock !== undefined && (
+                  <p className="text-xs">
+                    Estoque:{" "}
+                    <span
+                      className={product.stock <= 0 ? "text-red-600 font-semibold" : ""}
+                    >
+                      {product.stock}
+                    </span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>

@@ -1,383 +1,393 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  ArrowLeft,
-  CalendarCheck,
-  Save,
-  Search,
-  Plus,
-  Minus,
-  User,
-  BedDouble,
-  Calculator,
-  Truck,
-  CreditCard,
-  Phone
-} from "lucide-react";
+import { ArrowLeft, Save, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-  sku: string;
-}
 
 interface Customer {
-  id: number;
+  id: string;
   name: string;
-  phone: string;
-  email: string;
+  phoneE164: string;
 }
 
-interface CartItem extends Product {
+interface Product {
+  id: string;
+  title: string;
+  prices: Array<{
+    amount: number;
+    active: boolean;
+  }>;
+}
+
+interface OrderItem {
+  productId: string;
+  productName: string;
   quantity: number;
+  unitPrice: number;
 }
 
 export default function CreateOrderPage() {
-  const [orderData, setOrderData] = useState({
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [formData, setFormData] = useState({
     customerId: "",
-    customerName: "",
-    customerPhone: "",
-    items: [],
-    subtotal: 0,
-    shipping: 0,
-    discount: 0,
-    total: 0,
-    paymentMethod: "",
     notes: "",
-    shippingAddress: ""
   });
 
-  const [searchProduct, setSearchProduct] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [newItem, setNewItem] = useState({
+    productId: "",
+    quantity: "1",
+  });
 
-  // Quartos simulados
-  const products = [
-    { id: 1, name: "Suíte Master", price: 450.00, stock: 4, sku: "SUITE-001" },
-    { id: 2, name: "Quarto Standard", price: 180.00, stock: 12, sku: "STD-002" },
-    { id: 3, name: "Suíte Premium", price: 320.00, stock: 6, sku: "PREM-003" },
-    { id: 4, name: "Quarto Família", price: 280.00, stock: 8, sku: "FAM-004" }
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  // Hóspedes simulados
-  const customers = [
-    { id: 1, name: "João Silva", phone: "(11) 99999-9999", email: "joao@email.com" },
-    { id: 2, name: "Maria Santos", phone: "(11) 88888-8888", email: "maria@email.com" },
-    { id: 3, name: "Pedro Costa", phone: "(11) 77777-7777", email: "pedro@email.com" }
-  ];
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [customersRes, productsRes] = await Promise.all([
+        fetch("/api/customers?limit=100"),
+        fetch("/api/products"),
+      ]);
 
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+      if (customersRes.ok) {
+        const data = await customersRes.json();
+        setCustomers(data.customers || []);
+      }
 
-  const addToCart = (product: Product) => {
-    const existingItem = cartItems.find(item => item.id === product.id);
-    if (existingItem) {
-      setCartItems(prev => prev.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCartItems(prev => [...prev, { ...product, quantity: 1 }]);
+      if (productsRes.ok) {
+        const data = await productsRes.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
     }
-    calculateTotal();
   };
 
-  const updateQuantity = (productId: number, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      setCartItems(prev => prev.filter(item => item.id !== productId));
-    } else {
-      setCartItems(prev => prev.map(item =>
-        item.id === productId
-          ? { ...item, quantity: newQuantity }
-          : item
-      ));
+  const addItem = () => {
+    if (!newItem.productId || !newItem.quantity) return;
+
+    const product = products.find((p) => p.id === newItem.productId);
+    if (!product) return;
+
+    const price = product.prices.find((p) => p.active);
+    if (!price) {
+      alert("Produto sem preço definido");
+      return;
     }
-    calculateTotal();
+
+    const existingItemIndex = items.findIndex(
+      (item) => item.productId === newItem.productId
+    );
+
+    if (existingItemIndex >= 0) {
+      const updatedItems = [...items];
+      updatedItems[existingItemIndex].quantity += parseInt(newItem.quantity);
+      setItems(updatedItems);
+    } else {
+      setItems([
+        ...items,
+        {
+          productId: product.id,
+          productName: product.title,
+          quantity: parseInt(newItem.quantity),
+          unitPrice: price.amount,
+        },
+      ]);
+    }
+
+    setNewItem({ productId: "", quantity: "1" });
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const updateItemQuantity = (index: number, quantity: string) => {
+    const qty = parseInt(quantity);
+    if (qty > 0) {
+      const updatedItems = [...items];
+      updatedItems[index].quantity = qty;
+      setItems(updatedItems);
+    }
   };
 
   const calculateTotal = () => {
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const total = subtotal + orderData.shipping - orderData.discount;
-    setOrderData(prev => ({ ...prev, subtotal, total }));
+    return items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0
+    );
   };
 
-  const handleSave = () => {
-    console.log("Criando reserva:", { ...orderData, items: cartItems });
-    // Aqui você implementaria a lógica de criar reserva
+  const formatCurrency = (cents: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(cents / 100);
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (items.length === 0) {
+      alert("Adicione pelo menos um item ao pedido");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const body = {
+        customerId: formData.customerId,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+        notes: formData.notes || undefined,
+      };
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/dashboard/orders/${data.order.id}`);
+        router.refresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao criar pedido");
+      }
+    } catch (error) {
+      console.error("Erro ao criar pedido:", error);
+      alert("Erro ao criar pedido");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Link href="/dashboard">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Nova Reserva</h1>
-            <p className="text-muted-foreground">
-              Crie uma nova reserva para um hóspede
-            </p>
-          </div>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard/orders">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Criar Pedido</h1>
+          <p className="text-muted-foreground">Crie um novo pedido rapidamente</p>
         </div>
-        <Button onClick={handleSave} disabled={cartItems.length === 0}>
-          <Save className="mr-2 h-4 w-4" />
-          Criar Reserva
-        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Seleção de Hóspede e Quartos */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <CalendarCheck className="mr-2 h-5 w-5" />
-              Montar Reserva
-            </CardTitle>
-            <CardDescription>Selecione hóspede e adicione quartos</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Seleção de Hóspede */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium flex items-center">
-                <User className="mr-2 h-4 w-4" />
-                Hóspede
-              </h3>
-              {!selectedCustomer ? (
-                <div className="grid gap-3">
-                  {customers.map((customer) => (
-                    <div
-                      key={customer.id}
-                      className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                      onClick={() => setSelectedCustomer(customer)}
-                    >
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="text-sm text-muted-foreground">{customer.phone}</div>
-                      </div>
-                      <Button size="sm" variant="outline">
-                        Selecionar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                  <div>
-                    <div className="font-medium">{selectedCustomer.name}</div>
-                    <div className="text-sm text-muted-foreground">{selectedCustomer.phone}</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedCustomer(null)}
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form */}
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Pedido</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="customer">
+                    Cliente <span className="text-destructive">*</span>
+                  </Label>
+                  <select
+                    id="customer"
+                    value={formData.customerId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, customerId: e.target.value })
+                    }
+                    required
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    Alterar
-                  </Button>
+                    <option value="">Selecione um cliente</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.phoneE164})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </div>
 
-            {/* Busca de Quartos */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium flex items-center">
-                <BedDouble className="mr-2 h-4 w-4" />
-                Selecionar Quartos
-              </h3>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar quartos..."
-                  className="pl-8"
-                  value={searchProduct}
-                  onChange={(e) => setSearchProduct(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-3">
-                {products
-                  .filter(product =>
-                    product.name.toLowerCase().includes(searchProduct.toLowerCase()) ||
-                    product.sku.toLowerCase().includes(searchProduct.toLowerCase())
-                  )
-                  .map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Observações</Label>
+                  <textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) =>
+                      setFormData({ ...formData, notes: e.target.value })
+                    }
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    placeholder="Observações sobre o pedido"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Itens do Pedido</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-7">
+                    <Label htmlFor="product">Produto</Label>
+                    <select
+                      id="product"
+                      value={newItem.productId}
+                      onChange={(e) =>
+                        setNewItem({ ...newItem, productId: e.target.value })
+                      }
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <div className="flex-1">
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Código: {product.sku} • Disponíveis: {product.stock}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className="font-semibold">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}/noite
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => addToCart(product)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Carrinho */}
-            {cartItems.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Itens do Pedido</h3>
-                <div className="space-y-3">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="font-medium">{item.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)} cada
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="w-8 text-center">{item.quantity}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <span className="w-20 text-right font-semibold">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                      <option value="">Selecione um produto</option>
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.title}
+                          {product.prices[0] &&
+                            ` - ${formatCurrency(product.prices[0].amount)}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <Label htmlFor="quantity">Qtd</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      value={newItem.quantity}
+                      onChange={(e) =>
+                        setNewItem({ ...newItem, quantity: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-end">
+                    <Button
+                      type="button"
+                      onClick={addItem}
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Resumo e Finalização */}
-        <div className="space-y-6">
-          {/* Resumo do Pedido */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <Calculator className="mr-2 h-4 w-4" />
-                Resumo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderData.subtotal)}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Frete</span>
-                <span>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderData.shipping)}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Desconto</span>
-                <span className="text-red-600">
-                  -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderData.discount)}
-                </span>
-              </div>
-              <div className="border-t pt-2">
-                <div className="flex justify-between font-semibold">
-                  <span>Total</span>
+                {items.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    {items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border rounded-md"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{item.productName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatCurrency(item.unitPrice)} × {item.quantity} ={" "}
+                            {formatCurrency(item.unitPrice * item.quantity)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItemQuantity(index, e.target.value)
+                            }
+                            className="w-20"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {items.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    Nenhum item adicionado. Selecione um produto acima.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Summary Sidebar */}
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Resumo</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Itens:</span>
+                  <span>{items.length}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Quantidade Total:</span>
                   <span>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(orderData.total)}
+                    {items.reduce((sum, item) => sum + item.quantity, 0)}
                   </span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="border-t pt-4">
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total:</span>
+                    <span>{formatCurrency(calculateTotal())}</span>
+                  </div>
+                </div>
 
-          {/* Forma de Pagamento */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Pagamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                PIX
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Cartão de Crédito
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Boleto
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                Dinheiro
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Ações Rápidas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Ações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <Phone className="mr-2 h-4 w-4" />
-                Ligar para Cliente
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Truck className="mr-2 h-4 w-4" />
-                Calcular Frete
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Status</span>
-                <Badge variant="outline">Rascunho</Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Criado em</span>
-                <span className="font-medium">Agora</span>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex flex-col gap-3 pt-4">
+                  <Button type="submit" disabled={saving || items.length === 0}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? "Criando..." : "Criar Pedido"}
+                  </Button>
+                  <Link href="/dashboard/orders">
+                    <Button type="button" variant="outline" className="w-full">
+                      Cancelar
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

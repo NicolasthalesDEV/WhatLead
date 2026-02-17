@@ -10,9 +10,34 @@ datasource db {
 }
 
 model Company {
-  id           String         @id @default(cuid())
+  id           String              @id @default(cuid())
   name         String
-  slug         String         @unique
+  slug         String              @unique
+  
+  // Contact Info
+  email        String?
+  phone        String?
+  website      String?
+  
+  // Address
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  country      String?             @default("BR")
+  
+  // Business Info
+  document     String?             // CNPJ ou CPF
+  logoUrl      String?
+  description  String?
+  
+  // Business Hours (JSON com horários por dia da semana)
+  businessHours Json?
+  
+  // Automatic Messages
+  autoMessages Json?
+  
+  // Relations
   users        User[]
   channels     WhatsChannel[]
   customers    Customer[]
@@ -23,18 +48,84 @@ model Company {
   webhooks     WebhookEndpoint[]
   messages     WhatsMessage[]
   funnelStages FunnelStage[]
-  createdAt    DateTime       @default(now())
+  funnelCards  FunnelCard[]
+  dailyMetrics DailyMetric[]
+  npsSurveys   NPSSurvey[]
+  tickets      Ticket[]
+  
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @default(now()) @updatedAt
 }
 
 model User {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
-  email     String   @unique
-  hash      String
-  role      Role
-  name      String
-  createdAt DateTime @default(now())
+  id                String          @id @default(cuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id])
+  email             String          @unique
+  hash              String
+  role              Role
+  name              String
+  avatarUrl         String?
+  preferences       Json?           // User preferences (theme, language, notifications, etc.)
+  emailVerified     Boolean         @default(false)
+  emailVerifyToken  String?
+  passwordResetToken String?
+  passwordResetExpiry DateTime?
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean         @default(false)
+  twoFactorBackupCodes String[]
+  loginAttempts     Int             @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  notificationPreference NotificationPreference?
+  assignedFunnelCards FunnelCard[]
+  assignedTickets   Ticket[]           @relation("AssignedTickets")
+  createdTickets    Ticket[]           @relation("CreatedTickets")
+  ticketComments    TicketComment[]    @relation("TicketComments")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  accessToken  String
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+  
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  
+  @@index([userId])
+  @@index([companyId])
+  @@index([action])
+  @@index([createdAt])
+  // Índices compostos para filtros do dashboard de auditoria
+  @@index([companyId, action, createdAt])
+  @@index([userId, createdAt])
 }
 
 enum Role {
@@ -58,32 +149,55 @@ model WhatsChannel {
 }
 
 model Customer {
-  id        String         @id @default(cuid())
+  id        String          @id @default(cuid())
   companyId String
-  company   Company        @relation(fields: [companyId], references: [id])
+  company   Company         @relation(fields: [companyId], references: [id])
   name      String
-  phoneE164 String         @unique
+  phoneE164 String          @unique
   email     String?
   tags      String[]
+  notes     String?         // Notas e observações sobre o cliente
+  address   String?         // Endereço completo
+  city      String?         // Cidade
+  state     String?         // Estado
+  zipCode   String?         // CEP
   quotes    Quote[]
   orders    Order[]
   messages  WhatsMessage[]
-  createdAt DateTime       @default(now())
+  metric    CustomerMetric?
+  funnelCards FunnelCard[]
+  npsResponses NPSResponse[]
+  tickets   Ticket[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  
+  @@index([companyId])
+  @@index([phoneE164])
 }
 
 model Product {
-  id          String      @id @default(cuid())
+  id          String          @id @default(cuid())
   companyId   String
-  company     Company     @relation(fields: [companyId], references: [id])
+  company     Company         @relation(fields: [companyId], references: [id])
   title       String
   slug        String
   description String?
   imageUrl    String?
-  active      Boolean     @default(true)
+  category    String?         // Categoria do produto
+  sku         String?         // Código SKU
+  stock       Int?            // Estoque disponível
+  active      Boolean         @default(true)
+  featured    Boolean         @default(false) // Produto em destaque
   prices      Price[]
   quoteItems  QuoteItem[]
   orderItems  OrderItem[]
-  createdAt   DateTime    @default(now())
+  metrics     ProductMetric[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @default(now()) @updatedAt
+  
+  @@index([companyId])
+  @@index([active])
+  @@index([category])
 }
 
 model Price {
@@ -129,18 +243,43 @@ model QuoteItem {
 }
 
 model Order {
-  id         String   @id @default(cuid())
+  id         String        @id @default(cuid())
   companyId  String
   customerId String
   quoteId    String?
-  status     OrderStatus @default(PENDING)
+  status     OrderStatus   @default(PENDING)
   total      Int
-  createdAt  DateTime @default(now())
-  company    Company  @relation(fields: [companyId], references: [id])
-  customer   Customer @relation(fields: [customerId], references: [id])
-  quote      Quote?   @relation(fields: [quoteId], references: [id])
+  notes      String?       // Observações sobre o pedido
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  company    Company       @relation(fields: [companyId], references: [id])
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  quote      Quote?        @relation(fields: [quoteId], references: [id])
   items      OrderItem[]
   payments   Payment[]
+  history    OrderHistory[]
+  npsResponses NPSResponse[]
+  
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  // Índices compostos para otimização
+  @@index([companyId, status, createdAt]) // Dashboard de pedidos
+  @@index([customerId, createdAt]) // Pedidos do cliente
+}
+
+model OrderHistory {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId      String?  // Usuário que fez a alteração
+  action      String   // CREATED, STATUS_CHANGED, PAYMENT_RECEIVED, CANCELED, NOTE_ADDED, etc.
+  oldValue    String?  // Valor anterior (JSON string)
+  newValue    String?  // Novo valor (JSON string)
+  description String   // Descrição legível da ação
+  createdAt   DateTime @default(now())
+  
+  @@index([orderId])
 }
 
 enum OrderStatus {
@@ -197,6 +336,11 @@ model WhatsMessage {
   customer     Customer   @relation(fields: [customerId], references: [id])
   company      Company    @relation(fields: [companyId], references: [id])
   channel      WhatsChannel @relation(fields: [channelId], references: [id])
+  
+  // Índices compostos para otimização de queries
+  @@index([companyId, customerId, createdAt]) // Listagem de conversas por cliente
+  @@index([companyId, direction, status]) // Filtro de mensagens não lidas
+  @@index([customerId, createdAt]) // Timeline do cliente
 }
 
 enum MessageDirection {
@@ -205,59 +349,480 @@ enum MessageDirection {
 }
 
 model FunnelStage {
-  id        String @id @default(cuid())
-  companyId String
-  name      String
-  order     Int
-  default   Boolean @default(false)
-  company   Company @relation(fields: [companyId], references: [id])
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String       @default("#6366f1") // Cor do estágio (hex)
+  order       Int          // Ordem de exibição (position)
+  default     Boolean      @default(false) // Estágio padrão
+  isActive    Boolean      @default(true)
+  
+  // Cards neste estágio
+  cards       FunnelCard[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
+  
+  @@unique([companyId, order])
+  @@index([companyId])
 }
 
-model Ticket {
-  id          String @id @default(cuid())
+model FunnelCard {
+  id              String       @id @default(cuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stageId         String
+  stage           FunnelStage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  
+  // Informações do card
+  title           String       // Nome do lead/cliente
+  description     String?      // Notas sobre o lead
+  value           Decimal?     @db.Decimal(10, 2) // Valor potencial da venda
+  probability     Int          @default(50) // Probabilidade de conversão (0-100)
+  
+  // Contato
+  email           String?
+  phone           String?
+  
+  // Tracking
+  position        Int          // Posição dentro do estágio
+  enteredStageAt  DateTime     @default(now()) // Quando entrou no estágio atual
+  lastActivityAt  DateTime     @default(now()) // Última interação
+  
+  // Automação
+  tags            String[]     @default([])
+  assignedToId    String?      // Usuário responsável
+  assignedTo      User?        @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@index([companyId])
+  @@index([stageId])
+  @@index([customerId])
+  // Índices compostos para otimização
+  @@index([stageId, position]) // Drag-and-drop e ordenação
+  @@index([assignedToId, companyId]) // Filtro por vendedor
+  @@index([companyId, lastActivityAt]) // Cards por atividade recente
+}
+
+model ChatbotFlow {
+  id          String         @id @default(cuid())
   companyId   String
-  customerId  String
-  title       String
-  status      String
-  priority    String
-  assigneeId  String?
-  createdAt   DateTime @default(now())
+  name        String
+  description String?
+  status      FlowStatus     @default(DRAFT)
+  triggers    String[]       // Keywords que ativam o fluxo
+  priority    Int            @default(0)
+  nodes       ChatbotNode[]
+  executions  ChatbotExecution[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([companyId])
+  @@index([status])
+}
+
+enum FlowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+model ChatbotNode {
+  id          String     @id @default(cuid())
+  flowId      String
+  flow        ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  type        NodeType
+  position    Json       // {x, y} para interface visual
+  data        Json       // Configurações específicas do nó
+  connections Json       // Conexões com outros nós
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  
+  @@index([flowId])
+}
+
+enum NodeType {
+  TRIGGER      // Início do fluxo
+  MESSAGE      // Enviar mensagem
+  QUESTION     // Fazer pergunta
+  CONDITION    // Decisão/if
+  ACTION       // Ação (criar pedido, atualizar cliente, etc)
+  DELAY        // Aguardar tempo
+  GOTO_FLOW    // Redirecionar para outro fluxo
+  END_FLOW     // Fim do fluxo
+  API_CALL     // Chamar API externa
+  ASSIGN_TAG   // Adicionar tag ao cliente
+  HANDOFF      // Transferir para humano
+}
+
+model ChatbotExecution {
+  id           String         @id @default(cuid())
+  flowId       String
+  flow         ChatbotFlow    @relation(fields: [flowId], references: [id])
+  customerId   String
+  messageId    String?
+  currentNode  String?
+  context      Json?          // Variáveis e estado da conversa
+  status       ExecutionStatus @default(RUNNING)
+  startedAt    DateTime       @default(now())
+  completedAt  DateTime?
+  
+  @@index([flowId])
+  @@index([customerId])
+  @@index([status])
+}
+
+enum ExecutionStatus {
+  RUNNING
+  WAITING_INPUT
+  COMPLETED
+  FAILED
+  HANDOFF
+}
+
+model ChatbotTrigger {
+  id          String       @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  type        TriggerType
+  flowId      String
+  conditions  Json         // Condições para ativar
+  enabled     Boolean      @default(true)
+  priority    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  
+  @@index([companyId])
+  @@index([type])
+  @@index([enabled])
+}
+
+enum TriggerType {
+  MESSAGE_RECEIVED    // Mensagem recebida
+  KEYWORD             // Palavra-chave detectada
+  NEW_CUSTOMER        // Novo cliente
+  ORDER_CREATED       // Pedido criado
+  ORDER_PAID          // Pagamento confirmado
+  CUSTOMER_IDLE       // Cliente inativo
+  TIME_BASED          // Horário específico
+  FUNNEL_STAGE        // Mudança de estágio no funil
+  CUSTOM_EVENT        // Evento customizado
+}
+
+model QuickResponse {
+  id        String   @id @default(cuid())
+  companyId String
+  shortcut  String   // Ex: /oi, /horario
+  message   String
+  active    Boolean  @default(true)
+  usageCount Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([companyId, shortcut])
+  @@index([companyId])
+}
+
+model ChatbotAnalytics {
+  id              String   @id @default(cuid())
+  companyId       String
+  flowId          String?
+  date            DateTime @default(now()) @db.Date
+  totalExecutions Int      @default(0)
+  completed       Int      @default(0)
+  failed          Int      @default(0)
+  handoffs        Int      @default(0)
+  avgDuration     Int?     // Segundos
+  
+  @@unique([companyId, flowId, date])
+  @@index([companyId])
+  @@index([date])
+}
+
+
+model Ticket {
+  id            String          @id @default(cuid())
+  companyId     String
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Ticket Info
+  subject       String
+  description   String          @db.Text
+  status        TicketStatus    @default(OPEN)
+  priority      TicketPriority  @default(MEDIUM)
+  category      String?
+  
+  // Relations
+  customerId    String?
+  customer      Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  
+  assignedToId  String?
+  assignedTo    User?           @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  createdById   String
+  createdBy     User            @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Comments
+  comments      TicketComment[]
+  
+  // SLA Tracking
+  slaDeadline   DateTime?
+  resolvedAt    DateTime?
+  firstResponseAt DateTime?
+  
+  // Metadata
+  tags          String[]
+  customFields  Json?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  @@index([companyId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model TicketComment {
+  id            String   @id @default(cuid())
+  ticketId      String
+  ticket        Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  userId        String
+  user          User     @relation("TicketComments", fields: [userId], references: [id], onDelete: Cascade)
+  
+  content       String   @db.Text
+  isInternal    Boolean  @default(false)  // Internal note vs customer-facing comment
+  
+  attachments   Json?    // Array of attachment URLs
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([ticketId])
+  @@index([createdAt])
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  WAITING_INTERNAL
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
 model NPSSurvey {
-  id        String @id @default(cuid())
-  companyId String
-  name      String
-  active    Boolean @default(true)
-  createdAt DateTime @default(now())
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id])
+  name        String
+  description String?
+  question    String        @default("Em uma escala de 0 a 10, quanto você recomendaria nossos serviços?")
+  active      Boolean       @default(true)
+  sendAfterOrderPaid Boolean @default(true)
+  sendDelayMinutes   Int     @default(60) // Delay após pedido pago
+  responses   NPSResponse[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([companyId, active])
 }
 
 model NPSResponse {
-  id         String @id @default(cuid())
+  id         String     @id @default(cuid())
   surveyId   String
+  survey     NPSSurvey  @relation(fields: [surveyId], references: [id])
   customerId String
-  score      Int
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  orderId    String?
+  order      Order?     @relation(fields: [orderId], references: [id])
+  score      Int        // 0-10
   comment    String?
-  createdAt  DateTime @default(now())
+  sentiment  String?    // DETRACTOR, PASSIVE, PROMOTER
+  respondedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  @@unique([surveyId, customerId, orderId])
+  @@index([surveyId])
+  @@index([customerId])
+  @@index([score])
+  @@index([sentiment])
 }
 
 model WebhookEndpoint {
-  id        String  @id @default(cuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-  url       String
-  secret    String
-  active    Boolean @default(true)
-  events    String[]
-  createdAt DateTime @default(now())
+  id         String             @id @default(cuid())
+  companyId  String
+  company    Company            @relation(fields: [companyId], references: [id])
+  url        String
+  secret     String
+  active     Boolean            @default(true)
+  events     String[]
+  deliveries WebhookDelivery[]
+  createdAt  DateTime           @default(now())
 }
 
 model WebhookDelivery {
-  id         String @id @default(cuid())
+  id         String          @id @default(cuid())
   endpointId String
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
   eventType  String
   payload    Json
   status     String
-  attempt    Int    @default(0)
-  createdAt  DateTime @default(now())
+  attempt    Int             @default(0)
+  createdAt  DateTime        @default(now())
+  
+  @@index([endpointId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  data      Json?
+  isRead    Boolean            @default(false)
+  readAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  // Índice composto otimizado para listagem de não lidas
+  @@index([userId, isRead, createdAt])
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Tipos de notificação
+  orderCreated      Boolean  @default(true)
+  orderPaid         Boolean  @default(true)
+  orderCancelled    Boolean  @default(true)
+  messageReceived   Boolean  @default(true)
+  paymentReceived   Boolean  @default(true)
+  quoteCreated      Boolean  @default(true)
+  quoteAccepted     Boolean  @default(true)
+  customerCreated   Boolean  @default(false)
+  lowStock          Boolean  @default(true)
+  
+  // Canais
+  emailEnabled      Boolean  @default(true)
+  pushEnabled       Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  ORDER_PAID
+  ORDER_CANCELLED
+  MESSAGE_RECEIVED
+  PAYMENT_RECEIVED
+  QUOTE_CREATED
+  QUOTE_ACCEPTED
+  CUSTOMER_CREATED
+  LOW_STOCK
+  SYSTEM
+}
+
+model DailyMetric {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date              DateTime
+  
+  // Vendas
+  totalOrders       Int      @default(0)
+  totalRevenue      Float    @default(0)
+  averageOrderValue Float    @default(0)
+  
+  // Clientes
+  newCustomers      Int      @default(0)
+  activeCustomers   Int      @default(0)
+  
+  // Conversão
+  quotesCreated     Int      @default(0)
+  quotesAccepted    Int      @default(0)
+  conversionRate    Float    @default(0)
+  
+  // Mensagens
+  messagesReceived  Int      @default(0)
+  messagesSent      Int      @default(0)
+  responseTime      Float?   // Em minutos
+  
+  // Pagamentos
+  paymentsReceived  Int      @default(0)
+  pixPayments       Int      @default(0)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([companyId, date])
+  @@index([companyId, date])
+}
+
+model ProductMetric {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  date          DateTime
+  
+  views         Int      @default(0)
+  orders        Int      @default(0)
+  revenue       Float    @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([productId, date])
+  @@index([productId, date])
+}
+
+model CustomerMetric {
+  id                String   @id @default(cuid())
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  // Lifetime Value
+  totalOrders       Int      @default(0)
+  totalSpent        Float    @default(0)
+  averageOrderValue Float    @default(0)
+  
+  // Engagement
+  lastOrderDate     DateTime?
+  lastMessageDate   DateTime?
+  messageCount      Int      @default(0)
+  
+  // Classificação
+  segment           String?  // VIP, Regular, Novo, Inativo
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([customerId])
 }

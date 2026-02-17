@@ -1,0 +1,72 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Enable version updates for npm (pnpm workspaces)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "OWNER" # Replace with your GitHub username or team
+    assignees:
+      - "OWNER"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    # Group related dependencies
+    groups:
+      # Group Next.js related updates
+      nextjs:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+      # Group Prisma related updates
+      prisma:
+        patterns:
+          - "@prisma/*"
+          - "prisma"
+      # Group dev dependencies
+      development:
+        dependency-type: "development"
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier"
+          - "typescript"
+    # Ignore specific versions (if needed)
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
+      - "automated"
+
+  # Enable version updates for Docker (if using custom Dockerfiles)
+  - package-ecosystem: "docker"
+    directory: "/infra"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(docker)"
+    labels:
+      - "docker"
+      - "automated"
