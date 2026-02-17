@@ -28,7 +28,7 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",

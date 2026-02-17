@@ -13,7 +13,7 @@ import Link from "next/link";
 export default function NewCustomerPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     phoneE164: "",

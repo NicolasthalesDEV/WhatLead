@@ -126,8 +126,8 @@ export default function RegisterContent() {
               {hasNoPlanSelected ? "Teste Grátis por 14 Dias" : "Criar sua Conta"}
             </h1>
             <p className="text-gray-600 mt-2">
-              {hasNoPlanSelected 
-                ? "Experimente todas as funcionalidades gratuitamente" 
+              {hasNoPlanSelected
+                ? "Experimente todas as funcionalidades gratuitamente"
                 : "Complete seu cadastro para começar"}
             </p>
           </div>
@@ -178,130 +178,130 @@ export default function RegisterContent() {
                 Preencha as informações abaixo para acessar sua conta
               </CardDescription>
             </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo *</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Seu nome completo"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  required
-                  disabled={!!emailFromCheckout}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone/WhatsApp *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(11) 99999-9999"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="company">Nome da Empresa *</Label>
-                <Input
-                  id="company"
-                  type="text"
-                  placeholder="Sua empresa"
-                  value={formData.company}
-                  onChange={(e) => handleInputChange("company", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Digite a senha novamente"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  required
-                />
-              </div>
-
-              {message && (
-                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                  {message}
+            <CardContent>
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome Completo *</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Seu nome completo"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    required
+                  />
                 </div>
-              )}
 
-              <div className="bg-purple-50 p-4 rounded-lg space-y-2 text-sm">
-                <p className="font-semibold text-purple-900 flex items-center">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Ao criar sua conta você recebe:
-                </p>
-                <ul className="space-y-1 text-purple-800 ml-6">
-                  <li>✓ 14 dias de teste grátis</li>
-                  <li>✓ Acesso completo a todas as funcionalidades</li>
-                  <li>✓ Suporte dedicado em português</li>
-                  <li>✓ Sem cobrança durante o período de teste</li>
-                </ul>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    required
+                    disabled={!!emailFromCheckout}
+                  />
+                </div>
 
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Criando conta...
-                  </>
-                ) : (
-                  "Criar Minha Conta"
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Telefone/WhatsApp *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="(11) 99999-9999"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company">Nome da Empresa *</Label>
+                  <Input
+                    id="company"
+                    type="text"
+                    placeholder="Sua empresa"
+                    value={formData.company}
+                    onChange={(e) => handleInputChange("company", e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Digite a senha novamente"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    required
+                  />
+                </div>
+
+                {message && (
+                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                    {message}
+                  </div>
                 )}
-              </Button>
 
-              <p className="text-center text-sm text-gray-600">
-                Já tem uma conta?{" "}
-                <button
-                  type="button"
-                  onClick={() => router.push("/login")}
-                  className="text-purple-600 hover:underline font-medium"
+                <div className="bg-purple-50 p-4 rounded-lg space-y-2 text-sm">
+                  <p className="font-semibold text-purple-900 flex items-center">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Ao criar sua conta você recebe:
+                  </p>
+                  <ul className="space-y-1 text-purple-800 ml-6">
+                    <li>✓ 14 dias de teste grátis</li>
+                    <li>✓ Acesso completo a todas as funcionalidades</li>
+                    <li>✓ Suporte dedicado em português</li>
+                    <li>✓ Sem cobrança durante o período de teste</li>
+                  </ul>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-lg py-6"
+                  disabled={isLoading}
                 >
-                  Fazer login
-                </button>
-              </p>
-            </form>
-          </CardContent>
-        </Card>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Criando conta...
+                    </>
+                  ) : (
+                    "Criar Minha Conta"
+                  )}
+                </Button>
+
+                <p className="text-center text-sm text-gray-600">
+                  Já tem uma conta?{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/login")}
+                    className="text-purple-600 hover:underline font-medium"
+                  >
+                    Fazer login
+                  </button>
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
 
       {/* Footer */}
       <footer className="border-t bg-gray-900 text-gray-400 mt-16">

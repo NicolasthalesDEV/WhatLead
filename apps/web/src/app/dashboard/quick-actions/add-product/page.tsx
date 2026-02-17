@@ -12,7 +12,7 @@ import Link from "next/link";
 export default function AddProductPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -41,7 +41,7 @@ export default function AddProductPage() {
       if (formData.category) body.category = formData.category;
       if (formData.sku) body.sku = formData.sku;
       if (formData.stock) body.stock = parseInt(formData.stock);
-      
+
       // Add price if provided
       if (formData.price) {
         const priceInCents = Math.round(parseFloat(formData.price) * 100);

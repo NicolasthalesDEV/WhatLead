@@ -21,7 +21,7 @@ export default function SendMessagePage() {
   const [sending, setSending] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [formData, setFormData] = useState({
     customerId: "",
     message: "",
