@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { createSession, createAuditLog, checkRateLimit } from "@/lib/auth";
 
 const Body = z.object({
@@ -52,13 +53,17 @@ export async function POST(req: NextRequest) {
 
   // Create company and user in a transaction
   const result = await prisma.$transaction(async (tx) => {
+    const companyId = crypto.randomUUID();
+    const userId = crypto.randomUUID();
+
     const company = await tx.company.create({
-      data: { name: body.data.company, slug: body.data.slug },
+      data: { id: companyId, name: body.data.company, slug: body.data.slug },
     });
 
     const hash = await bcrypt.hash(body.data.password, 10);
     const user = await tx.user.create({
       data: {
+        id: userId,
         companyId: company.id,
         email: body.data.email,
         hash,
