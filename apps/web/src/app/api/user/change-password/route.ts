@@ -83,9 +83,6 @@ export async function POST(req: NextRequest) {
       where: { id: user.uid },
       data: {
         hash: newHash,
-        // Reset password reset token if exists
-        passwordResetToken: null,
-        passwordResetExpiry: null,
       },
     });
 

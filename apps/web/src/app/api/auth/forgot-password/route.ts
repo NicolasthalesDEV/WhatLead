@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { z } from "zod";
-import { generatePasswordResetToken, createAuditLog } from "@/lib/auth";
+import { createAuditLog } from "@/lib/auth";
 
 const Body = z.object({
   email: z.string().email(),
@@ -30,17 +30,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const resetToken = generatePasswordResetToken();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      passwordResetToken: resetToken,
-      passwordResetExpiry: expiresAt,
-    },
-  });
-
   await createAuditLog({
     userId: user.id,
     companyId: user.companyId,
@@ -49,12 +38,8 @@ export async function POST(req: NextRequest) {
     req,
   });
 
-  // TODO: Send email with reset link
-  // In production, send email: ${process.env.APP_URL}/reset-password?token=${resetToken}
-  console.log(`Password reset token for ${user.email}: ${resetToken}`);
-
   return NextResponse.json({
     success: true,
-    message: "If the email exists, a password reset link has been sent",
+    message: "Password reset is not available in the current database schema",
   });
 }
