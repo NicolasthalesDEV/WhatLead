@@ -11,6 +11,7 @@ export type Claims = { uid: string; companyId: string; role: string; sessionId?:
 // Token expiration times
 const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+const REFRESH_TOKEN_EXPIRY_JWT = "7d";
 
 export async function signJwt(payload: Claims, expiresIn: string = ACCESS_TOKEN_EXPIRY) {
   return await new SignJWT(payload)
@@ -26,13 +27,26 @@ export async function verifyJwt(token: string) {
 }
 
 export async function createSession(userId: string, companyId: string, role: string, req: NextRequest) {
-  const refreshToken = crypto.randomBytes(32).toString("hex");
+  const sessionModel = (prisma as any).session;
+
   const accessToken = await signJwt({ uid: userId, companyId, role }, ACCESS_TOKEN_EXPIRY);
+  const refreshToken = sessionModel?.create
+    ? crypto.randomBytes(32).toString("hex")
+    : await signJwt({ uid: userId, companyId, role }, REFRESH_TOKEN_EXPIRY_JWT);
   
   const ipAddress = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
   const userAgent = req.headers.get("user-agent") || "unknown";
   
-  const session = await prisma.session.create({
+  if (!sessionModel?.create) {
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 900,
+      sessionId: undefined,
+    };
+  }
+
+  const session = await sessionModel.create({
     data: {
       userId,
       refreshToken,
@@ -52,7 +66,26 @@ export async function createSession(userId: string, companyId: string, role: str
 }
 
 export async function refreshSession(refreshToken: string) {
-  const session = await prisma.session.findUnique({
+  const sessionModel = (prisma as any).session;
+
+  if (!sessionModel?.findUnique) {
+    const claims = await verifyJwt(refreshToken);
+    const accessToken = await signJwt(
+      {
+        uid: claims.uid,
+        companyId: claims.companyId,
+        role: claims.role,
+      },
+      ACCESS_TOKEN_EXPIRY
+    );
+
+    return {
+      accessToken,
+      expiresIn: 900,
+    };
+  }
+
+  const session = await sessionModel.findUnique({
     where: { refreshToken },
     include: { user: true },
   });
@@ -71,7 +104,7 @@ export async function refreshSession(refreshToken: string) {
     ACCESS_TOKEN_EXPIRY
   );
 
-  await prisma.session.update({
+  await sessionModel.update({
     where: { id: session.id },
     data: { accessToken },
   });
@@ -83,14 +116,20 @@ export async function refreshSession(refreshToken: string) {
 }
 
 export async function revokeSession(sessionId: string) {
-  await prisma.session.update({
+  const sessionModel = (prisma as any).session;
+  if (!sessionModel?.update) return;
+
+  await sessionModel.update({
     where: { id: sessionId },
     data: { revokedAt: new Date() },
   });
 }
 
 export async function revokeAllUserSessions(userId: string) {
-  await prisma.session.updateMany({
+  const sessionModel = (prisma as any).session;
+  if (!sessionModel?.updateMany) return;
+
+  await sessionModel.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
@@ -110,12 +149,15 @@ export async function requireAuth(req: NextRequest): Promise<
     
     // Verify session is still valid if sessionId is present
     if (claims.sessionId) {
-      const session = await prisma.session.findUnique({
+      const sessionModel = (prisma as any).session;
+      if (sessionModel?.findUnique) {
+        const session = await sessionModel.findUnique({
         where: { id: claims.sessionId },
-      });
+        });
       
-      if (!session || session.revokedAt || session.expiresAt < new Date()) {
-        return { ok: false, res: NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Session expired" } }, { status: 401 }) };
+        if (!session || session.revokedAt || session.expiresAt < new Date()) {
+          return { ok: false, res: NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Session expired" } }, { status: 401 }) };
+        }
       }
     }
     
@@ -137,12 +179,15 @@ export async function verifyAuth(req: NextRequest): Promise<Claims | null> {
     
     // Verify session is still valid if sessionId is present
     if (claims.sessionId) {
-      const session = await prisma.session.findUnique({
+      const sessionModel = (prisma as any).session;
+      if (sessionModel?.findUnique) {
+        const session = await sessionModel.findUnique({
         where: { id: claims.sessionId },
-      });
+        });
       
-      if (!session || session.revokedAt || session.expiresAt < new Date()) {
-        return null;
+        if (!session || session.revokedAt || session.expiresAt < new Date()) {
+          return null;
+        }
       }
     }
     

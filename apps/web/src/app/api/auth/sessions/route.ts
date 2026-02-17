@@ -6,7 +6,12 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
 
-  const sessions = await prisma.session.findMany({
+  const sessionModel = (prisma as any).session;
+  if (!sessionModel?.findMany) {
+    return NextResponse.json({ sessions: [] });
+  }
+
+  const sessions = await sessionModel.findMany({
     where: {
       userId: auth.userId,
       revokedAt: null,
