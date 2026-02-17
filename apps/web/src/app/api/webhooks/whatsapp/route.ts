@@ -144,22 +144,31 @@ async function processIncomingMessages(value: any) {
       });
 
       if (!customer) {
-        // Cliente novo - buscar company associada ao número de negócio
-        let company = await db.company.findFirst({
-          // TODO: Idealmente, vincular company ao businessPhoneNumberId
-          // Para MVP, pega a primeira empresa
+        // Cliente novo - buscar company pelo phoneNumberId do canal
+        const channel = await db.whatsChannel.findUnique({
+          where: {
+            phoneNumberId: businessPhoneNumberId,
+          },
         });
 
-        if (!company) {
-          console.error("No company found to create customer");
-          continue;
+        let companyId: string;
+        if (!channel) {
+          // Se não houver canal configurado, usar a primeira company (MVP)
+          const firstCompany = await db.company.findFirst();
+          if (!firstCompany) {
+            console.error("No company found in database");
+            continue;
+          }
+          companyId = firstCompany.id;
+        } else {
+          companyId = channel.companyId;
         }
 
         customer = await db.customer.create({
           data: {
             phoneE164: from,
             name: `Cliente ${from.slice(-4)}`, // Nome temporário
-            companyId: company.id,
+            companyId: companyId,
           },
           include: { company: true },
         });

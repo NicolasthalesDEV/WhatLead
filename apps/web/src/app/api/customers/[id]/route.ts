@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@wacrm/db";
+import { requireAuth } from "@/lib/auth";
 
 // Validation schemas
 const UpdateCustomerBody = z.object({
@@ -15,11 +16,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const authResult = await requireAuth(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const customer = await prisma.customer.findFirst({
       where: {
         id: id,
-        companyId: "company-1", // TODO: Get from auth
+        companyId: authResult.companyId,
       },
       include: {
         Order: {
@@ -121,6 +127,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const authResult = await requireAuth(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const data = UpdateCustomerBody.parse(body);
@@ -129,7 +140,7 @@ export async function PATCH(
     const existing = await prisma.customer.findFirst({
       where: {
         id: id,
-        companyId: "company-1", // TODO: Get from auth
+        companyId: authResult.companyId,
       },
     });
 
@@ -191,12 +202,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const authResult = await requireAuth(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     // Check if customer exists and has no orders/quotes
     const customer = await prisma.customer.findFirst({
       where: {
         id: id,
-        companyId: "company-1", // TODO: Get from auth
+        companyId: authResult.companyId,
       },
       include: {
         _count: {

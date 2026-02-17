@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       }),
 
       // Total de mensagens no período
-      prisma.whatsAppMessage.count({
+      prisma.whatsMessage.count({
         where: {
           customer: { companyId },
           createdAt: { gte: startDate, lte: endDate }
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       }),
 
       // Mensagens do período anterior
-      prisma.whatsAppMessage.count({
+      prisma.whatsMessage.count({
         where: {
           customer: { companyId },
           createdAt: {

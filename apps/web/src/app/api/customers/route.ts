@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@wacrm/db";
+import { requireAuth } from "@/lib/auth";
 import crypto from "crypto";
 
 // Validation schemas
@@ -13,6 +14,11 @@ const CreateCustomerBody = z.object({
 
 // GET /api/customers - List customers with filters
 export async function GET(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
@@ -23,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      companyId: "company-1", // TODO: Get from auth
+      companyId: authResult.companyId,
     };
 
     if (search) {
@@ -85,6 +91,11 @@ export async function GET(request: NextRequest) {
 
 // POST /api/customers - Create customer
 export async function POST(request: NextRequest) {
+  const authResult = await requireAuth(request);
+  if (!authResult.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const data = CreateCustomerBody.parse(body);
@@ -104,7 +115,7 @@ export async function POST(request: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         id: crypto.randomUUID(),
-        companyId: "company-1", // TODO: Get from auth
+        companyId: authResult.companyId,
         name: data.name,
         phoneE164: data.phoneE164,
         email: data.email || null,

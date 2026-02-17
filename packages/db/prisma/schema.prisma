@@ -16,6 +16,8 @@ model Company {
   slug            String            @unique
   createdAt       DateTime          @default(now())
   Customer        Customer[]
+  DailyMetric     DailyMetric[]
+  FunnelCard      FunnelCard[]
   FunnelStage     FunnelStage[]
   Order           Order[]
   Payment         Payment[]
@@ -36,18 +38,69 @@ model Customer {
   tags         String[]
   createdAt    DateTime       @default(now())
   Company      Company        @relation(fields: [companyId], references: [id])
+  FunnelCard   FunnelCard[]
   Order        Order[]
   Quote        Quote[]
   WhatsMessage WhatsMessage[]
 }
 
 model FunnelStage {
-  id        String  @id
-  companyId String
-  name      String
-  order     Int
-  default   Boolean @default(false)
-  Company   Company @relation(fields: [companyId], references: [id])
+  id         String       @id
+  companyId  String
+  name       String
+  order      Int
+  default    Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  Company    Company      @relation(fields: [companyId], references: [id])
+  FunnelCard FunnelCard[]
+}
+
+model FunnelCard {
+  id           String      @id
+  companyId    String
+  stageId      String
+  customerId   String
+  title        String
+  description  String?
+  value        Int?
+  probability  Int         @default(50)
+  tags         String[]
+  assignedToId String?
+  position     Int
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  Company      Company     @relation(fields: [companyId], references: [id])
+  Stage        FunnelStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  Customer     Customer    @relation(fields: [customerId], references: [id])
+  AssignedTo   User?       @relation(fields: [assignedToId], references: [id])
+
+  @@index([companyId])
+  @@index([stageId])
+  @@index([customerId])
+}
+
+model DailyMetric {
+  id                 String   @id
+  companyId          String
+  date               DateTime
+  totalOrders        Int      @default(0)
+  totalRevenue       Int      @default(0)
+  averageOrderValue  Float    @default(0)
+  newCustomers       Int      @default(0)
+  quotesCreated      Int      @default(0)
+  quotesAccepted     Int      @default(0)
+  conversionRate     Float    @default(0)
+  messagesReceived   Int      @default(0)
+  messagesSent       Int      @default(0)
+  responseTime       Float    @default(0)
+  paymentsReceived   Int      @default(0)
+  pixPayments        Int      @default(0)
+  createdAt          DateTime @default(now())
+  Company            Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, date])
+  @@index([companyId])
+  @@index([date])
 }
 
 model NPSResponse {
@@ -168,14 +221,15 @@ model Ticket {
 }
 
 model User {
-  id        String   @id
-  companyId String
-  email     String   @unique
-  hash      String
-  role      Role
-  name      String
-  createdAt DateTime @default(now())
-  Company   Company  @relation(fields: [companyId], references: [id])
+  id         String       @id
+  companyId  String
+  email      String       @unique
+  hash       String
+  role       Role
+  name       String
+  createdAt  DateTime     @default(now())
+  Company    Company      @relation(fields: [companyId], references: [id])
+  FunnelCard FunnelCard[]
 }
 
 model WebhookDelivery {

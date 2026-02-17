@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       }),
 
       // Mensagens recentes
-      prisma.whatsAppMessage.findMany({
+      prisma.whatsMessage.findMany({
         where: {
           customer: { companyId },
           direction: 'IN' // Apenas mensagens recebidas
