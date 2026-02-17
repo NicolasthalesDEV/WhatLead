@@ -1,107 +1,84 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createAuditLog, verifyAuth } from '@/lib/auth';
-import { prisma } from '@wacrm/db';
-import { z } from 'zod';
-import bcrypt from 'bcryptjs';
+import { NextRequest, NextResponse } from "next/server";
+import { hash, compare } from "bcryptjs";
+import { requireAuth } from "@/lib/auth";
+import { prisma } from "@wacrm/db";
+import { 
+  UnauthorizedError, 
+  ValidationError, 
+  errorResponse 
+} from "@/lib/errors";
 
-// POST /api/user/change-password - Change user password
 export async function POST(req: NextRequest) {
   try {
-    const user = await verifyAuth(req);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await requireAuth(req);
+    if (!session.ok) {
+      return session.res;
     }
 
     const body = await req.json();
+    const { currentPassword, newPassword } = body;
 
-    // Validation schema
-    const schema = z.object({
-      currentPassword: z.string().min(1, 'Current password is required'),
-      newPassword: z
-        .string()
-        .min(8, 'Password must be at least 8 characters')
-        .regex(
-          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-          'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-        ),
-      confirmPassword: z.string().min(1, 'Confirm password is required'),
-    });
-
-    const result = schema.safeParse(body);
-    if (!result.success) {
-      return NextResponse.json(
-        { error: 'Invalid data', details: result.error.issues },
-        { status: 400 }
-      );
+    // Validações
+    if (!currentPassword || !newPassword) {
+      throw new ValidationError("Senha atual e nova senha são obrigatórias");
     }
 
-    const { currentPassword, newPassword, confirmPassword } = result.data;
-
-    // Check if new passwords match
-    if (newPassword !== confirmPassword) {
-      return NextResponse.json(
-        { error: 'New passwords do not match' },
-        { status: 400 }
-      );
+    if (newPassword.length < 8) {
+      throw new ValidationError("A nova senha deve ter no mínimo 8 caracteres");
     }
 
-    // Check if new password is different from current
-    if (currentPassword === newPassword) {
-      return NextResponse.json(
-        { error: 'New password must be different from current password' },
-        { status: 400 }
-      );
-    }
-
-    // Get user with password hash
-    const userProfile = await prisma.user.findUnique({
-      where: { id: user.uid },
-      select: {
-        id: true,
-        hash: true,
+    // Buscar usuário com senha
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { 
+        id: true, 
+        password: true,
+        email: true,
       },
     });
 
-    if (!userProfile) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!user) {
+      throw new UnauthorizedError("Usuário não encontrado");
     }
 
-    // Verify current password
-    const isValid = await bcrypt.compare(currentPassword, userProfile.hash);
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Current password is incorrect' },
-        { status: 400 }
-      );
+    // Verificar senha atual
+    const isValidPassword = await compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      throw new ValidationError("Senha atual incorreta");
     }
 
-    // Hash new password
-    const newHash = await bcrypt.hash(newPassword, 10);
+    // Hash da nova senha
+    const hashedPassword = await hash(newPassword, 10);
 
-    // Update password
+    // Atualizar senha
     await prisma.user.update({
-      where: { id: user.uid },
+      where: { id: user.id },
       data: {
-        hash: newHash,
+        password: hashedPassword,
       },
     });
 
-    await createAuditLog({
-      userId: user.uid,
-      companyId: user.companyId,
-      action: 'PASSWORD_CHANGED',
-      resource: 'User',
-      resourceId: user.uid,
-      metadata: { method: 'user_initiated' },
-      req,
+    // Criar log de auditoria
+    await prisma.auditLog.create({
+      data: {
+        id: crypto.randomUUID(),
+        userId: user.id,
+        action: "PASSWORD_CHANGE",
+        entity: "User",
+        entityId: user.id,
+        details: {
+          email: user.email,
+          timestamp: new Date().toISOString(),
+        },
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Password changed successfully',
+      message: "Senha alterada com sucesso",
     });
-  } catch (error) {
-    console.error('Error changing password:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Failed to change password:", error);
+    return errorResponse(error);
   }
 }

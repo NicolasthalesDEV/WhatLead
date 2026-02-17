@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -46,6 +47,22 @@ export default function SettingsPage() {
     ie: "",
     address: "",
   });
+
+  // Notifications state
+  const [notifications, setNotifications] = useState({
+    orders: true,
+    whatsapp: true,
+    reports: true,
+    lowStock: true,
+  });
+
+  // Password state
+  const [password, setPassword] = useState({
+    current: "",
+    new: "",
+    confirm: "",
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Carregar dados do usuário quando disponível
   useEffect(() => {
@@ -118,6 +135,74 @@ export default function SettingsPage() {
       showToast(error.message || "Erro ao salvar configurações", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleNotificationToggle = async (key: keyof typeof notifications) => {
+    const newValue = !notifications[key];
+    setNotifications(prev => ({ ...prev, [key]: newValue }));
+    
+    try {
+      const response = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notifications: { [key]: newValue } }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar preferência");
+      }
+
+      showToast("Preferência atualizada", "success");
+    } catch (error) {
+      // Reverter em caso de erro
+      setNotifications(prev => ({ ...prev, [key]: !newValue }));
+      showToast("Erro ao salvar preferência", "error");
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    // Validação
+    if (!password.current || !password.new || !password.confirm) {
+      showToast("Preencha todos os campos de senha", "error");
+      return;
+    }
+
+    if (password.new.length < 8) {
+      showToast("A nova senha deve ter no mínimo 8 caracteres", "error");
+      return;
+    }
+
+    if (password.new !== password.confirm) {
+      showToast("As senhas não coincidem", "error");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await fetch('/api/user/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: password.current,
+          newPassword: password.new,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao alterar senha");
+      }
+
+      showToast("Senha alterada com sucesso!", "success");
+      setPassword({ current: "", new: "", confirm: "" });
+    } catch (error: any) {
+      console.error("Failed to change password:", error);
+      showToast(error.message || "Erro ao alterar senha", "error");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -317,28 +402,40 @@ export default function SettingsPage() {
                   <div className="font-medium">Novos pedidos</div>
                   <div className="text-sm text-muted-foreground">Receber notificação quando houver novos pedidos</div>
                 </div>
-                <Button variant="outline" size="sm">Ativo</Button>
+                <Switch 
+                  checked={notifications.orders}
+                  onCheckedChange={() => handleNotificationToggle('orders')}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Mensagens WhatsApp</div>
                   <div className="text-sm text-muted-foreground">Notificações de novas mensagens no WhatsApp</div>
                 </div>
-                <Button variant="outline" size="sm">Ativo</Button>
+                <Switch 
+                  checked={notifications.whatsapp}
+                  onCheckedChange={() => handleNotificationToggle('whatsapp')}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Relatórios semanais</div>
                   <div className="text-sm text-muted-foreground">Resumo semanal das vendas por email</div>
                 </div>
-                <Button variant="secondary" size="sm">Inativo</Button>
+                <Switch 
+                  checked={notifications.reports}
+                  onCheckedChange={() => handleNotificationToggle('reports')}
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">Estoque baixo</div>
                   <div className="text-sm text-muted-foreground">Alerta quando produtos estiverem com estoque baixo</div>
                 </div>
-                <Button variant="outline" size="sm">Ativo</Button>
+                <Switch 
+                  checked={notifications.lowStock}
+                  onCheckedChange={() => handleNotificationToggle('lowStock')}
+                />
               </div>
             </CardContent>
           </Card>
@@ -360,6 +457,8 @@ export default function SettingsPage() {
                     id="currentPassword"
                     type={showPassword ? "text" : "password"}
                     placeholder="Digite sua senha atual"
+                    value={password.current}
+                    onChange={(e) => setPassword({ ...password, current: e.target.value })}
                   />
                   <Button
                     type="button"
@@ -375,13 +474,32 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">Nova Senha</Label>
-                  <Input id="newPassword" type="password" placeholder="Digite nova senha" />
+                  <Input 
+                    id="newPassword" 
+                    type="password" 
+                    placeholder="Mínimo 8 caracteres" 
+                    value={password.new}
+                    onChange={(e) => setPassword({ ...password, new: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input id="confirmPassword" type="password" placeholder="Confirme a nova senha" />
+                  <Input 
+                    id="confirmPassword" 
+                    type="password" 
+                    placeholder="Confirme a nova senha" 
+                    value={password.confirm}
+                    onChange={(e) => setPassword({ ...password, confirm: e.target.value })}
+                  />
                 </div>
               </div>
+              <Button 
+                onClick={handlePasswordChange} 
+                disabled={changingPassword}
+                className="w-full md:w-auto"
+              >
+                {changingPassword ? "Alterando..." : "Alterar Senha"}
+              </Button>
               <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
                 <div>
                   <div className="font-medium text-green-800">Autenticação de 2 fatores</div>

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useState, useEffect, useRef } from "react";
 import {
   MessageSquare,
@@ -84,6 +86,14 @@ export default function WhatsAppPage() {
   const [sending, setSending] = useState(false);
   const [unreadOnlyFilter, setUnreadOnlyFilter] = useState(false);
   const [quickResponses, setQuickResponses] = useState<QuickResponse[]>([]);
+  
+  // New conversation states
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Customer[]>([]);
+  const [searchingCustomers, setSearchingCustomers] = useState(false);
+  const [newConversationPhone, setNewConversationPhone] = useState("");
+  const [startingConversation, setStartingConversation] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -309,6 +319,113 @@ export default function WhatsAppPage() {
     setMessageInput(content);
   };
 
+  // Search customers for new conversation
+  const searchCustomers = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchingCustomers(true);
+    try {
+      const response = await fetch(
+        `/api/customers?search=${encodeURIComponent(query)}&limit=10`,
+        { credentials: 'include' }
+      );
+
+      if (!response.ok) throw new Error('Erro ao buscar clientes');
+
+      const data = await response.json();
+      setSearchResults(data.customers || []);
+    } catch (error) {
+      console.error('Failed to search customers:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchingCustomers(false);
+    }
+  };
+
+  // Debounce customer search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (customerSearch) {
+        searchCustomers(customerSearch);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerSearch]);
+
+  // Start new conversation with customer
+  const startNewConversation = async (customerId: string) => {
+    setStartingConversation(true);
+    try {
+      // Fetch customer details
+      const response = await fetch(`/api/customers/${customerId}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) throw new Error('Cliente não encontrado');
+
+      const data = await response.json();
+      const customer = data.customer;
+
+      // Select this customer's conversation
+      setSelectedCustomerId(customerId);
+      setShowNewConversation(false);
+      setCustomerSearch("");
+      setSearchResults([]);
+
+      // Refresh conversations to include this one
+      await fetchConversations();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Erro ao iniciar conversa');
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
+  // Start conversation with phone number
+  const startConversationWithPhone = async () => {
+    const phone = newConversationPhone.trim();
+    if (!phone) {
+      alert('Digite um número de telefone');
+      return;
+    }
+
+    setStartingConversation(true);
+    try {
+      // Check if customer exists or create new one
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: phone, // Will be updated when they respond
+          phone: phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao criar cliente');
+      }
+
+      const data = await response.json();
+      const customerId = data.customer.id;
+
+      // Start conversation with this customer
+      await startNewConversation(customerId);
+      setNewConversationPhone("");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Erro ao iniciar conversa');
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -345,6 +462,14 @@ export default function WhatsAppPage() {
                   className="text-xs"
                 >
                   {unreadOnlyFilter ? "Todas" : "Não lidas"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowNewConversation(true)}
+                  className="text-xs"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova Conversa
                 </Button>
               </div>
             </div>
@@ -570,6 +695,116 @@ export default function WhatsAppPage() {
           )}
         </Card>
       </div>
+
+      {/* New Conversation Dialog */}
+      <Dialog open={showNewConversation} onOpenChange={setShowNewConversation}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Nova Conversa</DialogTitle>
+            <DialogDescription>
+              Busque um cliente existente ou inicie uma conversa com um novo número
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Search existing customers */}
+            <div className="space-y-2">
+              <Label htmlFor="customer-search">Buscar Cliente</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="customer-search"
+                  placeholder="Digite o nome ou telefone..."
+                  className="pl-8"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                />
+              </div>
+              {searchingCustomers && (
+                <p className="text-xs text-muted-foreground">Buscando...</p>
+              )}
+              {searchResults.length > 0 && (
+                <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
+                  {searchResults.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="p-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => startNewConversation(customer.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{customer.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {customer.phoneE164}
+                          </p>
+                        </div>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      {customer.tags && customer.tags.length > 0 && (
+                        <div className="flex gap-1 mt-2">
+                          {customer.tags.slice(0, 3).map((tag, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {customerSearch && !searchingCustomers && searchResults.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum cliente encontrado
+                </p>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Ou</span>
+              </div>
+            </div>
+
+            {/* New phone number */}
+            <div className="space-y-2">
+              <Label htmlFor="new-phone">Novo Número</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="new-phone"
+                  placeholder="+55 11 99999-9999"
+                  value={newConversationPhone}
+                  onChange={(e) => setNewConversationPhone(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      startConversationWithPhone();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={startConversationWithPhone}
+                  disabled={startingConversation || !newConversationPhone.trim()}
+                >
+                  {startingConversation ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Iniciar
+                    </>
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Digite o número com código do país (ex: +55 11 99999-9999)
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Quick Responses */}
       {quickResponses.length > 0 && (
