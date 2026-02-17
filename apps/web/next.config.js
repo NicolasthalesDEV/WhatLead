@@ -6,6 +6,16 @@ const nextConfig = {
     serverActions: { allowedOrigins: ['*'] }
   },
 
+  outputFileTracingRoot: path.join(__dirname, '../..'),
+  outputFileTracingIncludes: {
+    '/*': [
+      '../../node_modules/.prisma/client/**/*',
+      '../../node_modules/@prisma/client/**/*',
+      '../../packages/db/node_modules/.prisma/client/**/*',
+      '../../packages/db/node_modules/@prisma/client/**/*',
+    ],
+  },
+
   // Transpile workspace packages for Vercel
   transpilePackages: ['@wacrm/db'],
 
