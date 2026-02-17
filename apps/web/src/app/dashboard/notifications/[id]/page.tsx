@@ -18,7 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -66,24 +66,24 @@ const getNotificationColor = (type: string) => {
   return colors[type] || "text-gray-600";
 };
 
-export default function NotificationDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function NotificationDetailPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const id = routeParams?.id;
   const [notification, setNotification] = useState<Notification | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
     loadNotification();
-  }, [params.id]);
+  }, [id]);
 
   const loadNotification = async () => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/notifications/${params.id}`);
+      const res = await fetch(`/api/notifications/${id}`);
 
       if (res.status === 404) {
         setNotFound(true);
@@ -106,7 +106,7 @@ export default function NotificationDetailPage({
 
   const markAsRead = async () => {
     try {
-      await fetch(`/api/notifications/${params.id}`, {
+      await fetch(`/api/notifications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isRead: true }),
@@ -120,7 +120,7 @@ export default function NotificationDetailPage({
     if (!confirm("Tem certeza que deseja excluir esta notificação?")) return;
 
     try {
-      await fetch(`/api/notifications/${params.id}`, { method: "DELETE" });
+      await fetch(`/api/notifications/${id}`, { method: "DELETE" });
       router.push("/dashboard/notifications");
     } catch (error) {
       console.error("Failed to delete notification:", error);

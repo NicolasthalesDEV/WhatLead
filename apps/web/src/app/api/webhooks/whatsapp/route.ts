@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@wacrm/db";
-import { ChatbotEngine } from "@/lib/chatbot/engine";
+import { ChatbotEngine, matchFlowByMessage } from "@/lib/chatbot/engine";
 import { TriggerManager } from "@/lib/chatbot/triggers";
 import { validateWebhook, markMessageAsRead, getMediaUrl } from "@/lib/wa/client";
 
@@ -138,10 +138,7 @@ async function processIncomingMessages(value: any) {
       // Buscar ou criar cliente
       let customer = await db.customer.findFirst({
         where: {
-          OR: [
-            { phone: from },
-            { phoneE164: from },
-          ],
+          phoneE164: from,
         },
         include: { company: true },
       });
@@ -160,7 +157,6 @@ async function processIncomingMessages(value: any) {
 
         customer = await db.customer.create({
           data: {
-            phone: from,
             phoneE164: from,
             name: `Cliente ${from.slice(-4)}`, // Nome temporário
             companyId: company.id,
@@ -171,20 +167,43 @@ async function processIncomingMessages(value: any) {
         console.log(`New customer created: ${customer.id}`);
       }
 
+      const channel = businessPhoneNumberId
+        ? await db.whatsChannel.findFirst({
+            where: {
+              phoneNumberId: businessPhoneNumberId,
+              companyId: customer.companyId,
+            },
+            select: { id: true },
+          })
+        : null;
+
+      if (!channel) {
+        console.warn("No WhatsApp channel configured for incoming message", {
+          businessPhoneNumberId,
+          companyId: customer.companyId,
+        });
+        continue;
+      }
+
       // Salvar mensagem no banco de dados
-      const savedMessage = await db.message.create({
+      const savedMessage = await db.whatsMessage.create({
         data: {
-          externalId: messageId,
-          direction: "INBOUND",
-          from,
-          to: businessPhoneNumberId || "",
+          companyId: customer.companyId,
+          customerId: customer.id,
+          channelId: channel.id,
+          direction: "IN",
+          type: messageType,
           body: messageText,
           status: "DELIVERED",
-          timestamp: new Date(parseInt(timestamp) * 1000),
-          customerId: customer.id,
-          companyId: customer.companyId,
-          messageType: messageType.toUpperCase() as any,
-          ...(mediaUrl && { mediaUrl }),
+          raw: {
+            whatsappMessageId: messageId,
+            from,
+            to: businessPhoneNumberId || null,
+            timestamp,
+            ...(mediaType && { mediaType }),
+            ...(mediaUrl && { mediaUrl }),
+            payload: message,
+          },
         },
       });
 
@@ -203,15 +222,15 @@ async function processIncomingMessages(value: any) {
       }
 
       // 1. Verificar triggers de mensagem
-      const triggerManager = new TriggerManager(db);
+      const triggerManager = new TriggerManager(customer.companyId);
       const triggeredFlow = await triggerManager.checkMessageTriggers(
-        customer.companyId,
         customer.id,
-        messageText
+        messageText,
+        savedMessage.id
       );
 
       if (triggeredFlow) {
-        console.log(`Flow triggered: ${triggeredFlow.name}`);
+        console.log("Flow triggered by trigger manager");
         continue; // Trigger manager já iniciou a execução
       }
 
@@ -219,7 +238,7 @@ async function processIncomingMessages(value: any) {
       const activeExecution = await db.chatbotExecution.findFirst({
         where: {
           customerId: customer.id,
-          status: "RUNNING",
+          status: "WAITING_INPUT",
         },
         include: {
           flow: {
@@ -230,27 +249,33 @@ async function processIncomingMessages(value: any) {
 
       if (activeExecution) {
         // Continuar fluxo existente
-        const engine = new ChatbotEngine(db, customer);
-        await engine.resume(activeExecution.id, messageText);
+        const engine = new ChatbotEngine(
+          customer.companyId,
+          customer.id,
+          activeExecution.id
+        );
+        await engine.resume(messageText);
         console.log(`Flow resumed: ${activeExecution.flow.name}`);
         continue;
       }
 
       // 3. Tentar match por palavras-chave em flows ativos
-      const flows = await db.chatbotFlow.findMany({
-        where: {
-          companyId: customer.companyId,
-          status: "ACTIVE",
-        },
-        include: { nodes: true },
-      });
+      const matchedFlowId = await matchFlowByMessage(
+        customer.companyId,
+        messageText
+      );
 
-      const engine = new ChatbotEngine(db, customer);
-      const matchedFlow = await engine.matchFlowByMessage(messageText, flows);
-
-      if (matchedFlow) {
-        await engine.start(matchedFlow.id);
-        console.log(`Flow matched and started: ${matchedFlow.name}`);
+      if (matchedFlowId) {
+        const executionId =
+          globalThis.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const engine = new ChatbotEngine(
+          customer.companyId,
+          customer.id,
+          executionId
+        );
+        await engine.start(matchedFlowId, messageText);
+        console.log(`Flow matched and started: ${matchedFlowId}`);
         continue;
       }
 
@@ -275,17 +300,16 @@ async function processMessageStatuses(value: any) {
       const messageId = status.id;
       const statusValue = status.status; // sent, delivered, read, failed
       const timestamp = status.timestamp;
-      const recipientId = status.recipient_id;
-
       // Atualizar status da mensagem no banco
-      const updated = await db.message.updateMany({
+      const updated = await db.whatsMessage.updateMany({
         where: {
-          externalId: messageId,
+          raw: {
+            path: ["whatsappMessageId"],
+            equals: messageId,
+          },
         },
         data: {
-          status: statusValue.toUpperCase() as any,
-          ...(statusValue === "read" && { readAt: new Date(parseInt(timestamp) * 1000) }),
-          ...(statusValue === "delivered" && { deliveredAt: new Date(parseInt(timestamp) * 1000) }),
+          status: statusValue.toUpperCase(),
         },
       });
 

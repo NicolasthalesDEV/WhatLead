@@ -27,7 +27,7 @@ export async function POST(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Verificar se delivery existe e pertence à empresa
     const delivery = await prisma.webhookDelivery.findUnique({

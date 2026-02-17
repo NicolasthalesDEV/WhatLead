@@ -54,7 +54,7 @@ export async function POST(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { customerId } = params;
+    const { customerId } = await params;
 
     // Buscar cliente e validar
     const customer = await prisma.customer.findFirst({

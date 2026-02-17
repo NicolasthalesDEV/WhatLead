@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +23,10 @@ interface Customer {
   zipCode?: string;
 }
 
-export default function EditCustomerPage({ params }: { params: { id: string } }) {
+export default function EditCustomerPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const customerId = routeParams?.id;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -43,13 +45,15 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
   const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
+    if (!customerId) return;
     loadCustomer();
-  }, [params.id]);
+  }, [customerId]);
 
   const loadCustomer = async () => {
+    if (!customerId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/customers/${params.id}`);
+      const res = await fetch(`/api/customers/${customerId}`);
       if (res.ok) {
         const data = await res.json();
         const cust = data.customer;
@@ -91,14 +95,14 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
         zipCode: formData.zipCode,
       };
 
-      const res = await fetch(`/api/customers/${params.id}`, {
+      const res = await fetch(`/api/customers/${customerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (res.ok) {
-        router.push(`/dashboard/customers/${params.id}`);
+        router.push(`/dashboard/customers/${customerId}`);
         router.refresh();
       } else {
         const data = await res.json();
@@ -141,7 +145,7 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/customers/${params.id}`}>
+        <Link href={`/dashboard/customers/${customerId}`}>
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
@@ -298,7 +302,7 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? "Salvando..." : "Salvar Alterações"}
               </Button>
-              <Link href={`/dashboard/customers/${params.id}`}>
+              <Link href={`/dashboard/customers/${customerId}`}>
                 <Button type="button" variant="outline">
                   Cancelar
                 </Button>

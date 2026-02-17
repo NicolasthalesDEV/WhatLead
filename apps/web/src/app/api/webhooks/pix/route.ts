@@ -60,7 +60,6 @@ export async function POST(req: NextRequest) {
       where: { id: payment.id },
       data: {
         status: webhookData.status.toUpperCase() as any,
-        paidAt: webhookData.paidAt,
         ...(webhookData.paidAmount && { amount: webhookData.paidAmount }),
         ...(webhookData.metadata && { 
           payload: {
@@ -83,20 +82,29 @@ export async function POST(req: NextRequest) {
       console.log(`Order ${payment.order.id} marked as PAID`);
 
       // Criar notificação para o vendedor
-      await createNotification({
-        userId: null, // Notificação para toda a empresa
-        companyId: payment.companyId,
-        type: "PAYMENT_RECEIVED",
-        title: "Pagamento Recebido",
-        message: `Pagamento do pedido #${payment.order.id.slice(0, 8)} foi confirmado via PIX`,
-        data: {
-          orderId: payment.order.id,
-          paymentId: payment.id,
-          amount: webhookData.paidAmount || payment.amount,
-          customerName: payment.order.customer?.name,
+      const notifyUser = await prisma.user.findFirst({
+        where: {
+          companyId: payment.companyId,
+          role: { in: ["OWNER", "ADMIN"] },
         },
-        actionUrl: `/dashboard/orders/${payment.order.id}`,
+        select: { id: true },
       });
+
+      if (notifyUser) {
+        await createNotification(prisma, {
+          userId: notifyUser.id,
+          type: "PAYMENT_RECEIVED",
+          title: "Pagamento Recebido",
+          message: `Pagamento do pedido #${payment.order.id.slice(0, 8)} foi confirmado via PIX`,
+          data: {
+            orderId: payment.order.id,
+            paymentId: payment.id,
+            amount: webhookData.paidAmount || payment.amount,
+            customerName: payment.order.customer?.name,
+          },
+          link: `/dashboard/orders/${payment.order.id}`,
+        });
+      }
 
       // TODO: Enviar mensagem de confirmação para o cliente via WhatsApp
       // if (payment.order.customer?.phone) {

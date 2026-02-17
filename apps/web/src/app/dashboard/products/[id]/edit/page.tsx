@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,10 @@ interface Product {
   }>;
 }
 
-export default function EditProductPage({ params }: { params: { id: string } }) {
+export default function EditProductPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const id = routeParams?.id;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
@@ -46,13 +48,15 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   });
 
   useEffect(() => {
+    if (!id) return;
     loadProduct();
-  }, [params.id]);
+  }, [id]);
 
   const loadProduct = async () => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/products/${params.id}`);
+      const res = await fetch(`/api/products/${id}`);
       if (res.ok) {
         const data = await res.json();
         setProduct(data.product);
@@ -94,7 +98,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       if (formData.sku) body.sku = formData.sku;
       if (formData.stock) body.stock = parseInt(formData.stock);
 
-      const res = await fetch(`/api/products/${params.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

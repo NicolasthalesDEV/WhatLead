@@ -360,7 +360,7 @@ export async function uploadWhatsMedia(
     formData.append('file', blob);
   } else {
     // Se for Buffer, converte para Blob
-    const blob = new Blob([file], { type: mimeType });
+    const blob = new Blob([new Uint8Array(file)], { type: mimeType });
     formData.append('file', blob);
   }
 

@@ -32,7 +32,7 @@ export async function GET(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { customerId } = params;
+    const { customerId } = await params;
 
     // Verificar se o cliente existe e pertence à empresa do usuário
     const customer = await prisma.customer.findFirst({

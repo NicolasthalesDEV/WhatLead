@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,19 +36,23 @@ interface Product {
   };
 }
 
-export default function ProductDetailsPage({ params }: { params: { id: string } }) {
+export default function ProductDetailsPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const id = routeParams?.id;
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     loadProduct();
-  }, [params.id]);
+  }, [id]);
 
   const loadProduct = async () => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/products/${params.id}`);
+      const res = await fetch(`/api/products/${id}`);
       if (res.ok) {
         const data = await res.json();
         setProduct(data.product);
@@ -67,7 +71,7 @@ export default function ProductDetailsPage({ params }: { params: { id: string } 
     if (!confirm("Tem certeza que deseja deletar este produto?")) return;
 
     try {
-      const res = await fetch(`/api/products/${params.id}`, {
+      const res = await fetch(`/api/products/${id}`, {
         method: "DELETE",
       });
 

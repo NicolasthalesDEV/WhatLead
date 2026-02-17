@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { mediaId } = params;
+    const { mediaId } = await params;
 
     // Buscar canal WhatsApp da empresa
     const channel = await prisma.whatsChannel.findFirst({

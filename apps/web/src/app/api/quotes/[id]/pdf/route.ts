@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Fetch quote with all relations
     const quote = await prisma.quote.findUnique({

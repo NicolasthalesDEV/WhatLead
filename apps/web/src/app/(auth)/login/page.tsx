@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Hotel, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState("owner@pixelcode.dev");
   const [password, setPassword] = useState("admin123");
   const [message, setMessage] = useState<string | null>(null);
@@ -261,5 +261,13 @@ export default function LoginPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-white" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

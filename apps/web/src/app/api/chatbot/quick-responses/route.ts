@@ -34,19 +34,23 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ response }, { status: 201 });
 }
 
-// PUT /api/chatbot/quick-responses/:id
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// PUT /api/chatbot/quick-responses
+export async function PUT(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
 
-  const { shortcut, message, active } = await req.json();
+  const { id, shortcut, message, active } = await req.json();
+
+  if (!id) {
+    return NextResponse.json(
+      { error: { code: "VALIDATION_ERROR", message: "id is required" } },
+      { status: 400 }
+    );
+  }
 
   const response = await prisma.quickResponse.updateMany({
     where: {
-      id: params.id,
+      id,
       companyId: auth.companyId,
     },
     data: { shortcut, message, active },

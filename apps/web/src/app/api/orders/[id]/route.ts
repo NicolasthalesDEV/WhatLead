@@ -83,7 +83,7 @@ export async function PATCH(
     updateData.status = status;
     historyEntries.push({
       orderId: id,
-      userId: authResult.userId,
+      userId: user.id,
       action: "STATUS_CHANGED",
       oldValue: existingOrder.status,
       newValue: status,
@@ -96,7 +96,7 @@ export async function PATCH(
     updateData.notes = notes;
     historyEntries.push({
       orderId: id,
-      userId: authResult.userId,
+      userId: user.id,
       action: "NOTE_UPDATED",
       oldValue: existingOrder.notes || "",
       newValue: notes,

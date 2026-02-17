@@ -31,7 +31,7 @@ export async function POST(
   }
 
   // Validar se pedido pode receber pagamento
-  if (order.status === "PAID" || order.status === "CANCELLED") {
+  if (order.status === "PAID" || order.status === "CANCELED") {
     return NextResponse.json(
       { error: { code: "INVALID_STATUS", message: "Order cannot receive payment in current status" } }, 
       { status: 400 }
@@ -60,8 +60,7 @@ export async function POST(
     const customer = order.customer ? {
       name: order.customer.name || undefined,
       email: order.customer.email || undefined,
-      phone: order.customer.phone || undefined,
-      document: order.customer.document || undefined,
+      phone: order.customer.phoneE164 || undefined,
     } : undefined;
 
     const charge = await provider.createCharge(
@@ -145,13 +144,14 @@ export async function GET(
   try {
     const provider = getPixProvider();
     const status = await provider.getChargeStatus(payment.chargeId);
+    const normalizedStatus = status.status.toUpperCase() as any;
 
     // Atualizar status local se mudou
-    if (status.status !== payment.status) {
+    if (normalizedStatus !== payment.status) {
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          status: status.status.toUpperCase() as any,
+          status: normalizedStatus,
           ...(status.paidAt && { paidAt: new Date(status.paidAt) }),
           ...(status.paidAmount && { amount: status.paidAmount }),
         },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,8 +70,10 @@ interface TicketDetails {
   comments: TicketComment[];
 }
 
-export default function TicketDetailsPage({ params }: { params: { id: string } }) {
+export default function TicketDetailsPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const id = routeParams?.id;
   const [ticket, setTicket] = useState<TicketDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -80,13 +82,15 @@ export default function TicketDetailsPage({ params }: { params: { id: string } }
   const [addingComment, setAddingComment] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
     loadTicket();
-  }, [params.id]);
+  }, [id]);
 
   const loadTicket = async () => {
+    if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/tickets/${params.id}`);
+      const res = await fetch(`/api/tickets/${id}`);
       if (res.ok) {
         const data = await res.json();
         setTicket(data.ticket);
