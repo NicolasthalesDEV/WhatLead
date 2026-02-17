@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createAuditLog } from '@/lib/auth';
 import { authorizeResource } from '@/lib/authorization';
 import { prisma } from '@wacrm/db';
 import { z } from 'zod';
@@ -192,20 +193,18 @@ export async function PATCH(
       },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId,
-        action: 'TICKET_UPDATED',
-        resource: `ticket:${ticket.id}`,
-        metadata: {
-          ticketId: ticket.id,
-          changes: data,
-          oldStatus: existingTicket.status,
-          newStatus: ticket.status,
-        },
+    await createAuditLog({
+      userId: user.id,
+      companyId: user.companyId,
+      action: 'TICKET_UPDATED',
+      resource: `ticket:${ticket.id}`,
+      metadata: {
+        ticketId: ticket.id,
+        changes: data,
+        oldStatus: existingTicket.status,
+        newStatus: ticket.status,
       },
+      req,
     }).catch((err: any) => console.error('Failed to create audit log:', err));
 
     return NextResponse.json({ ticket });
@@ -260,18 +259,16 @@ export async function DELETE(
       where: { id },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId,
-        action: 'TICKET_DELETED',
-        resource: `ticket:${id}`,
-        metadata: {
-          ticketId: id,
-          subject: ticket.subject,
-        },
+    await createAuditLog({
+      userId: user.id,
+      companyId: user.companyId,
+      action: 'TICKET_DELETED',
+      resource: `ticket:${id}`,
+      metadata: {
+        ticketId: id,
+        subject: ticket.subject,
       },
+      req,
     }).catch((err: any) => console.error('Failed to create audit log:', err));
 
     return NextResponse.json({ success: true });

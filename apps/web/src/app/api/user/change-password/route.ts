@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { createAuditLog, verifyAuth } from '@/lib/auth';
 import { prisma } from '@wacrm/db';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
@@ -89,18 +89,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.uid,
-        companyId: user.companyId,
-        action: 'PASSWORD_CHANGED',
-        resource: 'User',
-        resourceId: user.uid,
-        metadata: { method: 'user_initiated' },
-        ipAddress: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-      },
+    await createAuditLog({
+      userId: user.uid,
+      companyId: user.companyId,
+      action: 'PASSWORD_CHANGED',
+      resource: 'User',
+      resourceId: user.uid,
+      metadata: { method: 'user_initiated' },
+      req,
     });
 
     return NextResponse.json({

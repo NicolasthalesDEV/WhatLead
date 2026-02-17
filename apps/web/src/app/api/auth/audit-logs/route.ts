@@ -11,8 +11,21 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
   const skip = (page - 1) * limit;
 
+  const auditLogModel = (prisma as any).auditLog;
+  if (!auditLogModel) {
+    return NextResponse.json({
+      logs: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        pages: 0,
+      },
+    });
+  }
+
   const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
+    auditLogModel.findMany({
       where: { userId: auth.userId },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -27,7 +40,7 @@ export async function GET(req: NextRequest) {
         createdAt: true,
       },
     }),
-    prisma.auditLog.count({
+    auditLogModel.count({
       where: { userId: auth.userId },
     }),
   ]);

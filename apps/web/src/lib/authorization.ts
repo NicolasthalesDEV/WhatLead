@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth, Claims } from './auth';
+import { verifyAuth, Claims, createAuditLog } from './auth';
 import { Permission, hasPermission, canAccessResource, Role } from './permissions';
 import { prisma } from '@wacrm/db';
 
@@ -57,19 +57,17 @@ export async function authorize(
     const hasAllPermissions = permissions.every(permission => hasPermission(user.role, permission));
 
     if (!hasAllPermissions) {
-      // Log unauthorized access attempt
-      await prisma.auditLog.create({
-        data: {
-          userId: user.id,
-          companyId: user.companyId,
-          action: 'UNAUTHORIZED_ACCESS',
-          resource: req.nextUrl.pathname,
-          metadata: {
-            method: req.method,
-            requiredPermissions: permissions,
-            userRole: user.role,
-          },
+      await createAuditLog({
+        userId: user.id,
+        companyId: user.companyId,
+        action: 'UNAUTHORIZED_ACCESS',
+        resource: req.nextUrl.pathname,
+        metadata: {
+          method: req.method,
+          requiredPermissions: permissions,
+          userRole: user.role,
         },
+        req,
       }).catch(err => console.error('Failed to log unauthorized access:', err));
 
       return {
@@ -151,19 +149,17 @@ export async function authorizeResource(
 
   // Check if resource belongs to user's company
   if (resource.companyId !== user.companyId) {
-    // Log unauthorized resource access attempt
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId,
-        action: 'UNAUTHORIZED_RESOURCE_ACCESS',
-        resource: `${resourceType}:${resourceId}`,
-        metadata: {
-          method: req.method,
-          permission,
-          userRole: user.role,
-        },
+    await createAuditLog({
+      userId: user.id,
+      companyId: user.companyId,
+      action: 'UNAUTHORIZED_RESOURCE_ACCESS',
+      resource: `${resourceType}:${resourceId}`,
+      metadata: {
+        method: req.method,
+        permission,
+        userRole: user.role,
       },
+      req,
     }).catch(err => console.error('Failed to log unauthorized resource access:', err));
 
     return {
@@ -195,18 +191,17 @@ export async function requireRole(
   const { user } = result.data;
 
   if (!roles.includes(user.role)) {
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId,
-        action: 'UNAUTHORIZED_ROLE_ACCESS',
-        resource: req.nextUrl.pathname,
-        metadata: {
-          method: req.method,
-          requiredRoles: roles,
-          userRole: user.role,
-        },
+    await createAuditLog({
+      userId: user.id,
+      companyId: user.companyId,
+      action: 'UNAUTHORIZED_ROLE_ACCESS',
+      resource: req.nextUrl.pathname,
+      metadata: {
+        method: req.method,
+        requiredRoles: roles,
+        userRole: user.role,
       },
+      req,
     }).catch(err => console.error('Failed to log unauthorized role access:', err));
 
     return {

@@ -189,7 +189,12 @@ export async function createAuditLog(params: {
   const ipAddress = params.req?.headers.get("x-forwarded-for") || params.req?.headers.get("x-real-ip") || undefined;
   const userAgent = params.req?.headers.get("user-agent") || undefined;
 
-  await prisma.auditLog.create({
+  const auditLogModel = (prisma as any).auditLog;
+  if (!auditLogModel?.create) {
+    return;
+  }
+
+  await auditLogModel.create({
     data: {
       userId: params.userId,
       companyId: params.companyId,

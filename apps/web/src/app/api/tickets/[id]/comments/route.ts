@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authorize } from '@/lib/authorization';
+import { createAuditLog } from '@/lib/auth';
 import { prisma } from '@wacrm/db';
 import { z } from 'zod';
 
@@ -136,19 +137,17 @@ export async function POST(
       return newComment;
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId,
-        action: 'TICKET_COMMENT_ADDED',
-        resource: `ticket:${id}`,
-        metadata: {
-          ticketId: id,
-          commentId: comment.id,
-          isInternal: comment.isInternal,
-        },
+    await createAuditLog({
+      userId: user.id,
+      companyId: user.companyId,
+      action: 'TICKET_COMMENT_ADDED',
+      resource: `ticket:${id}`,
+      metadata: {
+        ticketId: id,
+        commentId: comment.id,
+        isInternal: comment.isInternal,
       },
+      req,
     }).catch((err: any) => console.error('Failed to create audit log:', err));
 
     return NextResponse.json({ comment }, { status: 201 });
