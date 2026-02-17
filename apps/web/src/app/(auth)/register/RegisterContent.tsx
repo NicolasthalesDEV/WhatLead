@@ -58,19 +58,38 @@ export default function RegisterContent() {
     }
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          company: formData.company || `${formData.name}'s Business`,
-          slug: formData.company.toLowerCase().replace(/[^a-z0-9]/g, "-") || `user-${Date.now()}`,
-          name: formData.name,
-          phone: formData.phone,
-          plan: hasNoPlanSelected ? "free_trial" : planId
-        }),
+      const payload = JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+        company: formData.company || `${formData.name}'s Business`,
+        slug: formData.company.toLowerCase().replace(/[^a-z0-9]/g, "-") || `user-${Date.now()}`,
+        name: formData.name,
+        phone: formData.phone,
+        plan: hasNoPlanSelected ? "free_trial" : planId
       });
+
+      const candidates = ["/api/auth/register", "/api/auth/register/"];
+      if (typeof window !== "undefined") {
+        candidates.push(`${window.location.origin}/api/auth/register`);
+      }
+
+      let res: Response | null = null;
+      for (let i = 0; i < candidates.length; i++) {
+        const current = await fetch(candidates[i], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        });
+
+        res = current;
+        if (current.status !== 405) {
+          break;
+        }
+      }
+
+      if (!res) {
+        throw new Error("No response from register endpoint");
+      }
 
       const raw = await res.text();
       let data: any = null;
@@ -83,6 +102,11 @@ export default function RegisterContent() {
       if (res.ok) {
         router.push("/login?registered=true");
       } else {
+        if (res.status === 405) {
+          console.error("Register endpoint returned 405", {
+            allow: res.headers.get("allow"),
+          });
+        }
         setMessage(data?.error?.message || `Erro ao criar conta (HTTP ${res.status})`);
       }
     } catch (error) {
