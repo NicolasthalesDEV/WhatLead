@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   experimental: {
     serverActions: { allowedOrigins: ['*'] }
@@ -10,11 +12,18 @@ const nextConfig = {
   // Optimize for Vercel deployment
   output: 'standalone',
 
-  // Webpack configuration for Prisma
+  // Webpack configuration for Prisma and path resolution
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push('@prisma/client');
     }
+    
+    // Ensure @ alias works correctly
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, 'src'),
+    };
+    
     return config;
   },
 
