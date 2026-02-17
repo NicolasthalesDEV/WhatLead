@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,36 @@ interface PeriodOption {
   label: string;
 }
 
+interface DashboardMetrics {
+  customers: {
+    value: string;
+    trend: string;
+    description: string;
+  };
+  orders: {
+    value: string;
+    trend: string;
+    description: string;
+  };
+  products: {
+    value: string;
+    trend: string;
+    description: string;
+  };
+  messages: {
+    value: string;
+    trend: string;
+    description: string;
+  };
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'order' | 'message' | 'payment' | 'customer';
+  message: string;
+  time: string;
+}
+
 const periodOptions: PeriodOption[] = [
   { value: '7d', label: 'Últimos 7 dias' },
   { value: '30d', label: 'Últimos 30 dias' },
@@ -40,89 +70,80 @@ const periodOptions: PeriodOption[] = [
 export default function Dashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>('30d');
   const [isLoading, setIsLoading] = useState(false);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [activities, setActivities] = useState<RecentActivity[]>([]);
 
-  // Função para mudar período com animação de carregamento
-  const handlePeriodChange = (period: PeriodFilter) => {
+  // Carregar métricas ao montar e quando mudar o período
+  useEffect(() => {
+    loadMetrics();
+    loadActivities();
+  }, [selectedPeriod]);
+
+  // Função para carregar métricas
+  const loadMetrics = async () => {
     setIsLoading(true);
-    setSelectedPeriod(period);
-
-    // Simula delay de carregamento dos dados
-    setTimeout(() => {
+    try {
+      const response = await fetch(`/api/dashboard/metrics?period=${selectedPeriod}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMetrics(data.metrics);
+      }
+    } catch (error) {
+      console.error('Failed to load metrics:', error);
+    } finally {
       setIsLoading(false);
-    }, 300);
+    }
   };
 
-  // Função para obter dados baseados no período selecionado
-  const getStatsForPeriod = (period: PeriodFilter) => {
-    const baseStats = {
-      '7d': {
-        customers: { value: "89", trend: "+5%", description: "+5% em relação à semana anterior" },
-        orders: { value: "12", trend: "+15%", description: "3 aguardando confirmação" },
-        products: { value: "157", trend: "+2%", description: "12 quartos disponíveis" },
-        messages: { value: "234", trend: "+22%", description: "Últimos 7 dias" }
-      },
-      '30d': {
-        customers: { value: "1,248", trend: "+12%", description: "+12% em relação ao mês anterior" },
-        orders: { value: "89", trend: "+8%", description: "15 aguardando confirmação" },
-        products: { value: "157", trend: "+2%", description: "12 quartos disponíveis" },
-        messages: { value: "2,156", trend: "+15%", description: "Últimos 30 dias" }
-      },
-      '90d': {
-        customers: { value: "3,567", trend: "+18%", description: "+18% em relação ao trimestre anterior" },
-        orders: { value: "298", trend: "+25%", description: "45 aguardando confirmação" },
-        products: { value: "157", trend: "+12%", description: "28 quartos disponíveis" },
-        messages: { value: "8,932", trend: "+28%", description: "Últimos 90 dias" }
-      },
-      '1y': {
-        customers: { value: "12,453", trend: "+42%", description: "+42% em relação ao ano anterior" },
-        orders: { value: "1,567", trend: "+35%", description: "89 aguardando confirmação" },
-        products: { value: "157", trend: "+45%", description: "67 quartos disponíveis" },
-        messages: { value: "45,678", trend: "+38%", description: "Último ano" }
+  // Função para carregar atividades recentes
+  const loadActivities = async () => {
+    try {
+      const response = await fetch('/api/dashboard/activity?limit=4');
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data.activities || []);
       }
-    };
-
-    const periodData = baseStats[period];
-
-    return [
-      {
-        title: "Total de Hóspedes",
-        value: periodData.customers.value,
-        description: periodData.customers.description,
-        icon: Users,
-        trend: periodData.customers.trend
-      },
-      {
-        title: "Reservas",
-        value: periodData.orders.value,
-        description: periodData.orders.description,
-        icon: CalendarCheck,
-        trend: periodData.orders.trend
-      },
-      {
-        title: "Quartos Disponíveis",
-        value: periodData.products.value,
-        description: periodData.products.description,
-        icon: BedDouble,
-        trend: periodData.products.trend
-      },
-      {
-        title: "Mensagens WhatsApp",
-        value: periodData.messages.value,
-        description: periodData.messages.description,
-        icon: MessageSquare,
-        trend: periodData.messages.trend
-      }
-    ];
+    } catch (error) {
+      console.error('Failed to load activities:', error);
+    }
   };
 
-  const stats = getStatsForPeriod(selectedPeriod);
+  // Função para mudar período
+  const handlePeriodChange = (period: PeriodFilter) => {
+    setSelectedPeriod(period);
+  };
 
-  const recentActivity = [
-    { id: 1, type: "order", message: "Nova reserva #1234 recebida", time: "2 min atrás" },
-    { id: 2, type: "message", message: "Mensagem de João Silva", time: "5 min atrás" },
-    { id: 3, type: "payment", message: "Pagamento confirmado #1232", time: "8 min atrás" },
-    { id: 4, type: "customer", message: "Novo hóspede cadastrado", time: "15 min atrás" },
-  ];
+  // Mapear métricas para o formato de stats
+  const stats = metrics ? [
+    {
+      title: "Total de Hóspedes",
+      value: metrics.customers.value,
+      description: metrics.customers.description,
+      icon: Users,
+      trend: metrics.customers.trend
+    },
+    {
+      title: "Reservas",
+      value: metrics.orders.value,
+      description: metrics.orders.description,
+      icon: CalendarCheck,
+      trend: metrics.orders.trend
+    },
+    {
+      title: "Quartos Disponíveis",
+      value: metrics.products.value,
+      description: metrics.products.description,
+      icon: BedDouble,
+      trend: metrics.products.trend
+    },
+    {
+      title: "Mensagens WhatsApp",
+      value: metrics.messages.value,
+      description: metrics.messages.description,
+      icon: MessageSquare,
+      trend: metrics.messages.trend
+    }
+  ] : [];
 
   return (
     <div className="space-y-6">
@@ -161,8 +182,18 @@ export default function Dashboard() {
         </DropdownMenu>
       </div>
 
+      {/* Loading State */}
+      {isLoading && !metrics && (
+        <div className="text-center py-12">Carregando métricas...</div>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {!isLoading && stats.length === 0 && (
+        <div className="text-center py-12">Nenhuma métrica disponível. Configure o banco de dados.</div>
+      )}
+
+      {stats.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title} className="transition-all duration-300 hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -187,7 +218,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid gap-4 lg:grid-cols-7">
@@ -224,21 +256,27 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-4">
-                  <div className="p-2 bg-gray-100 rounded-full">
-                    <Activity className="h-4 w-4" />
+              {activities.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma atividade recente
+                </p>
+              ) : (
+                activities.map((activity) => (
+                  <div key={activity.id} className="flex items-start space-x-4">
+                    <div className="p-2 bg-gray-100 rounded-full">
+                      <Activity className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {activity.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.time}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {activity.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -9,8 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Hotel, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 
 function LoginPageContent() {
-  const [email, setEmail] = useState("owner@pixelcode.dev");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
