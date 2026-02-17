@@ -13,111 +13,187 @@ const Body = z.object({
   name: z.string().min(2),
 });
 
+const ALLOW_METHODS = "POST, OPTIONS";
+
+function diagnosticMeta(req: NextRequest, requestId: string, extra: Record<string, unknown> = {}) {
+  return {
+    requestId,
+    handler: "api/auth/register",
+    method: req.method,
+    path: req.nextUrl.pathname,
+    timestamp: new Date().toISOString(),
+    host: req.headers.get("host"),
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    ...extra,
+  };
+}
+
+function jsonError(
+  req: NextRequest,
+  status: number,
+  code: string,
+  message: string,
+  extraMeta: Record<string, unknown> = {},
+  details?: unknown
+) {
+  const requestId = crypto.randomUUID();
+
+  return NextResponse.json(
+    {
+      error: {
+        code,
+        message,
+        ...(details !== undefined ? { details } : {}),
+      },
+      meta: diagnosticMeta(req, requestId, extraMeta),
+    },
+    {
+      status,
+      headers: {
+        Allow: ALLOW_METHODS,
+        "X-Request-Id": requestId,
+        "X-Route-Handler": "api/auth/register",
+      },
+    }
+  );
+}
+
+function methodNotAllowed(req: NextRequest) {
+  return jsonError(
+    req,
+    405,
+    "METHOD_NOT_ALLOWED",
+    `Method ${req.method} not allowed for this endpoint. Use POST.`,
+    { allowedMethods: ALLOW_METHODS }
+  );
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      Allow: "POST, OPTIONS",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      Allow: ALLOW_METHODS,
+      "Access-Control-Allow-Methods": ALLOW_METHODS,
       "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
+      "X-Route-Handler": "api/auth/register",
     },
   });
 }
 
 export async function POST(req: NextRequest) {
-  // Rate limiting by IP
-  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-  if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
-    return NextResponse.json(
-      { error: { code: "RATE_LIMIT", message: "Too many registration attempts. Try again later." } },
-      { status: 429 }
-    );
-  }
+  try {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
+      return jsonError(req, 429, "RATE_LIMIT", "Too many registration attempts. Try again later.");
+    }
 
-  const json = await req.json();
-  const body = Body.safeParse(json);
-  
-  if (!body.success) {
-    return NextResponse.json(
-      { error: { code: "BAD_REQUEST", message: "Invalid input", details: body.error.issues } },
-      { status: 400 }
-    );
-  }
+    let json: unknown;
+    try {
+      json = await req.json();
+    } catch {
+      return jsonError(req, 400, "BAD_JSON", "Invalid JSON body");
+    }
 
-  // Check if email already exists
-  const existingEmail = await prisma.user.findUnique({ where: { email: body.data.email } });
-  if (existingEmail) {
-    return NextResponse.json(
-      { error: { code: "CONFLICT", message: "Email already in use" } },
-      { status: 409 }
-    );
-  }
+    const body = Body.safeParse(json);
 
-  // Check if slug already exists
-  const exists = await prisma.company.findUnique({ where: { slug: body.data.slug } });
-  if (exists) {
-    return NextResponse.json(
-      { error: { code: "CONFLICT", message: "Company slug already in use" } },
-      { status: 409 }
-    );
-  }
+    if (!body.success) {
+      return jsonError(req, 400, "BAD_REQUEST", "Invalid input", {}, body.error.issues);
+    }
 
-  // Create company and user in a transaction
-  const result = await prisma.$transaction(async (tx: any) => {
-    const companyId = crypto.randomUUID();
-    const userId = crypto.randomUUID();
+    const existingEmail = await prisma.user.findUnique({ where: { email: body.data.email } });
+    if (existingEmail) {
+      return jsonError(req, 409, "CONFLICT", "Email already in use");
+    }
 
-    const company = await tx.company.create({
-      data: { id: companyId, name: body.data.company, slug: body.data.slug },
+    const exists = await prisma.company.findUnique({ where: { slug: body.data.slug } });
+    if (exists) {
+      return jsonError(req, 409, "CONFLICT", "Company slug already in use");
+    }
+
+    const result = await prisma.$transaction(async (tx: any) => {
+      const companyId = crypto.randomUUID();
+      const userId = crypto.randomUUID();
+
+      const company = await tx.company.create({
+        data: { id: companyId, name: body.data.company, slug: body.data.slug },
+      });
+
+      const hash = await bcrypt.hash(body.data.password, 10);
+      const user = await tx.user.create({
+        data: {
+          id: userId,
+          companyId: company.id,
+          email: body.data.email,
+          hash,
+          role: "OWNER",
+          name: body.data.name,
+        },
+      });
+
+      return { company, user };
     });
 
-    const hash = await bcrypt.hash(body.data.password, 10);
-    const user = await tx.user.create({
-      data: {
-        id: userId,
-        companyId: company.id,
-        email: body.data.email,
-        hash,
-        role: "OWNER",
-        name: body.data.name,
+    const session = await createSession(result.user.id, result.company.id, result.user.role, req);
+
+    await createAuditLog({
+      userId: result.user.id,
+      companyId: result.company.id,
+      action: "USER_REGISTERED",
+      resource: "auth",
+      metadata: {
+        email: result.user.email,
+        companySlug: result.company.slug,
+        sessionId: session.sessionId,
       },
+      req,
     });
 
-    return { company, user };
-  });
+    const requestId = crypto.randomUUID();
+    return NextResponse.json(
+      {
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        expiresIn: session.expiresIn,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+          emailVerified: false,
+        },
+        company: {
+          id: result.company.id,
+          name: result.company.name,
+          slug: result.company.slug,
+        },
+        meta: diagnosticMeta(req, requestId),
+      },
+      {
+        headers: {
+          "X-Request-Id": requestId,
+          "X-Route-Handler": "api/auth/register",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("[register] unexpected error", error);
+    return jsonError(req, 500, "INTERNAL_ERROR", "Unexpected server error while creating account");
+  }
+}
 
-  // Create session
-  const session = await createSession(result.user.id, result.company.id, result.user.role, req);
+export async function GET(req: NextRequest) {
+  return methodNotAllowed(req);
+}
 
-  // Create audit log
-  await createAuditLog({
-    userId: result.user.id,
-    companyId: result.company.id,
-    action: "USER_REGISTERED",
-    resource: "auth",
-    metadata: { 
-      email: result.user.email,
-      companySlug: result.company.slug,
-      sessionId: session.sessionId,
-    },
-    req,
-  });
+export async function PUT(req: NextRequest) {
+  return methodNotAllowed(req);
+}
 
-  return NextResponse.json({
-    accessToken: session.accessToken,
-    refreshToken: session.refreshToken,
-    expiresIn: session.expiresIn,
-    user: {
-      id: result.user.id,
-      email: result.user.email,
-      name: result.user.name,
-      role: result.user.role,
-      emailVerified: false,
-    },
-    company: {
-      id: result.company.id,
-      name: result.company.name,
-      slug: result.company.slug,
-    },
-  });
+export async function PATCH(req: NextRequest) {
+  return methodNotAllowed(req);
+}
+
+export async function DELETE(req: NextRequest) {
+  return methodNotAllowed(req);
 }

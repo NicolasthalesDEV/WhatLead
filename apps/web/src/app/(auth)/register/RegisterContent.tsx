@@ -74,11 +74,18 @@ export default function RegisterContent() {
       }
 
       let res: Response | null = null;
+      const attempts: Array<{ url: string; status: number; allow: string | null }> = [];
       for (let i = 0; i < candidates.length; i++) {
         const current = await fetch(candidates[i], {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: payload,
+        });
+
+        attempts.push({
+          url: candidates[i],
+          status: current.status,
+          allow: current.headers.get("allow"),
         });
 
         res = current;
@@ -102,12 +109,28 @@ export default function RegisterContent() {
       if (res.ok) {
         router.push("/login?registered=true");
       } else {
+        const requestId = data?.meta?.requestId || res.headers.get("x-request-id");
+        const errorCode = data?.error?.code;
+
         if (res.status === 405) {
           console.error("Register endpoint returned 405", {
-            allow: res.headers.get("allow"),
+            attempts,
+            responseAllow: res.headers.get("allow"),
+            requestId,
+            errorCode,
+            responseBody: data,
           });
+
+          const diag = requestId ? ` (ID: ${requestId})` : "";
+          const code = errorCode ? ` [${errorCode}]` : "";
+          setMessage(`Cadastro bloqueado por método inválido (HTTP 405)${code}${diag}`);
+          return;
         }
-        setMessage(data?.error?.message || `Erro ao criar conta (HTTP ${res.status})`);
+
+        const message = data?.error?.message || `Erro ao criar conta (HTTP ${res.status})`;
+        const code = errorCode ? ` [${errorCode}]` : "";
+        const diag = requestId ? ` (ID: ${requestId})` : "";
+        setMessage(`${message}${code}${diag}`);
       }
     } catch (error) {
       setMessage("Erro de conexão. Tente novamente.");
