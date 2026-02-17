@@ -11,22 +11,27 @@ datasource db {
 }
 
 model Company {
-  id              String            @id
-  name            String
-  slug            String            @unique
-  createdAt       DateTime          @default(now())
-  Customer        Customer[]
-  DailyMetric     DailyMetric[]
-  FunnelCard      FunnelCard[]
-  FunnelStage     FunnelStage[]
-  Order           Order[]
-  Payment         Payment[]
-  Product         Product[]
-  Quote           Quote[]
-  User            User[]
-  WebhookEndpoint WebhookEndpoint[]
-  WhatsChannel    WhatsChannel[]
-  WhatsMessage    WhatsMessage[]
+  id                     String                   @id
+  name                   String
+  slug                   String                   @unique
+  createdAt              DateTime                 @default(now())
+  AuditLog               AuditLog[]
+  ChatbotAnalytics       ChatbotAnalytics[]
+  ChatbotFlow            ChatbotFlow[]
+  Customer               Customer[]
+  DailyMetric            DailyMetric[]
+  FunnelCard             FunnelCard[]
+  FunnelStage            FunnelStage[]
+  Notification           Notification[]
+  Order                  Order[]
+  Payment                Payment[]
+  Product                Product[]
+  QuickResponse          QuickResponse[]
+  Quote                  Quote[]
+  User                   User[]
+  WebhookEndpoint        WebhookEndpoint[]
+  WhatsChannel           WhatsChannel[]
+  WhatsMessage           WhatsMessage[]
 }
 
 model Customer {
@@ -221,15 +226,167 @@ model Ticket {
 }
 
 model User {
-  id         String       @id
+  id                     String                   @id
+  companyId              String
+  email                  String                   @unique
+  hash                   String
+  role                   Role
+  name                   String
+  createdAt              DateTime                 @default(now())
+  Company                Company                  @relation(fields: [companyId], references: [id])
+  AuditLog               AuditLog[]
+  FunnelCard             FunnelCard[]
+  Notification           Notification[]
+  NotificationPreference NotificationPreference[]
+  Session                Session[]
+}
+
+model Session {
+  id           String   @id
+  userId       String
+  refreshToken String   @unique
+  accessToken  String?
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model AuditLog {
+  id         String   @id
+  userId     String?
   companyId  String
-  email      String       @unique
-  hash       String
-  role       Role
-  name       String
-  createdAt  DateTime     @default(now())
-  Company    Company      @relation(fields: [companyId], references: [id])
-  FunnelCard FunnelCard[]
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  User       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  Company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model Notification {
+  id        String   @id
+  userId    String
+  companyId String
+  type      String
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([companyId])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id                 String   @id
+  userId             String   @unique
+  emailEnabled       Boolean  @default(true)
+  pushEnabled        Boolean  @default(true)
+  newOrderEnabled    Boolean  @default(true)
+  newMessageEnabled  Boolean  @default(true)
+  newPaymentEnabled  Boolean  @default(true)
+  newCustomerEnabled Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  User               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatbotFlow {
+  id                String              @id
+  companyId         String
+  name              String
+  description       String?
+  triggerType       String
+  triggerKeywords   String[]
+  active            Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  Company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ChatbotExecution  ChatbotExecution[]
+  ChatbotNode       ChatbotNode[]
+
+  @@index([companyId])
+  @@index([active])
+}
+
+model ChatbotNode {
+  id          String   @id
+  flowId      String
+  type        String
+  name        String
+  config      Json
+  position    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ChatbotFlow ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+}
+
+model ChatbotExecution {
+  id           String      @id
+  flowId       String
+  customerId   String
+  status       String
+  startedAt    DateTime    @default(now())
+  completedAt  DateTime?
+  currentNode  String?
+  variables    Json?
+  ChatbotFlow  ChatbotFlow @relation(fields: [flowId], references: [id])
+
+  @@index([flowId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model QuickResponse {
+  id        String   @id
+  companyId String
+  shortcut  String
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, shortcut])
+  @@index([companyId])
+}
+
+model ChatbotAnalytics {
+  id               String   @id
+  companyId        String
+  date             DateTime
+  flowsExecuted    Int      @default(0)
+  flowsCompleted   Int      @default(0)
+  flowsFailed      Int      @default(0)
+  avgExecutionTime Float    @default(0)
+  ordersCreated    Int      @default(0)
+  quotesCreated    Int      @default(0)
+  createdAt        DateTime @default(now())
+  Company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, date])
+  @@index([companyId])
+  @@index([date])
 }
 
 model WebhookDelivery {
