@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build",
-    "build:vercel": "SKIP_ENV_VALIDATION=true prisma generate --schema=../../packages/db/prisma/schema.prisma && SKIP_ENV_VALIDATION=true next build",
+    "build:vercel": "prisma generate --schema=../../packages/db/prisma/schema.prisma && next build",
     "start": "next start -p 3000",
     "lint": "eslint .",
     "test": "vitest run",
@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "postinstall": "prisma generate --schema=../../packages/db/prisma/schema.prisma || true"
+    "postinstall": "cd ../../packages/db && prisma generate || true"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "scripts": {
+    "postinstall": "prisma generate || true"
+  },
   "dependencies": {
-    "@prisma/client": "^5.22.0"
+    "@prisma/client": "^5.22.0",
+    "prisma": "^5.22.0"
   },
   "devDependencies": {
-    "prisma": "^5.19.1",
     "typescript": "^5.5.4"
   }
 }
