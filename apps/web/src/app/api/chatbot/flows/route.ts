@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@wacrm/db";
+import crypto from "crypto";
 
 // GET /api/chatbot/flows - List all flows
 export async function GET(req: NextRequest) {

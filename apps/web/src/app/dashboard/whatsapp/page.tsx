@@ -23,6 +23,11 @@ import {
   Check,
   Clock,
   AlertCircle,
+  Camera,
+  Mic,
+  Video,
+  File,
+  StopCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -86,7 +91,7 @@ export default function WhatsAppPage() {
   const [sending, setSending] = useState(false);
   const [unreadOnlyFilter, setUnreadOnlyFilter] = useState(false);
   const [quickResponses, setQuickResponses] = useState<QuickResponse[]>([]);
-  
+
   // New conversation states
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -95,8 +100,19 @@ export default function WhatsAppPage() {
   const [newConversationPhone, setNewConversationPhone] = useState("");
   const [startingConversation, setStartingConversation] = useState(false);
 
+  // Audio recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [showMediaMenu, setShowMediaMenu] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -207,37 +223,82 @@ export default function WhatsAppPage() {
   };
 
   // Send media message
-  const sendMediaMessage = async (file: File) => {
+  const sendMediaMessage = async (file: File, caption?: string) => {
     if (!selectedCustomerId || sending) return;
 
     setSending(true);
     try {
-      // In production, you'd upload the file first to get a URL
-      // For now, we'll show an alert
-      alert('Funcionalidade de envio de mídia requer upload para storage (S3, etc.)');
+      // 1. Upload file to get public URL
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Example flow:
-      // 1. Upload file to your storage (S3, etc.)
-      // 2. Get public URL
+      const uploadResponse = await fetch('/api/whatsapp/media/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Erro ao fazer upload do arquivo');
+      }
+
+      const uploadData = await uploadResponse.json();
+      const mediaUrl = uploadData.url;
+
+      // 2. Determine message type based on file MIME type
+      let messageType: 'image' | 'video' | 'audio' | 'document' = 'document';
+      if (file.type.startsWith('image/')) {
+        messageType = 'image';
+      } else if (file.type.startsWith('video/')) {
+        messageType = 'video';
+      } else if (file.type.startsWith('audio/')) {
+        messageType = 'audio';
+      }
+
       // 3. Send message with media URL
+      const messagePayload: any = {
+        type: messageType,
+        mediaUrl: mediaUrl,
+      };
 
-      /*
+      // Add caption for image/video/document
+      if (caption && (messageType === 'image' || messageType === 'video' || messageType === 'document')) {
+        messagePayload.caption = caption;
+      }
+
+      // Add filename for documents
+      if (messageType === 'document') {
+        messagePayload.fileName = file.name;
+      }
+
       const response = await fetch(
         `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: file.type.startsWith('image/') ? 'image' : 'document',
-            mediaUrl: uploadedUrl,
-            caption: '',
-            fileName: file.name,
-          }),
+          credentials: 'include',
+          body: JSON.stringify(messagePayload),
         }
       );
-      */
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao enviar mensagem');
+      }
+
+      const data = await response.json();
+
+      // Add message to list
+      setMessages((prev) => [...prev, data.message]);
+
+      // Refresh conversations to update last message
+      fetchConversations();
+
+      scrollToBottom();
     } catch (error) {
-      // Silently handle - media sending is not yet implemented
+      alert(error instanceof Error ? error.message : 'Erro ao enviar mídia');
+      console.error('Failed to send media:', error);
     } finally {
       setSending(false);
     }
@@ -367,7 +428,16 @@ export default function WhatsAppPage() {
         credentials: 'include',
       });
 
-      if (!response.ok) throw new Error('Cliente não encontrado');
+      if (!response.ok) {
+        let errorMsg = 'Cliente não encontrado';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorData.message || errorMsg;
+        } catch (e) {
+          // Se não conseguir parsear o JSON, usa a mensagem padrão
+        }
+        throw new Error(errorMsg);
+      }
 
       const data = await response.json();
       const customer = data.customer;
@@ -381,10 +451,80 @@ export default function WhatsAppPage() {
       // Refresh conversations to include this one
       await fetchConversations();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao iniciar conversa');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(errorMessage);
+      console.error('Failed to start conversation:', error);
     } finally {
       setStartingConversation(false);
     }
+  };
+
+  // Start recording audio
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+
+        // Create file from blob
+        const audioFile = audioBlob as any as File;
+        Object.defineProperty(audioFile, 'name', {
+          value: `audio-${Date.now()}.ogg`,
+          writable: false,
+        });
+
+        // Send audio file
+        await sendMediaMessage(audioFile);
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+
+        // Reset
+        setAudioChunks([]);
+        setRecordingTime(0);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+        }
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setAudioChunks(chunks);
+
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      alert('Erro ao acessar o microfone. Verifique as permissões do navegador.');
+    }
+  };
+
+  // Stop recording audio
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Format recording time
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Start conversation with phone number
@@ -409,18 +549,37 @@ export default function WhatsAppPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erro ao criar cliente');
+        let errorMsg = 'Erro ao criar cliente';
+        try {
+          const errorData = await response.json();
+          // Extrair mensagem de erro de forma segura
+          if (typeof errorData.error === 'string') {
+            errorMsg = errorData.error;
+          } else if (typeof errorData.message === 'string') {
+            errorMsg = errorData.message;
+          } else if (errorData.error?.message) {
+            errorMsg = errorData.error.message;
+          }
+        } catch (e) {
+          // Se não conseguir parsear o JSON, usa a mensagem padrão
+        }
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
-      const customerId = data.customer.id;
+      const customerId = data.customer?.id;
+
+      if (!customerId) {
+        throw new Error('ID do cliente não foi retornado pela API');
+      }
 
       // Start conversation with this customer
       await startNewConversation(customerId);
       setNewConversationPhone("");
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Erro ao iniciar conversa');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(errorMessage);
+      console.error('Failed to start conversation with phone:', error);
     } finally {
       setStartingConversation(false);
     }
@@ -587,8 +746,8 @@ export default function WhatsAppPage() {
                     >
                       <div
                         className={`max-w-[70%] rounded-lg px-4 py-2 ${message.direction === 'OUT'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-gray-100 text-gray-900'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gray-100 text-gray-900'
                           }`}
                       >
                         {/* Media */}
@@ -618,8 +777,8 @@ export default function WhatsAppPage() {
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <span
                             className={`text-xs ${message.direction === 'OUT'
-                                ? 'text-primary-foreground/70'
-                                : 'text-gray-500'
+                              ? 'text-primary-foreground/70'
+                              : 'text-gray-500'
                               }`}
                           >
                             {format(new Date(message.timestamp), 'HH:mm', { locale: ptBR })}
@@ -640,43 +799,125 @@ export default function WhatsAppPage() {
               {/* Message Input */}
               <div className="border-t p-4">
                 <div className="flex items-end gap-2">
+                  {/* Hidden file inputs */}
                   <input
-                    ref={fileInputRef}
+                    ref={imageInputRef}
                     type="file"
                     className="hidden"
                     onChange={handleFileSelect}
-                    accept="image/*,application/pdf,.doc,.docx"
+                    accept="image/*"
                   />
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={sending}
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <div className="flex-1">
-                    <Textarea
-                      placeholder="Digite sua mensagem..."
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      disabled={sending}
-                      rows={1}
-                      className="resize-none min-h-[40px] max-h-[120px]"
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={sendMessage}
-                    disabled={!messageInput.trim() || sending}
-                  >
-                    {sending ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept="video/*"
+                  />
+                  <input
+                    ref={documentInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  />
+
+                  {/* Media buttons */}
+                  {!isRecording && (
+                    <div className="flex gap-1">
+                      {/* Image button */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={sending}
+                        title="Enviar imagem"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </Button>
+
+                      {/* Video button */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => videoInputRef.current?.click()}
+                        disabled={sending}
+                        title="Enviar vídeo"
+                      >
+                        <Video className="h-4 w-4" />
+                      </Button>
+
+                      {/* Document button */}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => documentInputRef.current?.click()}
+                        disabled={sending}
+                        title="Enviar documento"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Recording indicator or text input */}
+                  {isRecording ? (
+                    <div className="flex-1 flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-medium text-red-600">
+                          Gravando... {formatRecordingTime(recordingTime)}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={stopRecording}
+                      >
+                        <StopCircle className="h-4 w-4 mr-1" />
+                        Parar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex-1">
+                      <Textarea
+                        placeholder="Digite sua mensagem..."
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        disabled={sending}
+                        rows={1}
+                        className="resize-none min-h-[40px] max-h-[120px]"
+                      />
+                    </div>
+                  )}
+
+                  {/* Send or Mic button */}
+                  {!isRecording && (
+                    messageInput.trim() ? (
+                      <Button
+                        size="sm"
+                        onClick={sendMessage}
+                        disabled={sending}
+                      >
+                        {sending ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
                     ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={startRecording}
+                        disabled={sending}
+                        title="Gravar áudio"
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                    )
+                  )}
                 </div>
               </div>
             </>

@@ -74,7 +74,12 @@ export default function ReportsPage() {
   }
 
   if (!overview || !overview.summary) {
-    return <div className="text-center py-12">Erro ao carregar dados. Configure o banco de dados no arquivo .env.local</div>;
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground mb-4">Ainda não há dados suficientes para gerar relatórios.</p>
+        <p className="text-sm text-muted-foreground">Comece cadastrando clientes, produtos e pedidos para visualizar estatísticas aqui.</p>
+      </div>
+    );
   }
 
   const { summary, dailyTrend = [] } = overview;

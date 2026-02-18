@@ -15,9 +15,11 @@ import {
   Bell,
   Bot,
   Hotel,
+  CreditCard,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect } from "react";
 
 const sidebarNavItems = [
   {
@@ -26,7 +28,7 @@ const sidebarNavItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Hóspedes",
+    title: "Clientes",
     href: "/dashboard/customers",
     icon: Users,
   },
@@ -75,6 +77,24 @@ interface SidebarProps {
 export function Sidebar({ className, isOpen = true }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    async function fetchSubscription() {
+      try {
+        const response = await fetch('/api/billing/subscription', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSubscription(data.subscription);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subscription:', error);
+      }
+    }
+    fetchSubscription();
+  }, []);
 
   return (
     <TooltipProvider>
@@ -138,7 +158,48 @@ export function Sidebar({ className, isOpen = true }: SidebarProps) {
             </div>
           </div>
         </div>
-        <div className={cn("absolute bottom-4 left-0 right-0 px-3", !isOpen && "px-2")}>
+        <div className={cn("absolute bottom-4 left-0 right-0 px-3 space-y-2", !isOpen && "px-2")}>
+          {/* Informação do Plano */}
+          {subscription && isOpen && (
+            <Link href="/dashboard/settings?section=billing">
+              <div className={cn(
+                "p-3 rounded-lg border text-xs cursor-pointer hover:bg-accent transition-colors",
+                subscription.isExpiringSoon && !subscription.isExpired 
+                  ? "border-yellow-300 bg-yellow-50" 
+                  : subscription.isExpired 
+                  ? "border-red-300 bg-red-50"
+                  : "border-gray-200 bg-gray-50"
+              )}>
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="h-3 w-3" />
+                  <span className="font-medium">
+                    {subscription.plan === 'free' ? 'Gratuito' :
+                     subscription.plan === 'starter' ? 'Starter' :
+                     subscription.plan === 'professional' ? 'Professional' :
+                     subscription.plan === 'enterprise' ? 'Enterprise' : subscription.plan}
+                  </span>
+                  {subscription.planStatus === 'trial' && (
+                    <span className="px-1 py-0.5 bg-blue-500 text-white rounded text-[10px]">
+                      Trial
+                    </span>
+                  )}
+                </div>
+                {subscription.expiresIn && (
+                  <div className={cn(
+                    "text-[10px]",
+                    subscription.isExpiringSoon && !subscription.isExpired
+                      ? "text-yellow-700"
+                      : subscription.isExpired
+                      ? "text-red-700"
+                      : "text-gray-600"
+                  )}>
+                    {subscription.expiresIn}
+                  </div>
+                )}
+              </div>
+            </Link>
+          )}
+
           {isOpen ? (
             <button
               onClick={logout}

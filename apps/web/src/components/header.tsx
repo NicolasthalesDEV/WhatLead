@@ -223,6 +223,19 @@ export function Header() {
         </div>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <nav className="flex items-center space-x-2">
+            {/* Botão de Suporte via WhatsApp */}
+            <a
+              href="https://wa.me/5547991011287?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20com%20o%20sistema"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Falar com suporte"
+            >
+              <Button variant="ghost" size="sm" className="gap-2">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Suporte</span>
+              </Button>
+            </a>
+
             {/* Notificações em tempo real */}
             <NotificationBell />
 

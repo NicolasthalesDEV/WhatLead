@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@wacrm/db';
 import { verifyAuth } from '@/lib/auth';
-import { sendWhatsText, sendWhatsImage, sendWhatsDocument, sendWhatsVideo } from '@/lib/wa/client';
+import { 
+  sendWhatsText, 
+  sendWhatsImage, 
+  sendWhatsDocument, 
+  sendWhatsVideo,
+  sendWhatsAudio,
+  sendWhatsSticker,
+  sendWhatsLocation,
+  sendWhatsContact
+} from '@/lib/wa/client';
 
 /**
  * POST /api/whatsapp/conversations/[customerId]/messages
@@ -10,11 +19,13 @@ import { sendWhatsText, sendWhatsImage, sendWhatsDocument, sendWhatsVideo } from
  * Envia uma mensagem para um cliente via WhatsApp
  * 
  * Body:
- * - type: 'text' | 'image' | 'document' | 'video' | 'audio'
+ * - type: 'text' | 'image' | 'document' | 'video' | 'audio' | 'sticker' | 'location' | 'contact'
  * - text: conteúdo da mensagem (obrigatório para type=text)
- * - mediaUrl: URL da mídia (obrigatório para outros types)
+ * - mediaUrl: URL da mídia (obrigatório para image, document, video, audio, sticker)
  * - caption: legenda para mídia (opcional)
  * - fileName: nome do arquivo (opcional, usado para documents)
+ * - latitude/longitude: coordenadas (obrigatório para location)
+ * - contacts: array de contatos (obrigatório para contact)
  */
 
 const sendMessageSchema = z.discriminatedUnion('type', [
@@ -41,6 +52,36 @@ const sendMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('audio'),
     mediaUrl: z.string().url(),
+  }),
+  z.object({
+    type: z.literal('sticker'),
+    mediaUrl: z.string().url(),
+  }),
+  z.object({
+    type: z.literal('location'),
+    latitude: z.number(),
+    longitude: z.number(),
+    name: z.string().optional(),
+    address: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('contact'),
+    contacts: z.array(z.object({
+      name: z.object({
+        formatted_name: z.string(),
+        first_name: z.string().optional(),
+        last_name: z.string().optional(),
+      }),
+      phones: z.array(z.object({
+        phone: z.string(),
+        type: z.string().optional(),
+        wa_id: z.string().optional(),
+      })).optional(),
+      emails: z.array(z.object({
+        email: z.string().email(),
+        type: z.string().optional(),
+      })).optional(),
+    })),
   }),
 ]);
 
@@ -144,6 +185,37 @@ export async function POST(
           );
           break;
 
+        case 'audio':
+          whatsappResponse = await sendWhatsAudio(
+            customer.phoneE164,
+            data.mediaUrl
+          );
+          break;
+
+        case 'sticker':
+          whatsappResponse = await sendWhatsSticker(
+            customer.phoneE164,
+            data.mediaUrl
+          );
+          break;
+
+        case 'location':
+          whatsappResponse = await sendWhatsLocation(
+            customer.phoneE164,
+            data.latitude,
+            data.longitude,
+            data.name,
+            data.address
+          );
+          break;
+
+        case 'contact':
+          whatsappResponse = await sendWhatsContact(
+            customer.phoneE164,
+            data.contacts
+          );
+          break;
+
         default:
           return NextResponse.json(
             { error: 'Tipo de mensagem não suportado' },
@@ -159,6 +231,30 @@ export async function POST(
     // Extrair messageId da resposta
     const messageId = whatsappResponse.messages?.[0]?.id;
 
+    // Preparar dados específicos do tipo de mensagem
+    let messageBody: string | null = null;
+    let rawData: any = { whatsappMessageId: messageId };
+
+    if (data.type === 'text') {
+      messageBody = data.text;
+    } else if (data.type === 'image' || data.type === 'video' || data.type === 'document') {
+      messageBody = data.caption || null;
+      rawData.mediaUrl = data.mediaUrl;
+      if (data.type === 'document' && data.fileName) {
+        rawData.fileName = data.fileName;
+      }
+    } else if (data.type === 'audio' || data.type === 'sticker') {
+      rawData.mediaUrl = data.mediaUrl;
+    } else if (data.type === 'location') {
+      messageBody = data.name || null;
+      rawData.latitude = data.latitude;
+      rawData.longitude = data.longitude;
+      if (data.address) rawData.address = data.address;
+    } else if (data.type === 'contact') {
+      messageBody = data.contacts[0]?.name?.formatted_name || null;
+      rawData.contacts = data.contacts;
+    }
+
     // Salvar mensagem no banco
     const message = await prisma.whatsMessage.create({
       data: {
@@ -167,15 +263,9 @@ export async function POST(
         channelId: channel.id,
         direction: 'OUT',
         type: data.type,
-        body: data.type === 'text' ? data.text : ('caption' in data ? data.caption || null : null),
+        body: messageBody,
         status: 'sent',
-        raw: {
-          whatsappMessageId: messageId,
-          ...(data.type !== 'text' && {
-            mediaUrl: data.mediaUrl,
-            ...('fileName' in data && data.fileName && { fileName: data.fileName }),
-          }),
-        },
+        raw: rawData,
       },
       select: {
         id: true,

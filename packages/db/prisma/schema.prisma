@@ -15,6 +15,18 @@ model Company {
   name                   String
   slug                   String                   @unique
   createdAt              DateTime                 @default(now())
+  
+  // Subscription fields
+  plan                   String                   @default("free") // free, starter, professional, enterprise
+  planStatus             String                   @default("active") // active, canceled, expired, trial
+  planStartedAt          DateTime?
+  planExpiresAt          DateTime?
+  billingCycle           String?                  // monthly, yearly
+  paymentMethod          String?                  // credit_card, mercadopago, pix
+  mercadopagoCustomerId  String?
+  mercadopagoSubscriptionId String?
+  lastPaymentAt          DateTime?
+  
   AuditLog               AuditLog[]
   ChatbotAnalytics       ChatbotAnalytics[]
   ChatbotFlow            ChatbotFlow[]

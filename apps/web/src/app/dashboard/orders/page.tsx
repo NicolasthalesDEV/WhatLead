@@ -190,8 +190,8 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Pedidos</h1>
-        <p className="text-muted-foreground">Gerencie todos os pedidos da sua empresa</p>
+        <h1 className="text-3xl font-bold">Reservas</h1>
+        <p className="text-muted-foreground">Gerencie as reservas do seu hotel</p>
       </div>
 
       {/* Stats Cards */}

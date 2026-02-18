@@ -166,8 +166,8 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Produtos</h1>
-          <p className="text-muted-foreground">Gerencie o catálogo de produtos</p>
+          <h1 className="text-3xl font-bold">Quartos</h1>
+          <p className="text-muted-foreground">Gerencie os quartos do seu hotel</p>
         </div>
         <Link href="/dashboard/products/new">
           <Button>

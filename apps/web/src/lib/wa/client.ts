@@ -299,6 +299,132 @@ export async function sendWhatsVideo(
 }
 
 /**
+ * Envia um áudio
+ */
+export async function sendWhatsAudio(
+  to: string,
+  audioUrl: string
+): Promise<WhatsAppMessageResponse> {
+  return sendWhatsMedia(to, {
+    type: 'audio',
+    url: audioUrl,
+  });
+}
+
+/**
+ * Envia um sticker
+ */
+export async function sendWhatsSticker(
+  to: string,
+  stickerUrl: string
+): Promise<WhatsAppMessageResponse> {
+  return sendWhatsMedia(to, {
+    type: 'sticker',
+    url: stickerUrl,
+  });
+}
+
+/**
+ * Envia localização
+ */
+export async function sendWhatsLocation(
+  to: string,
+  latitude: number,
+  longitude: number,
+  name?: string,
+  address?: string
+): Promise<WhatsAppMessageResponse> {
+  validateCredentials();
+
+  const phone = normalizePhoneNumber(to);
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: phone,
+    type: 'location',
+    location: {
+      latitude,
+      longitude,
+      ...(name && { name }),
+      ...(address && { address }),
+    },
+  };
+
+  const response = await fetch(
+    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const error = data as WhatsAppError;
+    console.error('WhatsApp Location Error:', error);
+    throw new Error(
+      `WhatsApp Location Error: ${error.error.message} (${error.error.code})`
+    );
+  }
+
+  return data as WhatsAppMessageResponse;
+}
+
+/**
+ * Envia contato
+ */
+export async function sendWhatsContact(
+  to: string,
+  contacts: Array<{
+    name: { formatted_name: string; first_name?: string; last_name?: string };
+    phones?: Array<{ phone: string; type?: string; wa_id?: string }>;
+    emails?: Array<{ email: string; type?: string }>;
+  }>
+): Promise<WhatsAppMessageResponse> {
+  validateCredentials();
+
+  const phone = normalizePhoneNumber(to);
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: phone,
+    type: 'contacts',
+    contacts,
+  };
+
+  const response = await fetch(
+    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const error = data as WhatsAppError;
+    console.error('WhatsApp Contact Error:', error);
+    throw new Error(
+      `WhatsApp Contact Error: ${error.error.message} (${error.error.code})`
+    );
+  }
+
+  return data as WhatsAppMessageResponse;
+}
+
+/**
  * Marca uma mensagem como lida
  * @param messageId - ID da mensagem recebida
  */

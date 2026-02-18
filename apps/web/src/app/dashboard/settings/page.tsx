@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
 import {
   Settings,
   User,
@@ -64,6 +65,21 @@ export default function SettingsPage() {
   });
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Subscription state
+  const [subscription, setSubscription] = useState<{
+    plan: string;
+    planStatus: string;
+    planExpiresAt: string | null;
+    daysRemaining: number | null;
+    expiresIn: string | null;
+    isExpired: boolean;
+    isExpiringSoon: boolean;
+    billingCycle: string | null;
+    paymentMethod: string | null;
+    lastPaymentAt: string | null;
+  } | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+
   // Carregar dados do usuário quando disponível
   useEffect(() => {
     if (user && !loading) {
@@ -85,6 +101,57 @@ export default function SettingsPage() {
       }
     }
   }, [user, loading]);
+
+  // Carregar dados da assinatura
+  useEffect(() => {
+    async function fetchSubscription() {
+      try {
+        const response = await fetch('/api/billing/subscription', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setSubscription(data.subscription);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subscription:', error);
+      } finally {
+        setLoadingSubscription(false);
+      }
+    }
+
+    if (!loading) {
+      fetchSubscription();
+    }
+  }, [loading]);
+
+  // Carregar preferências de notificação
+  useEffect(() => {
+    async function fetchPreferences() {
+      try {
+        const response = await fetch('/api/user/preferences', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.preferences && data.preferences.notifications) {
+            setNotifications(prev => ({
+              ...prev,
+              ...data.preferences.notifications,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch preferences:', error);
+      }
+    }
+
+    if (!loading) {
+      fetchPreferences();
+    }
+  }, [loading]);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -560,41 +627,152 @@ export default function SettingsPage() {
               <CardDescription>Gerencie seu plano e informações de pagamento</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-blue-800">Plano Atual: Professional</div>
-                  <div className="text-sm text-blue-600">R$ 197/mês - Renovação em 15 dias</div>
+              {loadingSubscription ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="text-sm text-muted-foreground">Carregando informações do plano...</div>
                 </div>
-                <Button variant="outline" size="sm">Alterar Plano</Button>
-              </div>
+              ) : subscription ? (
+                <>
+                  <div className={`flex items-center justify-between p-4 rounded-lg ${
+                    subscription.isExpired 
+                      ? 'bg-red-50' 
+                      : subscription.isExpiringSoon 
+                      ? 'bg-yellow-50' 
+                      : 'bg-blue-50'
+                  }`}>
+                    <div>
+                      <div className={`font-medium ${
+                        subscription.isExpired 
+                          ? 'text-red-800' 
+                          : subscription.isExpiringSoon 
+                          ? 'text-yellow-800' 
+                          : 'text-blue-800'
+                      }`}>
+                        Plano Atual: {subscription.plan === 'free' ? 'Gratuito' : 
+                                     subscription.plan === 'starter' ? 'Starter' : 
+                                     subscription.plan === 'professional' ? 'Professional' : 
+                                     subscription.plan === 'enterprise' ? 'Enterprise' : subscription.plan}
+                        {subscription.planStatus !== 'active' && (
+                          <span className="ml-2 text-xs">({subscription.planStatus})</span>
+                        )}
+                      </div>
+                      <div className={`text-sm ${
+                        subscription.isExpired 
+                          ? 'text-red-600' 
+                          : subscription.isExpiringSoon 
+                          ? 'text-yellow-600' 
+                          : 'text-blue-600'
+                      }`}>
+                        {subscription.plan === 'starter' && 'R$ 97/mês'}
+                        {subscription.plan === 'professional' && 'R$ 197/mês'}
+                        {subscription.plan === 'enterprise' && 'R$ 497/mês'}
+                        {subscription.plan === 'free' && 'Gratuito'}
+                        {subscription.billingCycle === 'yearly' && ' (cobrado anualmente)'}
+                        {subscription.expiresIn && ` - ${subscription.expiresIn}`}
+                        {subscription.planExpiresAt && subscription.daysRemaining !== null && subscription.daysRemaining >= 0 && (
+                          <span className="block text-xs mt-1">
+                            Expira em {new Date(subscription.planExpiresAt).toLocaleDateString('pt-BR', { 
+                              day: '2-digit', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })} ({subscription.daysRemaining} {subscription.daysRemaining === 1 ? 'dia' : 'dias'} restantes)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {subscription.plan !== 'enterprise' && (
+                        <Button variant="outline" size="sm">Fazer Upgrade</Button>
+                      )}
+                      {subscription.plan !== 'free' && subscription.planStatus === 'active' && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {subscription.isExpired && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        Sua assinatura expirou. Renove agora para continuar usando todos os recursos.
+                      </p>
+                    </div>
+                  )}
+                  {subscription.isExpiringSoon && !subscription.isExpired && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        Sua assinatura está próxima do vencimento. Certifique-se de que seu método de pagamento está atualizado.
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="font-medium text-gray-800">Plano Gratuito</div>
+                    <div className="text-sm text-gray-600">Faça upgrade para desbloquear mais recursos</div>
+                  </div>
+                  <Button variant="outline" size="sm">Ver Planos</Button>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Forma de Pagamento</Label>
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span className="text-sm">**** **** **** 1234</span>
+                {subscription && subscription.planStatus === 'trial' ? (
+                  <div className="p-3 border rounded-lg bg-blue-50 border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      Você está no período de teste. Adicione uma forma de pagamento antes do término do trial para continuar usando o plano.
+                    </p>
                   </div>
-                  <Button variant="outline" size="sm">Alterar</Button>
-                </div>
+                ) : subscription && subscription.paymentMethod ? (
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span className="text-sm">
+                        {subscription.paymentMethod === 'mercadopago' && 'Mercado Pago'}
+                        {subscription.paymentMethod === 'credit_card' && '**** **** **** ****'}
+                        {subscription.paymentMethod === 'pix' && 'PIX'}
+                      </span>
+                    </div>
+                    <Button variant="outline" size="sm">Alterar</Button>
+                  </div>
+                ) : (
+                  <div className="p-3 border rounded-lg border-dashed">
+                    <p className="text-sm text-muted-foreground">Nenhuma forma de pagamento cadastrada</p>
+                    <Button variant="outline" size="sm" className="mt-2">Adicionar</Button>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Histórico de Faturas</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="text-sm font-medium">Janeiro 2024</div>
-                      <div className="text-xs text-muted-foreground">R$ 197,00</div>
+                {subscription && subscription.lastPaymentAt ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="text-sm font-medium">
+                          {new Date(subscription.lastPaymentAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {subscription.plan === 'starter' && 'R$ 97,00'}
+                          {subscription.plan === 'professional' && 'R$ 197,00'}
+                          {subscription.plan === 'enterprise' && 'R$ 497,00'}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" disabled>Download</Button>
                     </div>
-                    <Button variant="ghost" size="sm">Download</Button>
                   </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="text-sm font-medium">Dezembro 2023</div>
-                      <div className="text-xs text-muted-foreground">R$ 197,00</div>
-                    </div>
-                    <Button variant="ghost" size="sm">Download</Button>
+                ) : (
+                  <div className="p-3 border rounded-lg border-dashed text-center">
+                    <p className="text-sm text-muted-foreground">
+                      {subscription && subscription.planStatus === 'trial' 
+                        ? 'Você está no período de teste. O histórico aparecerá após o primeiro pagamento.' 
+                        : 'Nenhuma fatura encontrada'}
+                    </p>
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -612,43 +790,51 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">WhatsApp API</h3>
+                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Comunique-se com seus hóspedes via WhatsApp
+                  </p>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/dashboard/whatsapp">Ver Conversas</Link>
+                  </Button>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">Mercado Pago</h3>
+                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Receba pagamentos de assinaturas e PIX
+                  </p>
+                  <Button variant="outline" size="sm" disabled>Configurado</Button>
+                </div>
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">Google Analytics</h3>
-                    <Badge className="bg-green-100 text-green-800">Conectado</Badge>
+                    <Badge variant="secondary">Opcional</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
                     Acompanhe o desempenho do seu site
                   </p>
-                  <Button variant="outline" size="sm">Configurar</Button>
+                  <Input 
+                    placeholder="ID do Google Analytics (ex: G-XXXXXXXXXX)" 
+                    className="mt-2"
+                  />
+                  <Button variant="outline" size="sm" className="mt-2">Salvar</Button>
                 </div>
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">Correios</h3>
-                    <Badge variant="secondary">Desconectado</Badge>
+                    <h3 className="font-medium">Chatbot IA</h3>
+                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Calcule fretes automaticamente
+                    Atendimento automatizado inteligente
                   </p>
-                  <Button variant="outline" size="sm">Conectar</Button>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">PagSeguro</h3>
-                    <Badge className="bg-green-100 text-green-800">Conectado</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Receba pagamentos via PIX e cartão
-                  </p>
-                  <Button variant="outline" size="sm">Configurar</Button>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">Mercado Livre</h3>
-                    <Badge variant="secondary">Desconectado</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Sincronize produtos e pedidos
-                  </p>
-                  <Button variant="outline" size="sm">Conectar</Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/dashboard/chatbot">Configurar Fluxos</Link>
+                  </Button>
                 </div>
               </div>
             </CardContent>

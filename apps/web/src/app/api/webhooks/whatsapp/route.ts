@@ -218,6 +218,29 @@ async function processIncomingMessages(value: any) {
 
       console.log(`Message saved: ${savedMessage.id}`);
 
+      // Criar notificação para o novo mensagem recebida
+      try {
+        await db.notification.create({
+          data: {
+            companyId: customer.companyId,
+            type: "whatsapp_message",
+            title: `Nova mensagem de ${customer.name}`,
+            message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
+            link: `/dashboard/whatsapp?customer=${customer.id}`,
+            isRead: false,
+            data: {
+              customerId: customer.id,
+              customerName: customer.name,
+              messageId: savedMessage.id,
+              messageType,
+            },
+          },
+        });
+        console.log(`Notification created for message from ${customer.name}`);
+      } catch (error) {
+        console.error("Error creating notification:", error);
+      }
+
       // Marcar mensagem como lida
       try {
         await markMessageAsRead(messageId);

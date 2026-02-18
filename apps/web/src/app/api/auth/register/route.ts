@@ -133,8 +133,22 @@ export async function POST(req: NextRequest) {
       const companyId = crypto.randomUUID();
       const userId = crypto.randomUUID();
 
+      // Calcular data de expiração do trial (14 dias)
+      const now = new Date();
+      const trialExpiresAt = new Date(now);
+      trialExpiresAt.setDate(trialExpiresAt.getDate() + 14);
+
       const company = await tx.company.create({
-        data: { id: companyId, name: body.data.company, slug: body.data.slug },
+        data: { 
+          id: companyId, 
+          name: body.data.company, 
+          slug: body.data.slug,
+          plan: "professional",
+          planStatus: "trial",
+          planStartedAt: now,
+          planExpiresAt: trialExpiresAt,
+          billingCycle: "monthly",
+        },
       });
 
       const hash = await bcrypt.hash(body.data.password, 10);
