@@ -1,4 +1,4 @@
-import { PrismaClient } from "@wacrm/db";
+import { prisma } from "@wacrm/db";
 import crypto from "crypto";
 
 type NotificationType =
@@ -13,7 +13,7 @@ type NotificationType =
   | "LOW_STOCK"
   | "SYSTEM";
 
-async function getUserCompanyId(db: PrismaClient, userId: string): Promise<string | null> {
+async function getUserCompanyId(db: typeof prisma, userId: string): Promise<string | null> {
   const user = await (db as any).user.findUnique({
     where: { id: userId },
     select: { companyId: true },
@@ -31,7 +31,7 @@ type CreateNotificationParams = {
 };
 
 export async function createNotification(
-  db: PrismaClient,
+  db: typeof prisma,
   params: CreateNotificationParams
 ) {
   const notificationPreference = (db as any).notificationPreference;
@@ -103,7 +103,7 @@ function getPreferenceKey(type: NotificationType): string | null {
 
 // Helper para criar notificação de pedido criado
 export async function notifyOrderCreated(
-  db: PrismaClient,
+  db: typeof prisma,
   userId: string,
   orderId: string,
   orderNumber: string
@@ -120,7 +120,7 @@ export async function notifyOrderCreated(
 
 // Helper para criar notificação de pagamento recebido
 export async function notifyPaymentReceived(
-  db: PrismaClient,
+  db: typeof prisma,
   userId: string,
   orderId: string,
   amount: number
@@ -137,7 +137,7 @@ export async function notifyPaymentReceived(
 
 // Helper para criar notificação de mensagem recebida
 export async function notifyMessageReceived(
-  db: PrismaClient,
+  db: typeof prisma,
   userId: string,
   customerId: string,
   customerName: string
@@ -154,7 +154,7 @@ export async function notifyMessageReceived(
 
 // Helper para criar notificação de cotação criada
 export async function notifyQuoteCreated(
-  db: PrismaClient,
+  db: typeof prisma,
   userId: string,
   quoteId: string,
   customerName: string
@@ -171,7 +171,7 @@ export async function notifyQuoteCreated(
 
 // Helper para criar notificação de estoque baixo
 export async function notifyLowStock(
-  db: PrismaClient,
+  db: typeof prisma,
   userId: string,
   productId: string,
   productName: string,

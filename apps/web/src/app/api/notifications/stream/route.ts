@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
           const notifications = await notification.findMany({
             where: {
               userId,
-              isRead: false,
+              read: false,
             },
             orderBy: { createdAt: "desc" },
             take: 10,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, User, Settings, LogOut, HelpCircle, CheckCircle2, BedDouble, CalendarCheck, MessageSquare } from "lucide-react";
+import { Bell, Search, User, Settings, LogOut, HelpCircle, CheckCircle2, BedDouble, CalendarCheck, MessageSquare, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,10 +17,12 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/hooks/useAuth";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 export function Header() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
+  const { resetTour } = useOnboarding();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -267,9 +269,14 @@ export function Header() {
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Configurações</span>
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer" onClick={resetTour}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  <span>Ver Tutorial Novamente</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" onClick={openHelp}>
                   <HelpCircle className="mr-2 h-4 w-4" />
-                  <span>Ajuda</span>
+                  <span>Central de Ajuda</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-600" onClick={logout}>

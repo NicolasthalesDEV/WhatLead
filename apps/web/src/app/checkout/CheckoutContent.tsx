@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  CreditCard, 
-  Lock, 
-  CheckCircle2, 
+import {
+  CreditCard,
+  Lock,
+  CheckCircle2,
   ArrowLeft,
   Hotel,
   Loader2
@@ -72,45 +72,56 @@ export default function CheckoutContent() {
   const plan = plans[planId as keyof typeof plans] || plans.professional;
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    cardNumber: "",
-    cardName: "",
-    expiryDate: "",
-    cvv: "",
-    cpf: "",
     email: "",
-    phone: ""
+    billingCycle: "monthly" as "monthly" | "yearly",
   });
-
-  const handleInputChange = (field: string, value: string) => {
-    let maskedValue = value;
-    
-    if (field === "cardNumber") {
-      // Remove não-dígitos, limita a 16 dígitos, adiciona espaços a cada 4 dígitos
-      const digitsOnly = value.replace(/\D/g, "").slice(0, 16);
-      maskedValue = digitsOnly.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
-    } else if (field === "expiryDate") {
-      maskedValue = value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "$1/$2").slice(0, 5);
-    } else if (field === "cvv") {
-      maskedValue = value.replace(/\D/g, "").slice(0, 4);
-    } else if (field === "cpf") {
-      maskedValue = value.replace(/\D/g, "").replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4").slice(0, 14);
-    } else if (field === "phone") {
-      maskedValue = value.replace(/\D/g, "").replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3").slice(0, 15);
-    }
-
-    setFormData(prev => ({ ...prev, [field]: maskedValue }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setError("");
 
-    // Simular processamento de pagamento
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Primeiro, tentar criar assinatura (requer autenticação)
+      // Se não estiver logado, redirecionar para registro com dados do plano
+      const response = await fetch('/api/billing/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          planId,
+          billingCycle: formData.billingCycle,
+          payerEmail: formData.email,
+        }),
+      });
 
-    // Redirecionar para página de registro com dados do plano
-    router.push(`/register?plan=${planId}&email=${encodeURIComponent(formData.email)}&success=true`);
+      if (response.status === 401) {
+        // Não autenticado - redirecionar para registro primeiro
+        router.push(`/register?plan=${planId}&email=${encodeURIComponent(formData.email)}&billing_cycle=${formData.billingCycle}`);
+        return;
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao criar assinatura');
+      }
+
+      const data = await response.json();
+
+      // Redirecionar para página de pagamento do Mercado Pago
+      if (data.initPoint) {
+        window.location.href = data.initPoint;
+      } else {
+        throw new Error('Link de pagamento não disponível');
+      }
+
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setError(err.message || 'Erro ao processar checkout. Tente novamente.');
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -118,8 +129,8 @@ export default function CheckoutContent() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             onClick={() => router.push("/")}
             className="mb-4"
           >
@@ -204,6 +215,12 @@ export default function CheckoutContent() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
+                      {error}
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="email">Email *</Label>
                     <Input
@@ -211,86 +228,54 @@ export default function CheckoutContent() {
                       type="email"
                       placeholder="seu@email.com"
                       value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       required
                     />
+                    <p className="text-xs text-gray-500">
+                      Usaremos este email para enviar detalhes da assinatura
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone/WhatsApp *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="(11) 99999-9999"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      required
-                    />
+                    <Label>Ciclo de Cobrança *</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${formData.billingCycle === 'monthly'
+                            ? 'border-purple-600 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'monthly' }))}
+                      >
+                        <div className="font-semibold">Mensal</div>
+                        <div className="text-sm text-gray-600 mt-1">{plan.price}</div>
+                      </button>
+                      <button
+                        type="button"
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${formData.billingCycle === 'yearly'
+                            ? 'border-purple-600 bg-purple-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'yearly' }))}
+                      >
+                        <div className="font-semibold">Anual</div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {planId === 'starter' ? 'R$ 970' : planId === 'professional' ? 'R$ 1970' : 'R$ 4970'}
+                        </div>
+                        <Badge className="mt-2" variant="secondary">2 meses grátis</Badge>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="cpf">CPF *</Label>
-                    <Input
-                      id="cpf"
-                      type="text"
-                      placeholder="000.000.000-00"
-                      value={formData.cpf}
-                      onChange={(e) => handleInputChange("cpf", e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <h4 className="font-semibold mb-4">Dados do Cartão</h4>
-                    
-                    <div className="space-y-2 mb-4">
-                      <Label htmlFor="cardNumber">Número do Cartão *</Label>
-                      <Input
-                        id="cardNumber"
-                        type="text"
-                        placeholder="0000 0000 0000 0000"
-                        value={formData.cardNumber}
-                        onChange={(e) => handleInputChange("cardNumber", e.target.value)}
-                        maxLength={19}
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">16 dígitos</p>
-                    </div>
-
-                    <div className="space-y-2 mb-4">
-                      <Label htmlFor="cardName">Nome no Cartão *</Label>
-                      <Input
-                        id="cardName"
-                        type="text"
-                        placeholder="Nome como está no cartão"
-                        value={formData.cardName}
-                        onChange={(e) => handleInputChange("cardName", e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiryDate">Validade *</Label>
-                        <Input
-                          id="expiryDate"
-                          type="text"
-                          placeholder="MM/AA"
-                          value={formData.expiryDate}
-                          onChange={(e) => handleInputChange("expiryDate", e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV *</Label>
-                        <Input
-                          id="cvv"
-                          type="text"
-                          placeholder="123"
-                          value={formData.cvv}
-                          onChange={(e) => handleInputChange("cvv", e.target.value)}
-                          required
-                        />
+                  <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm">
+                    <div className="flex items-start gap-2">
+                      <CreditCard className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-blue-900">
+                        <p className="font-semibold mb-1">Pagamento via Mercado Pago</p>
+                        <p className="text-xs text-blue-700">
+                          Na próxima etapa, você será redirecionado para o Mercado Pago para
+                          finalizar o pagamento de forma segura. Aceita cartão de crédito e PIX.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -301,15 +286,15 @@ export default function CheckoutContent() {
                       <div>
                         <p className="font-semibold mb-1">Pagamento 100% seguro</p>
                         <p className="text-xs">
-                          Seus dados são criptografados e protegidos. Não armazenamos 
-                          informações do cartão em nossos servidores.
+                          Processado pelo Mercado Pago com criptografia de ponta a ponta.
+                          Seus dados estão protegidos.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full text-lg py-6"
                     disabled={isProcessing}
                   >
@@ -320,7 +305,7 @@ export default function CheckoutContent() {
                       </>
                     ) : (
                       <>
-                        Iniciar Teste Gratuito
+                        Continuar para Pagamento
                         <ArrowLeft className="ml-2 h-5 w-5 rotate-180" />
                       </>
                     )}

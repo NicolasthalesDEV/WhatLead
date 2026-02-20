@@ -89,7 +89,7 @@ export async function PATCH(
     const updated = await notification.update({
       where: { id: id },
       data: {
-        isRead,
+        read: isRead,
         readAt: isRead ? new Date() : null,
       },
     });

@@ -227,7 +227,7 @@ async function processIncomingMessages(value: any) {
             title: `Nova mensagem de ${customer.name}`,
             message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
             link: `/dashboard/whatsapp?customer=${customer.id}`,
-            isRead: false,
+            read: false,
             data: {
               customerId: customer.id,
               customerName: customer.name,

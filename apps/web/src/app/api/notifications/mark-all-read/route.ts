@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
     await notification.updateMany({
       where: {
         userId: authResult.userId,
-        isRead: false,
+        read: false,
       },
       data: {
-        isRead: true,
+        read: true,
         readAt: new Date(),
       },
     });

@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
+import { WhatsAppSetupWizard } from "@/components/whatsapp-setup-wizard";
+import { WhatsAppChannelManager } from "@/components/whatsapp-channel-manager";
 import Link from "next/link";
 import {
   Settings,
@@ -30,6 +32,7 @@ import { useState, useEffect } from "react";
 export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showWhatsAppWizard, setShowWhatsAppWizard] = useState(false);
   const { showToast } = useToast();
   const { user, loading, updateUser, refresh } = useAuth();
 
@@ -109,7 +112,7 @@ export default function SettingsPage() {
         const response = await fetch('/api/billing/subscription', {
           credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           setSubscription(data.subscription);
@@ -133,7 +136,7 @@ export default function SettingsPage() {
         const response = await fetch('/api/user/preferences', {
           credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.preferences && data.preferences.notifications) {
@@ -180,7 +183,7 @@ export default function SettingsPage() {
       }
 
       const data = await response.json();
-      
+
       // Atualizar contexto de autenticação
       updateUser({
         name: data.user.name,
@@ -192,9 +195,9 @@ export default function SettingsPage() {
       //   method: 'PUT',
       //   body: JSON.stringify(company)
       // });
-      
+
       showToast("Configurações salvas com sucesso!", "success");
-      
+
       // Recarregar dados do usuário para garantir sincronização
       await refresh();
     } catch (error: any) {
@@ -208,7 +211,7 @@ export default function SettingsPage() {
   const handleNotificationToggle = async (key: keyof typeof notifications) => {
     const newValue = !notifications[key];
     setNotifications(prev => ({ ...prev, [key]: newValue }));
-    
+
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'PATCH',
@@ -469,7 +472,7 @@ export default function SettingsPage() {
                   <div className="font-medium">Novos pedidos</div>
                   <div className="text-sm text-muted-foreground">Receber notificação quando houver novos pedidos</div>
                 </div>
-                <Switch 
+                <Switch
                   checked={notifications.orders}
                   onCheckedChange={() => handleNotificationToggle('orders')}
                 />
@@ -479,7 +482,7 @@ export default function SettingsPage() {
                   <div className="font-medium">Mensagens WhatsApp</div>
                   <div className="text-sm text-muted-foreground">Notificações de novas mensagens no WhatsApp</div>
                 </div>
-                <Switch 
+                <Switch
                   checked={notifications.whatsapp}
                   onCheckedChange={() => handleNotificationToggle('whatsapp')}
                 />
@@ -489,7 +492,7 @@ export default function SettingsPage() {
                   <div className="font-medium">Relatórios semanais</div>
                   <div className="text-sm text-muted-foreground">Resumo semanal das vendas por email</div>
                 </div>
-                <Switch 
+                <Switch
                   checked={notifications.reports}
                   onCheckedChange={() => handleNotificationToggle('reports')}
                 />
@@ -499,7 +502,7 @@ export default function SettingsPage() {
                   <div className="font-medium">Estoque baixo</div>
                   <div className="text-sm text-muted-foreground">Alerta quando produtos estiverem com estoque baixo</div>
                 </div>
-                <Switch 
+                <Switch
                   checked={notifications.lowStock}
                   onCheckedChange={() => handleNotificationToggle('lowStock')}
                 />
@@ -541,27 +544,27 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">Nova Senha</Label>
-                  <Input 
-                    id="newPassword" 
-                    type="password" 
-                    placeholder="Mínimo 8 caracteres" 
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    placeholder="Mínimo 8 caracteres"
                     value={password.new}
                     onChange={(e) => setPassword({ ...password, new: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input 
-                    id="confirmPassword" 
-                    type="password" 
-                    placeholder="Confirme a nova senha" 
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirme a nova senha"
                     value={password.confirm}
                     onChange={(e) => setPassword({ ...password, confirm: e.target.value })}
                   />
                 </div>
               </div>
-              <Button 
-                onClick={handlePasswordChange} 
+              <Button
+                onClick={handlePasswordChange}
                 disabled={changingPassword}
                 className="w-full md:w-auto"
               >
@@ -578,44 +581,41 @@ export default function SettingsPage() {
           </Card>
 
           {/* WhatsApp Configuration */}
-          <Card id="whatsapp">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MessageSquare className="mr-2 h-5 w-5" />
-                WhatsApp
-              </CardTitle>
-              <CardDescription>Configure a integração com WhatsApp</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-green-800">Status da Conexão</div>
-                  <div className="text-sm text-green-600">WhatsApp conectado e funcionando</div>
-                </div>
-                <Badge className="bg-green-100 text-green-800">Conectado</Badge>
-              </div>
-              <div className="space-y-2">
-                <Label>Mensagens Automáticas</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Mensagem de boas-vindas</span>
-                    <Button variant="outline" size="sm">Editar</Button>
+          <div id="whatsapp" className="space-y-4">
+            {/* Wizard Helper */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+                    <MessageSquare className="mr-2 h-5 w-5" />
+                    📱 Precisa de ajuda para configurar?
+                  </h4>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Use nosso guia interativo passo a passo para obter suas credenciais do WhatsApp Business.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setShowWhatsAppWizard(true)}
+                      className="bg-green-600 hover:bg-green-700"
+                      size="sm"
+                    >
+                      🚀 Abrir Guia de Configuração
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open('/TUTORIAL_WHATSAPP.md', '_blank')}
+                    >
+                      📖 Ver Documentação
+                    </Button>
                   </div>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <span className="text-sm">Mensagem fora do horário</span>
-                    <Button variant="outline" size="sm">Editar</Button>
-                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="businessHours">Horário de Atendimento</Label>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <Input placeholder="08:00" />
-                  <Input placeholder="18:00" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Channel Manager */}
+            <WhatsAppChannelManager />
+          </div>
 
           {/* Billing */}
           <Card id="billing">
@@ -633,36 +633,33 @@ export default function SettingsPage() {
                 </div>
               ) : subscription ? (
                 <>
-                  <div className={`flex items-center justify-between p-4 rounded-lg ${
-                    subscription.isExpired 
-                      ? 'bg-red-50' 
-                      : subscription.isExpiringSoon 
-                      ? 'bg-yellow-50' 
+                  <div className={`flex items-center justify-between p-4 rounded-lg ${subscription.isExpired
+                    ? 'bg-red-50'
+                    : subscription.isExpiringSoon
+                      ? 'bg-yellow-50'
                       : 'bg-blue-50'
-                  }`}>
+                    }`}>
                     <div>
-                      <div className={`font-medium ${
-                        subscription.isExpired 
-                          ? 'text-red-800' 
-                          : subscription.isExpiringSoon 
-                          ? 'text-yellow-800' 
+                      <div className={`font-medium ${subscription.isExpired
+                        ? 'text-red-800'
+                        : subscription.isExpiringSoon
+                          ? 'text-yellow-800'
                           : 'text-blue-800'
-                      }`}>
-                        Plano Atual: {subscription.plan === 'free' ? 'Gratuito' : 
-                                     subscription.plan === 'starter' ? 'Starter' : 
-                                     subscription.plan === 'professional' ? 'Professional' : 
-                                     subscription.plan === 'enterprise' ? 'Enterprise' : subscription.plan}
+                        }`}>
+                        Plano Atual: {subscription.plan === 'free' ? 'Gratuito' :
+                          subscription.plan === 'starter' ? 'Starter' :
+                            subscription.plan === 'professional' ? 'Professional' :
+                              subscription.plan === 'enterprise' ? 'Enterprise' : subscription.plan}
                         {subscription.planStatus !== 'active' && (
                           <span className="ml-2 text-xs">({subscription.planStatus})</span>
                         )}
                       </div>
-                      <div className={`text-sm ${
-                        subscription.isExpired 
-                          ? 'text-red-600' 
-                          : subscription.isExpiringSoon 
-                          ? 'text-yellow-600' 
+                      <div className={`text-sm ${subscription.isExpired
+                        ? 'text-red-600'
+                        : subscription.isExpiringSoon
+                          ? 'text-yellow-600'
                           : 'text-blue-600'
-                      }`}>
+                        }`}>
                         {subscription.plan === 'starter' && 'R$ 97/mês'}
                         {subscription.plan === 'professional' && 'R$ 197/mês'}
                         {subscription.plan === 'enterprise' && 'R$ 497/mês'}
@@ -671,10 +668,10 @@ export default function SettingsPage() {
                         {subscription.expiresIn && ` - ${subscription.expiresIn}`}
                         {subscription.planExpiresAt && subscription.daysRemaining !== null && subscription.daysRemaining >= 0 && (
                           <span className="block text-xs mt-1">
-                            Expira em {new Date(subscription.planExpiresAt).toLocaleDateString('pt-BR', { 
-                              day: '2-digit', 
-                              month: 'long', 
-                              year: 'numeric' 
+                            Expira em {new Date(subscription.planExpiresAt).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric'
                             })} ({subscription.daysRemaining} {subscription.daysRemaining === 1 ? 'dia' : 'dias'} restantes)
                           </span>
                         )}
@@ -685,8 +682,8 @@ export default function SettingsPage() {
                         <Button variant="outline" size="sm">Fazer Upgrade</Button>
                       )}
                       {subscription.plan !== 'free' && subscription.planStatus === 'active' && (
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700"
                         >
@@ -767,8 +764,8 @@ export default function SettingsPage() {
                 ) : (
                   <div className="p-3 border rounded-lg border-dashed text-center">
                     <p className="text-sm text-muted-foreground">
-                      {subscription && subscription.planStatus === 'trial' 
-                        ? 'Você está no período de teste. O histórico aparecerá após o primeiro pagamento.' 
+                      {subscription && subscription.planStatus === 'trial'
+                        ? 'Você está no período de teste. O histórico aparecerá após o primeiro pagamento.'
                         : 'Nenhuma fatura encontrada'}
                     </p>
                   </div>
@@ -818,8 +815,8 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground mb-3">
                     Acompanhe o desempenho do seu site
                   </p>
-                  <Input 
-                    placeholder="ID do Google Analytics (ex: G-XXXXXXXXXX)" 
+                  <Input
+                    placeholder="ID do Google Analytics (ex: G-XXXXXXXXXX)"
                     className="mt-2"
                   />
                   <Button variant="outline" size="sm" className="mt-2">Salvar</Button>
@@ -841,6 +838,14 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      {/* WhatsApp Setup Wizard */}
+      {showWhatsAppWizard && (
+        <WhatsAppSetupWizard
+          onClose={() => setShowWhatsAppWizard(false)}
+          onComplete={() => setShowWhatsAppWizard(false)}
+        />
+      )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const notifications = await notification.findMany({
       where: {
         userId: authResult.userId,
-        ...(unreadOnly ? { isRead: false } : {}),
+        ...(unreadOnly ? { read: false } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const unreadCount = await notification.count({
       where: {
         userId: authResult.userId,
-        isRead: false,
+        read: false,
       },
     });
 
