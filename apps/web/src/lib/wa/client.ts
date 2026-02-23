@@ -8,10 +8,10 @@
  * - WA_ACCESS_TOKEN: Token de acesso permanente da API
  * - process.env.WA_BUSINESS_ACCOUNT_ID: ID da conta do WhatsApp Business (opcional)
  * - WA_VERIFY_TOKEN: Token para validação de webhook
- * - WA_API_VERSION: Versão da API (padrão: v18.0)
+ * - WA_API_VERSION: Versão da API (padrão: v22.0)
  */
 
-const WA_API_VERSION = process.env.WA_API_VERSION || 'v18.0';
+const WA_API_VERSION = process.env.WA_API_VERSION || 'v22.0';
 
 
 

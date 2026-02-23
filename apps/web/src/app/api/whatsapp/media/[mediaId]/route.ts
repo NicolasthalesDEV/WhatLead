@@ -47,7 +47,7 @@ export async function GET(
     try {
       // Primeiro, buscar informações da mídia (URL e mime type)
       const mediaInfoResponse = await fetch(
-        `https://graph.facebook.com/v18.0/${mediaId}`,
+        `https://graph.facebook.com/v22.0/${mediaId}`,
         {
           headers: {
             Authorization: `Bearer ${channel.waAccessToken}`,
