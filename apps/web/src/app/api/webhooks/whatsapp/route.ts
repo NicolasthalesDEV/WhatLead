@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@wacrm/db";
 import { ChatbotEngine, matchFlowByMessage, chatbotPreFlight, getChatbotFallbackMessage } from "@/lib/chatbot/engine";
 import { TriggerManager } from "@/lib/chatbot/triggers";
-import { validateWebhook, markMessageAsRead, getMediaUrl } from "@/lib/wa/client";
+import { validateWebhook, getMediaUrl } from "@/lib/wa/client";
 
 /**
  * GET: Webhook verification
@@ -72,12 +72,40 @@ async function processIncomingMessages(value: any) {
 
   for (const message of messages) {
     try {
-      const from = message.from; // Número do cliente (E.164 sem +)
+      // ───────────────────────────────────────────────────────────
+      // 1. Buscar canal ANTES de qualquer outra operação.
+      //    Meta envia phone_number_id no metadata — usamos isso para
+      //    identificar qual empresa deve receber a mensagem.
+      // ───────────────────────────────────────────────────────────
+      const channel = businessPhoneNumberId
+        ? await db.whatsChannel.findFirst({
+            where: { phoneNumberId: businessPhoneNumberId },
+            select: { id: true, companyId: true, waAccessToken: true, phoneNumberId: true },
+          })
+        : null;
+
+      if (!channel) {
+        console.warn("No WhatsApp channel found for phoneNumberId:", businessPhoneNumberId, "— message skipped");
+        continue;
+      }
+
+      // ───────────────────────────────────────────────────────────
+      // 2. Normalizar número do remetente.
+      //    Meta envia sem '+' (ex: "5521912345678").
+      //    Armazenamos sempre com '+' para consistência com o resto do
+      //    sistema (E.164 canônico).
+      // ───────────────────────────────────────────────────────────
+      const rawFrom = message.from as string; // sem '+'
+      const from = rawFrom.startsWith("+") ? rawFrom : "+" + rawFrom;
+
       const messageId = message.id;
       const timestamp = message.timestamp;
       const messageType = message.type;
 
-      // Extrair conteúdo baseado no tipo
+      // ───────────────────────────────────────────────────────────
+      // 3. Extrair conteúdo baseado no tipo.
+      //    Passamos channel.waAccessToken para todas operações de mídia.
+      // ───────────────────────────────────────────────────────────
       let messageText = "";
       let mediaUrl = "";
       let mediaType = "";
@@ -90,7 +118,7 @@ async function processIncomingMessages(value: any) {
         case "image":
           mediaType = "image";
           if (message.image?.id) {
-            const media = await getMediaUrl(message.image.id);
+            const media = await getMediaUrl(message.image.id, channel.waAccessToken);
             mediaUrl = media.url;
           }
           messageText = message.image?.caption || "";
@@ -99,7 +127,7 @@ async function processIncomingMessages(value: any) {
         case "document":
           mediaType = "document";
           if (message.document?.id) {
-            const media = await getMediaUrl(message.document.id);
+            const media = await getMediaUrl(message.document.id, channel.waAccessToken);
             mediaUrl = media.url;
           }
           messageText = message.document?.caption || message.document?.filename || "";
@@ -108,31 +136,23 @@ async function processIncomingMessages(value: any) {
         case "audio":
           mediaType = "audio";
           if (message.audio?.id) {
-            const media = await getMediaUrl(message.audio.id);
+            const media = await getMediaUrl(message.audio.id, channel.waAccessToken);
             mediaUrl = media.url;
-            // III – Transcrição de áudios com OpenAI Whisper
-            // Resolve per-company API key (falls back to env key inside transcribeAudio)
+            // Transcrição de áudios com OpenAI Whisper
             let transcribeCompanyApiKey: string | undefined;
-            if (businessPhoneNumberId) {
-              try {
-                const ch = await db.whatsChannel.findUnique({
-                  where: { phoneNumberId: businessPhoneNumberId },
-                  select: { companyId: true },
-                });
-                if (ch) {
-                  const cs = await db.chatbotSettings.findUnique({
-                    where: { companyId: ch.companyId },
-                    select: { openaiApiKey: true },
-                  });
-                  transcribeCompanyApiKey = cs?.openaiApiKey || undefined;
-                }
-              } catch { /* ignore lookup errors, fall back to env key */ }
-            }
+            try {
+              const cs = await db.chatbotSettings.findUnique({
+                where: { companyId: channel.companyId },
+                select: { openaiApiKey: true },
+              });
+              transcribeCompanyApiKey = cs?.openaiApiKey || undefined;
+            } catch { /* ignore */ }
+
             if (process.env.OPENAI_API_KEY || transcribeCompanyApiKey) {
               try {
                 const { downloadMedia } = await import("@/lib/wa/client");
                 const { transcribeAudio } = await import("@/lib/openai");
-                const audioBuffer = Buffer.from(await downloadMedia(mediaUrl));
+                const audioBuffer = Buffer.from(await downloadMedia(mediaUrl, channel.waAccessToken));
                 const transcription = await transcribeAudio(
                   audioBuffer,
                   `audio.${media.mime_type?.includes("ogg") ? "ogg" : "mp3"}`,
@@ -156,7 +176,7 @@ async function processIncomingMessages(value: any) {
         case "video":
           mediaType = "video";
           if (message.video?.id) {
-            const media = await getMediaUrl(message.video.id);
+            const media = await getMediaUrl(message.video.id, channel.waAccessToken);
             mediaUrl = media.url;
           }
           messageText = message.video?.caption || "";
@@ -175,69 +195,34 @@ async function processIncomingMessages(value: any) {
           continue;
       }
 
-      // Buscar ou criar cliente
+      // ───────────────────────────────────────────────────────────
+      // 4. Buscar ou criar cliente — SEMPRE filtrando pela empresa
+      //    do canal para evitar dados cruzados entre tenants.
+      // ───────────────────────────────────────────────────────────
       let customer = await db.customer.findFirst({
         where: {
           phoneE164: from,
+          companyId: channel.companyId,
         },
         include: { company: true },
       });
 
       if (!customer) {
-        // Cliente novo - buscar company pelo phoneNumberId do canal
-        const channel = await db.whatsChannel.findUnique({
-          where: {
-            phoneNumberId: businessPhoneNumberId,
-          },
-        });
-
-        let companyId: string;
-        if (!channel) {
-          // Se não houver canal configurado, usar a primeira company (MVP)
-          const firstCompany = await db.company.findFirst();
-          if (!firstCompany) {
-            console.error("No company found in database");
-            continue;
-          }
-          companyId = firstCompany.id;
-        } else {
-          companyId = channel.companyId;
-        }
-
         customer = await db.customer.create({
           data: {
             phoneE164: from,
             name: `Cliente ${from.slice(-4)}`, // Nome temporário
-            companyId: companyId,
+            companyId: channel.companyId,
           },
           include: { company: true },
         });
-
-        console.log(`New customer created: ${customer.id}`);
-      }
-
-      const channel = businessPhoneNumberId
-        ? await db.whatsChannel.findFirst({
-            where: {
-              phoneNumberId: businessPhoneNumberId,
-              companyId: customer.companyId,
-            },
-            select: { id: true },
-          })
-        : null;
-
-      if (!channel) {
-        console.warn("No WhatsApp channel configured for incoming message", {
-          businessPhoneNumberId,
-          companyId: customer.companyId,
-        });
-        continue;
+        console.log(`New customer created: ${customer.id} (${from})`);
       }
 
       // Salvar mensagem no banco de dados
       const savedMessage = await db.whatsMessage.create({
         data: {
-          companyId: customer.companyId,
+          companyId: channel.companyId,
           customerId: customer.id,
           channelId: channel.id,
           direction: "IN",
@@ -262,7 +247,7 @@ async function processIncomingMessages(value: any) {
       try {
         await db.notification.create({
           data: {
-            companyId: customer.companyId,
+            companyId: channel.companyId,
             type: "whatsapp_message",
             title: `Nova mensagem de ${customer.name}`,
             message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
@@ -281,9 +266,11 @@ async function processIncomingMessages(value: any) {
         console.error("Error creating notification:", error);
       }
 
-      // Marcar mensagem como lida
+      // Marcar mensagem como lida usando credenciais do canal
       try {
-        await markMessageAsRead(messageId);
+        const { buildWhatsAppClient } = await import("@/lib/wa/client");
+        const wa = buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
+        await wa.markRead(messageId);
       } catch (error) {
         console.error("Error marking message as read:", error);
       }
@@ -533,7 +520,8 @@ async function processMessageStatuses(value: any) {
           },
         },
         data: {
-          status: statusValue.toUpperCase(),
+          // Manter lowercase para consistência com o status inicial ('sent', 'delivered', 'read', 'failed')
+          status: statusValue.toLowerCase(),
         },
       });
 

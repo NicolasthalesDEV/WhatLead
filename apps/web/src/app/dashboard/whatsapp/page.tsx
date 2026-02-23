@@ -159,7 +159,10 @@ export default function WhatsAppPage() {
       // Refresh conversations list to update unread count
       fetchConversations();
     } catch (error) {
-      // Silently handle errors - could be auth, network, or DB issues
+      // Show error so user knows what's happening instead of silent empty screen
+      const msg = error instanceof Error ? error.message : 'Erro ao carregar mensagens';
+      console.error('fetchMessages error:', msg);
+      alert(`Erro ao carregar mensagens: ${msg}`);
       setMessages([]);
       setCustomer(null);
     } finally {

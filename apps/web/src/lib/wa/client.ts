@@ -520,16 +520,20 @@ export async function uploadWhatsMedia(
 /**
  * Obtém URL de download de uma mídia recebida
  * @param mediaId - ID da mídia recebida no webhook
+ * @param accessToken - Token de acesso (opcional, usa env var se não informado)
  */
-export async function getMediaUrl(mediaId: string): Promise<{ url: string; mime_type: string }> {
-  validateCredentials();
+export async function getMediaUrl(mediaId: string, accessToken?: string): Promise<{ url: string; mime_type: string }> {
+  const token = accessToken || process.env.WA_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error('WhatsApp access token not configured for getMediaUrl');
+  }
 
   const response = await fetch(
     `${WA_API_BASE_URL}/${mediaId}`,
     {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${token}`,
       },
     }
   );
@@ -617,14 +621,18 @@ export async function sendWhatsVoiceFromText(
 /**
  * Faz download de uma mídia recebida
  * @param mediaUrl - URL retornada por getMediaUrl()
+ * @param accessToken - Token de acesso (opcional, usa env var se não informado)
  */
-export async function downloadMedia(mediaUrl: string): Promise<ArrayBuffer> {
-  validateCredentials();
+export async function downloadMedia(mediaUrl: string, accessToken?: string): Promise<ArrayBuffer> {
+  const token = accessToken || process.env.WA_ACCESS_TOKEN;
+  if (!token) {
+    throw new Error('WhatsApp access token not configured for downloadMedia');
+  }
 
   const response = await fetch(mediaUrl, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
