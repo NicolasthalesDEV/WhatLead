@@ -215,7 +215,7 @@ async function processIncomingMessages(value: any) {
           phoneE164: from,
           companyId: channel.companyId,
         },
-        include: { company: true },
+        include: { Company: true },
       });
 
       if (!customer) {
@@ -225,7 +225,7 @@ async function processIncomingMessages(value: any) {
             name: `Cliente ${from.slice(-4)}`, // Nome temporário
             companyId: channel.companyId,
           },
-          include: { company: true },
+          include: { Company: true },
         });
         console.log(`New customer created: ${customer.id} (${from})`);
       }
@@ -256,23 +256,25 @@ async function processIncomingMessages(value: any) {
 
       // Criar notificação para o novo mensagem recebida
       try {
-        await db.notification.create({
-          data: {
-            companyId: channel.companyId,
-            type: "whatsapp_message",
-            title: `Nova mensagem de ${customer.name}`,
-            message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
-            link: `/dashboard/whatsapp?customer=${customer.id}`,
-            read: false,
-            data: {
-              customerId: customer.id,
-              customerName: customer.name,
-              messageId: savedMessage.id,
-              messageType,
-            },
-          },
+        // Buscar o primeiro usuário da empresa para associar a notificação
+        const companyUser = await db.user.findFirst({
+          where: { companyId: channel.companyId },
+          select: { id: true },
         });
-        console.log(`Notification created for message from ${customer.name}`);
+        if (companyUser) {
+          await db.notification.create({
+            data: {
+              userId: companyUser.id,
+              companyId: channel.companyId,
+              type: "whatsapp_message",
+              title: `Nova mensagem de ${customer.name}`,
+              message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
+              link: `/dashboard/whatsapp?customer=${customer.id}`,
+              read: false,
+            },
+          });
+          console.log(`Notification created for message from ${customer.name}`);
+        }
       } catch (error) {
         console.error("Error creating notification:", error);
       }
@@ -387,7 +389,7 @@ async function processIncomingMessages(value: any) {
                 botName: chatbotSettings.botName,
                 botEmoji: chatbotSettings.botEmoji,
                 tone: chatbotSettings.tone,
-                companyName: customer.company?.name,
+                companyName: customer.Company?.name,
                 agentPersonality: chatbotSettings.agentPersonality ?? undefined,
                 agentContext: chatbotSettings.agentContext ?? undefined,
                 responseLength: chatbotSettings.responseLength,
