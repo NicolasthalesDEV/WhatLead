@@ -163,7 +163,7 @@ async function syncToGoogle(companyId: string, appointmentId: string) {
   }
 }
 
-export async function refreshGoogleToken(
+async function refreshGoogleToken(
   companyId: string,
   refreshToken: string
 ): Promise<string> {
