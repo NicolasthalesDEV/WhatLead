@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@wacrm/db";
-import { ChatbotEngine, matchFlowByMessage } from "@/lib/chatbot/engine";
+import { ChatbotEngine, matchFlowByMessage, chatbotPreFlight, getChatbotFallbackMessage } from "@/lib/chatbot/engine";
 import { TriggerManager } from "@/lib/chatbot/triggers";
 import { validateWebhook, markMessageAsRead, getMediaUrl } from "@/lib/wa/client";
 
@@ -110,6 +110,46 @@ async function processIncomingMessages(value: any) {
           if (message.audio?.id) {
             const media = await getMediaUrl(message.audio.id);
             mediaUrl = media.url;
+            // III – Transcrição de áudios com OpenAI Whisper
+            // Resolve per-company API key (falls back to env key inside transcribeAudio)
+            let transcribeCompanyApiKey: string | undefined;
+            if (businessPhoneNumberId) {
+              try {
+                const ch = await db.whatsChannel.findUnique({
+                  where: { phoneNumberId: businessPhoneNumberId },
+                  select: { companyId: true },
+                });
+                if (ch) {
+                  const cs = await db.chatbotSettings.findUnique({
+                    where: { companyId: ch.companyId },
+                    select: { openaiApiKey: true },
+                  });
+                  transcribeCompanyApiKey = cs?.openaiApiKey || undefined;
+                }
+              } catch { /* ignore lookup errors, fall back to env key */ }
+            }
+            if (process.env.OPENAI_API_KEY || transcribeCompanyApiKey) {
+              try {
+                const { downloadMedia } = await import("@/lib/wa/client");
+                const { transcribeAudio } = await import("@/lib/openai");
+                const audioBuffer = Buffer.from(await downloadMedia(mediaUrl));
+                const transcription = await transcribeAudio(
+                  audioBuffer,
+                  `audio.${media.mime_type?.includes("ogg") ? "ogg" : "mp3"}`,
+                  "pt",
+                  transcribeCompanyApiKey
+                );
+                if (transcription) {
+                  messageText = `🎤 [Áudio transcrito]: ${transcription}`;
+                  console.log(`Audio transcribed: "${transcription}"`);
+                }
+              } catch (transcribeErr) {
+                console.error("Audio transcription failed:", transcribeErr);
+                messageText = "🎤 [Mensagem de áudio recebida]";
+              }
+            } else {
+              messageText = "🎤 [Mensagem de áudio recebida]";
+            }
           }
           break;
 
@@ -248,8 +288,27 @@ async function processIncomingMessages(value: any) {
         console.error("Error marking message as read:", error);
       }
 
-      // Processar apenas mensagens de texto para chatbot
-      if (messageType !== "text" || !messageText) {
+      // Processar apenas mensagens com conteúdo de texto para chatbot
+      // (inclui áudios transcritos)
+      if (!messageText.trim()) {
+        continue;
+      }
+
+      // 0. Pre-flight: verificar configurações do chatbot
+      const preFlight = await chatbotPreFlight(
+        customer.companyId,
+        customer.phoneE164,
+        messageText
+      );
+
+      if (preFlight.blocked) {
+        console.log(`Chatbot pre-flight blocked (${preFlight.reason}) for ${customer.phoneE164}`);
+        if (preFlight.replyWith) {
+          const { sendWhatsText } = await import("@/lib/wa/client");
+          await sendWhatsText(customer.phoneE164, preFlight.replyWith).catch(
+            (e: unknown) => console.error("Pre-flight reply failed:", e)
+          );
+        }
         continue;
       }
 
@@ -267,20 +326,17 @@ async function processIncomingMessages(value: any) {
       }
 
       // 2. Verificar execução em andamento
-      const chatbotExecution = (db as any).chatbotExecution;
-      const activeExecution = chatbotExecution
-        ? await chatbotExecution.findFirst({
-            where: {
-              customerId: customer.id,
-              status: "WAITING_INPUT",
-            },
-            include: {
-              flow: {
-                include: { nodes: true },
-              },
-            },
-          })
-        : null;
+      const activeExecution = await db.chatbotExecution.findFirst({
+        where: {
+          customerId: customer.id,
+          status: "WAITING_INPUT",
+        },
+        include: {
+          ChatbotFlow: {
+            include: { ChatbotNode: true },
+          },
+        },
+      });
 
       if (activeExecution) {
         // Continuar fluxo existente
@@ -290,7 +346,7 @@ async function processIncomingMessages(value: any) {
           activeExecution.id
         );
         await engine.resume(messageText);
-        console.log(`Flow resumed: ${activeExecution.flow.name}`);
+        console.log(`Flow resumed: ${(activeExecution as any).ChatbotFlow?.name}`);
         continue;
       }
 
@@ -314,10 +370,143 @@ async function processIncomingMessages(value: any) {
         continue;
       }
 
-      // 4. Nenhum fluxo encontrado - mensagem será tratada manualmente
+      // 4. Nenhum fluxo encontrado — tentar OpenAI se habilitado
       console.log(`No chatbot flow matched for message: "${messageText}"`);
 
-      // TODO: Notificar equipe de atendimento sobre nova mensagem não tratada
+      const chatbotSettings = await db.chatbotSettings.findUnique({
+        where: { companyId: customer.companyId },
+      });
+
+      if (chatbotSettings?.openAIEnabled && (process.env.OPENAI_API_KEY || chatbotSettings.openaiApiKey)) {
+        try {
+          const { chatCompletion, buildSystemPrompt } = await import("@/lib/openai");
+          const { sendWhatsText, sendWhatsAudio } = await import("@/lib/wa/client");
+
+          // Build system prompt — custom overrides auto-built one
+          const systemPrompt = chatbotSettings.openAISystemPrompt?.trim()
+            ? chatbotSettings.openAISystemPrompt
+            : buildSystemPrompt({
+                botName: chatbotSettings.botName,
+                botEmoji: chatbotSettings.botEmoji,
+                tone: chatbotSettings.tone,
+                companyName: customer.company?.name,
+                agentPersonality: chatbotSettings.agentPersonality ?? undefined,
+                agentContext: chatbotSettings.agentContext ?? undefined,
+                responseLength: chatbotSettings.responseLength,
+              });
+
+          // Strip audio transcription prefix for AI context
+          const cleanMessage = messageText
+            .replace(/^🎤 \[Áudio transcrito\]: /, "")
+            .trim();
+
+          // Fetch conversation history if context window > 0
+          const contextCount = chatbotSettings.openAIContextMessages ?? 10;
+          const history: { role: "user" | "assistant"; content: string }[] = [];
+          if (contextCount > 0) {
+            const pastMessages = await db.whatsMessage.findMany({
+              where: {
+                customerId: customer.id,
+                companyId: customer.companyId,
+                type: "text",
+                body: { not: null },
+              },
+              orderBy: { createdAt: "desc" },
+              take: contextCount,
+              select: { direction: true, body: true },
+            });
+            // Reverse to chronological order
+            pastMessages.reverse().forEach((m) => {
+              if (m.body) {
+                history.push({
+                  role: m.direction === "IN" ? "user" : "assistant",
+                  content: m.body,
+                });
+              }
+            });
+          }
+
+          const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+            { role: "system", content: systemPrompt },
+            ...history,
+            { role: "user", content: cleanMessage },
+          ];
+
+          const reply = await chatCompletion(messages, {
+            model: chatbotSettings.openAIModel || "gpt-4o-mini",
+            temperature: chatbotSettings.openAITemperature ?? 0.7,
+            maxTokens: chatbotSettings.openAIMaxTokens ?? 512,
+            apiKey: chatbotSettings.openaiApiKey || undefined,
+          });
+
+          if (reply) {
+            // If ElevenLabs + voice enabled, send audio reply
+            if (
+              chatbotSettings.elevenLabsEnabled &&
+              (process.env.ELEVENLABS_API_KEY || chatbotSettings.elevenLabsApiKey)
+            ) {
+              try {
+                const { textToSpeech } = await import("@/lib/elevenlabs");
+                const audioBuffer = await textToSpeech(reply, {
+                  voiceId: chatbotSettings.elevenLabsVoiceId || undefined,
+                  modelId: chatbotSettings.elevenLabsModel || undefined,
+                  stability: chatbotSettings.elevenLabsStability ?? undefined,
+                  similarityBoost: chatbotSettings.elevenLabsSimilarity ?? undefined,
+                  style: chatbotSettings.elevenLabsStyle ?? undefined,
+                  apiKey: chatbotSettings.elevenLabsApiKey || undefined,
+                });
+
+                // Upload audio to get a public URL, then send
+                const form = new FormData();
+                form.append(
+                  "file",
+                  new Blob([new Uint8Array(audioBuffer)], { type: "audio/mpeg" }),
+                  "reply.mp3"
+                );
+                const uploadRes = await fetch(
+                  `${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/media/upload`,
+                  { method: "POST", body: form }
+                );
+
+                if (uploadRes.ok) {
+                  const { url } = await uploadRes.json();
+                  await sendWhatsAudio(customer.phoneE164, url);
+                  console.log(`AI voice reply sent to ${customer.phoneE164}`);
+                } else {
+                  // Fallback to text if upload fails
+                  await sendWhatsText(customer.phoneE164, reply);
+                }
+              } catch (ttsErr) {
+                console.error("ElevenLabs TTS failed, sending text:", ttsErr);
+                await sendWhatsText(customer.phoneE164, reply);
+              }
+            } else {
+              await sendWhatsText(customer.phoneE164, reply);
+            }
+            console.log(`OpenAI reply sent to ${customer.phoneE164}`);
+          }
+        } catch (aiErr) {
+          console.error("OpenAI reply failed:", aiErr);
+          // Fall through to regular fallback
+          const fallback = await getChatbotFallbackMessage(customer.companyId);
+          if (fallback) {
+            const { sendWhatsText } = await import("@/lib/wa/client");
+            await sendWhatsText(customer.phoneE164, fallback).catch(
+              (e: unknown) => console.error("Fallback reply failed:", e)
+            );
+          }
+        }
+        continue;
+      }
+
+      // 5. Fallback padrão (sem OpenAI)
+      const fallback = await getChatbotFallbackMessage(customer.companyId);
+      if (fallback) {
+        const { sendWhatsText } = await import("@/lib/wa/client");
+        await sendWhatsText(customer.phoneE164, fallback).catch(
+          (e: unknown) => console.error("Fallback reply failed:", e)
+        );
+      }
     } catch (error) {
       console.error("Error processing individual message:", error);
     }

@@ -7,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Hotel, Loader2, CheckCircle2, Sparkles, ArrowLeft } from "lucide-react";
+import { Zap, Loader2, CheckCircle2, Sparkles, ArrowLeft } from "lucide-react";
 
 const plans = {
   starter: { name: "Starter", price: "R$ 97/mês" },
-  professional: { name: "Professional", price: "R$ 297/mês" },
-  enterprise: { name: "Enterprise", price: "R$ 897/mês" }
+  professional: { name: "Professional", price: "R$ 197/mês" },
+  enterprise: { name: "Enterprise", price: "R$ 497/mês" }
 };
 
 export default function RegisterContent() {
@@ -21,6 +21,7 @@ export default function RegisterContent() {
   const planId = searchParams.get("plan") || "professional";
   const emailFromCheckout = searchParams.get("email") || "";
   const isFromCheckout = searchParams.get("success") === "true";
+  const billingCycle = searchParams.get("billing_cycle") || "monthly";
   const hasNoPlanSelected = !searchParams.get("plan");
 
   const plan = plans[planId as keyof typeof plans] || plans.professional;
@@ -113,7 +114,11 @@ export default function RegisterContent() {
       }
 
       if (res.ok) {
-        router.push("/login?registered=true");
+        if (!hasNoPlanSelected) {
+          router.push(`/login?registered=true&plan=${planId}&billing_cycle=${billingCycle}&email=${encodeURIComponent(formData.email)}`);
+        } else {
+          router.push("/login?registered=true");
+        }
       } else {
         const requestId = data?.meta?.requestId || res.headers.get("x-request-id");
         const errorCode = data?.error?.code;
@@ -156,10 +161,10 @@ export default function RegisterContent() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push("/")}>
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-2">
-                <Hotel className="h-5 w-5 text-white" />
+                <Zap className="h-5 w-5 text-white" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                HotelCRM
+                WhatLead
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -181,7 +186,7 @@ export default function RegisterContent() {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-3">
-                <Hotel className="h-8 w-8 text-white" />
+                <Zap className="h-8 w-8 text-white" />
               </div>
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 bg-clip-text text-transparent">
@@ -372,9 +377,9 @@ export default function RegisterContent() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-2">
-                  <Hotel className="h-5 w-5 text-white" />
+                  <Zap className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-white">HotelCRM</span>
+                <span className="text-xl font-bold text-white">WhatLead</span>
               </div>
               <p className="text-sm">
                 A plataforma completa para gerenciar seu negócio no WhatsApp
@@ -406,7 +411,7 @@ export default function RegisterContent() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>&copy; 2026 HotelCRM. Todos os direitos reservados.</p>
+            <p>&copy; 2026 WhatLead. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

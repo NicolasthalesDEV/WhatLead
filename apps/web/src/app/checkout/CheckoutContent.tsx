@@ -12,7 +12,7 @@ import {
   Lock,
   CheckCircle2,
   ArrowLeft,
-  Hotel,
+  Zap,
   Loader2
 } from "lucide-react";
 
@@ -23,44 +23,41 @@ const plans = {
     period: "/mês",
     description: "Ideal para pequenos negócios",
     features: [
-      "Até 1.000 conversas/mês",
-      "1 atendente",
-      "Chatbot básico",
-      "Catálogo de produtos",
-      "Pagamentos PIX",
-      "Relatórios básicos"
+      "1 número WhatsApp conectado",
+      "Chatbot IA com GPT",
+      "Respostas por voz (ElevenLabs)",
+      "Transcrição de áudios (Whisper)",
+      "Atendimento 24/7",
+      "Configuração de personalidade do agente"
     ]
   },
   professional: {
     name: "Professional",
-    price: "R$ 297",
+    price: "R$ 197",
     period: "/mês",
     description: "Para empresas em crescimento",
     features: [
-      "Até 5.000 conversas/mês",
-      "5 atendentes",
-      "Chatbot com IA avançada",
-      "Automações ilimitadas",
-      "Múltiplos produtos",
-      "Relatórios completos",
-      "Integrações (Zapier, etc)",
-      "Suporte prioritário 24/7"
+      "Tudo do Starter",
+      "Múltiplos números WhatsApp",
+      "Horários de atendimento configuráveis",
+      "Transferência para atendente humano",
+      "Histórico completo de conversas",
+      "Configurações avançadas de IA",
+      "Suporte prioritário"
     ]
   },
   enterprise: {
     name: "Enterprise",
-    price: "R$ 897",
+    price: "R$ 497",
     period: "/mês",
     description: "Solução completa para grandes operações",
     features: [
-      "Conversas ilimitadas",
-      "Atendentes ilimitados",
-      "IA personalizada para seu negócio",
-      "White label (sua marca)",
-      "API dedicada",
-      "Gerente de sucesso dedicado",
-      "Onboarding personalizado",
-      "SLA de 99.9% uptime"
+      "Tudo do Professional",
+      "Números ilimitados",
+      "IA totalmente personalizada",
+      "Onboarding dedicado",
+      "SLA de 99.9% uptime",
+      "Gerente de sucesso dedicado"
     ]
   }
 };
@@ -139,10 +136,10 @@ export default function CheckoutContent() {
           </Button>
           <div className="flex items-center justify-center mb-6">
             <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-3">
-              <Hotel className="h-8 w-8 text-white" />
+              <Zap className="h-8 w-8 text-white" />
             </div>
             <span className="ml-3 text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              HotelCRM
+              WhatLead
             </span>
           </div>
         </div>
@@ -242,8 +239,8 @@ export default function CheckoutContent() {
                       <button
                         type="button"
                         className={`p-4 border-2 rounded-lg text-left transition-all ${formData.billingCycle === 'monthly'
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
                           }`}
                         onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'monthly' }))}
                       >
@@ -253,14 +250,14 @@ export default function CheckoutContent() {
                       <button
                         type="button"
                         className={`p-4 border-2 rounded-lg text-left transition-all ${formData.billingCycle === 'yearly'
-                            ? 'border-purple-600 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-purple-600 bg-purple-50'
+                          : 'border-gray-200 hover:border-gray-300'
                           }`}
                         onClick={() => setFormData(prev => ({ ...prev, billingCycle: 'yearly' }))}
                       >
                         <div className="font-semibold">Anual</div>
                         <div className="text-sm text-gray-600 mt-1">
-                          {planId === 'starter' ? 'R$ 970' : planId === 'professional' ? 'R$ 1970' : 'R$ 4970'}
+                          {planId === 'starter' ? 'R$ 970' : planId === 'professional' ? 'R$ 1.970' : 'R$ 4.970'}
                         </div>
                         <Badge className="mt-2" variant="secondary">2 meses grátis</Badge>
                       </button>

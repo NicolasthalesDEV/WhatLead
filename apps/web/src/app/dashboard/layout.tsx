@@ -2,12 +2,10 @@
 
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
-import { WhatsAppSetupWizard } from "@/components/whatsapp-setup-wizard";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useOnboarding } from "@/hooks/useOnboarding";
 
 export default function DashboardLayout({
   children,
@@ -15,39 +13,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [showWhatsAppWizard, setShowWhatsAppWizard] = useState(false);
-  const { isCompleted, startTour } = useOnboarding();
-
-  // Iniciar tour automaticamente se o usuário não completou
-  useEffect(() => {
-    if (!isCompleted) {
-      // Aguardar um pouco para garantir que os elementos estão renderizados
-      const timer = setTimeout(() => {
-        startTour();
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Se já completou o tour, verificar se deve mostrar o wizard do WhatsApp
-      const hasSeenWizard = localStorage.getItem("whatsapp-wizard-completed");
-      if (!hasSeenWizard) {
-        // Aguardar um pouco após o login para mostrar
-        const timer = setTimeout(() => {
-          setShowWhatsAppWizard(true);
-        }, 2000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [isCompleted, startTour]);
-
-  const handleCloseWizard = () => {
-    setShowWhatsAppWizard(false);
-    localStorage.setItem("whatsapp-wizard-completed", "true");
-  };
-
-  const handleCompleteWizard = () => {
-    setShowWhatsAppWizard(false);
-    localStorage.setItem("whatsapp-wizard-completed", "true");
-  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -85,13 +50,6 @@ export default function DashboardLayout({
         </main>
       </div>
 
-      {/* WhatsApp Setup Wizard */}
-      {showWhatsAppWizard && (
-        <WhatsAppSetupWizard
-          onClose={handleCloseWizard}
-          onComplete={handleCompleteWizard}
-        />
-      )}
     </div>
   );
 }

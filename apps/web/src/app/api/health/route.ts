@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
     checks,
+    // API integrations status (bool flags for the Settings UI)
+    openai: Boolean(process.env.OPENAI_API_KEY),
+    elevenlabs: Boolean(process.env.ELEVENLABS_API_KEY),
+    whatsapp: Boolean(process.env.WA_PHONE_NUMBER_ID && process.env.WA_ACCESS_TOKEN),
   };
 
   const statusCode = overallStatus === 'healthy' ? 200 : 503;

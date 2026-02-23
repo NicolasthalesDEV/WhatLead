@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
   // Alguns provedores fazem uma requisição GET para verificar se o webhook está ativo
   return NextResponse.json({ 
     status: "active",
-    provider: process.env.PSP_PROVIDER || 'fake',
+    provider: process.env.PSP_PROVIDER || 'mercadopago',
   });
 }
 

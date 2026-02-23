@@ -1,14 +1,11 @@
 /**
  * Gateway de Pagamento PIX
  * 
- * Suporta múltiplos provedores:
- * - fake: Para desenvolvimento (não processa pagamentos reais)
+ * Provedores suportados:
  * - mercadopago: Mercado Pago
  * - asaas: Asaas
- * - efi: Efí (ex-Gerencianet)
- * - pagarme: Pagar.me
  * 
- * Configure o provedor via variável de ambiente PSP_PROVIDER
+ * Configure via variável de ambiente PSP_PROVIDER
  */
 
 // Tipos
@@ -74,47 +71,6 @@ export interface PixProvider {
    * @param payload - Payload do webhook
    */
   processWebhook?(payload: any): Promise<PixWebhookData | null>;
-}
-
-// =============================================================================
-// FAKE PROVIDER (Desenvolvimento)
-// =============================================================================
-
-class FakePixProvider implements PixProvider {
-  async createCharge(
-    orderId: string,
-    amount: number,
-    description: string,
-    customer?: any
-  ): Promise<PixCharge> {
-    const chargeId = `fake_${Date.now()}_${orderId}`;
-    const emv = `00020126580014br.gov.bcb.pix0136${chargeId}520400005303986540${(amount / 100).toFixed(2)}5802BR5913FAKE PROVIDER6009SAO PAULO`;
-    
-    // QR Code SVG simples
-    const qrSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><rect width='100%' height='100%' fill='white'/><text x='50%' y='45%' text-anchor='middle' font-size='16' font-weight='bold'>FAKE PIX</text><text x='50%' y='55%' text-anchor='middle' font-size='14'>R$ ${(amount / 100).toFixed(2)}</text><text x='50%' y='65%' text-anchor='middle' font-size='10' fill='gray'>${orderId}</text></svg>`;
-    const base64 = Buffer.from(qrSvg).toString("base64");
-    
-    return {
-      chargeId,
-      emv,
-      qrCodeImage: `data:image/svg+xml;base64,${base64}`,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      amount,
-      status: 'pending',
-    };
-  }
-
-  async getChargeStatus(chargeId: string): Promise<PixChargeStatus> {
-    return {
-      chargeId,
-      status: 'pending',
-    };
-  }
-
-  async processWebhook(payload: any): Promise<PixWebhookData | null> {
-    console.log('FakePixProvider: Webhook received', payload);
-    return null;
-  }
 }
 
 // =============================================================================
@@ -424,7 +380,7 @@ class AsaasPixProvider implements PixProvider {
 // =============================================================================
 
 export function getPixProvider(): PixProvider {
-  const provider = process.env.PSP_PROVIDER || 'fake';
+  const provider = process.env.PSP_PROVIDER || 'mercadopago';
 
   switch (provider.toLowerCase()) {
     case 'mercadopago':
@@ -433,10 +389,8 @@ export function getPixProvider(): PixProvider {
     case 'asaas':
       return new AsaasPixProvider();
     
-    case 'fake':
     default:
-      console.warn('Using FakePixProvider - payments will not be processed');
-      return new FakePixProvider();
+      throw new Error(`PSP_PROVIDER "${provider}" não suportado. Use: mercadopago, asaas`);
   }
 }
 

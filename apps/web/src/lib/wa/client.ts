@@ -6,15 +6,15 @@
  * Variáveis de ambiente necessárias:
  * - WA_PHONE_NUMBER_ID: ID do número de telefone do WhatsApp Business
  * - WA_ACCESS_TOKEN: Token de acesso permanente da API
- * - WA_BUSINESS_ACCOUNT_ID: ID da conta do WhatsApp Business (opcional)
+ * - process.env.WA_BUSINESS_ACCOUNT_ID: ID da conta do WhatsApp Business (opcional)
  * - WA_VERIFY_TOKEN: Token para validação de webhook
  * - WA_API_VERSION: Versão da API (padrão: v18.0)
  */
 
 const WA_API_VERSION = process.env.WA_API_VERSION || 'v18.0';
-const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID;
-const WA_ACCESS_TOKEN = process.env.WA_ACCESS_TOKEN;
-const WA_BUSINESS_ACCOUNT_ID = process.env.WA_BUSINESS_ACCOUNT_ID;
+
+
+
 
 // URL base da API do WhatsApp
 const WA_API_BASE_URL = `https://graph.facebook.com/${WA_API_VERSION}`;
@@ -72,7 +72,7 @@ export interface WhatsAppMediaMessage {
  * Valida se as credenciais do WhatsApp estão configuradas
  */
 function validateCredentials() {
-  if (!WA_PHONE_NUMBER_ID || !WA_ACCESS_TOKEN) {
+  if (!process.env.WA_PHONE_NUMBER_ID || !process.env.WA_ACCESS_TOKEN) {
     throw new Error(
       'WhatsApp credentials not configured. Set WA_PHONE_NUMBER_ID and WA_ACCESS_TOKEN environment variables.'
     );
@@ -128,12 +128,12 @@ export async function sendWhatsText(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -174,12 +174,12 @@ export async function sendWhatsTemplate(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -227,12 +227,12 @@ export async function sendWhatsMedia(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -352,12 +352,12 @@ export async function sendWhatsLocation(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -400,12 +400,12 @@ export async function sendWhatsContact(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -440,12 +440,12 @@ export async function markMessageAsRead(
   };
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/messages`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/messages`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: JSON.stringify(payload),
     }
@@ -491,11 +491,11 @@ export async function uploadWhatsMedia(
   }
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}/media`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/media`,
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
       body: formData,
     }
@@ -526,7 +526,7 @@ export async function getMediaUrl(mediaId: string): Promise<{ url: string; mime_
     {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
     }
   );
@@ -548,6 +548,70 @@ export async function getMediaUrl(mediaId: string): Promise<{ url: string; mime_
 }
 
 /**
+ * Faz upload de um buffer de mídia para o WhatsApp e retorna o media_id.
+ * Usado para enviar áudios gerados pelo ElevenLabs TTS.
+ * @param buffer  - Buffer com o conteúdo do arquivo
+ * @param mimeType - MIME type (ex: "audio/mpeg", "image/jpeg")
+ * @param filename - Nome do arquivo
+ */
+export async function uploadMedia(
+  buffer: Buffer,
+  mimeType: string,
+  filename: string
+): Promise<string> {
+  validateCredentials();
+
+  const formData = new FormData();
+  formData.append('messaging_product', 'whatsapp');
+  formData.append('type', mimeType);
+  formData.append(
+    'file',
+    new Blob([new Uint8Array(buffer)], { type: mimeType }),
+    filename
+  );
+
+  const response = await fetch(
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}/media`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
+      },
+      body: formData,
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const error = data as WhatsAppError;
+    console.error('WhatsApp Upload Media Error:', error);
+    throw new Error(
+      `WhatsApp Upload Media Error: ${error.error.message} (${error.error.code})`
+    );
+  }
+
+  return data.id as string;
+}
+
+/**
+ * Gera áudio via ElevenLabs, faz upload para o WhatsApp e envia como mensagem de voz.
+ * @param to       - Número do destinatário
+ * @param text     - Texto a ser convertido em voz
+ * @param voiceOptions - Opções do ElevenLabs (voiceId, etc.)
+ */
+export async function sendWhatsVoiceFromText(
+  to: string,
+  text: string,
+  voiceOptions: { voiceId?: string } = {}
+): Promise<WhatsAppMessageResponse> {
+  const { generateVoiceMessage } = await import('@/lib/elevenlabs');
+  const { audioBuffer, mimeType } = await generateVoiceMessage(text, voiceOptions);
+  const mediaId = await uploadMedia(audioBuffer, mimeType, 'voice.mp3');
+  return sendWhatsMedia(to, { type: 'audio', id: mediaId });
+}
+
+/**
  * Faz download de uma mídia recebida
  * @param mediaUrl - URL retornada por getMediaUrl()
  */
@@ -557,7 +621,7 @@ export async function downloadMedia(mediaUrl: string): Promise<ArrayBuffer> {
   const response = await fetch(mediaUrl, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
     },
   });
 
@@ -599,11 +663,11 @@ export async function getPhoneNumberProfile(): Promise<any> {
   validateCredentials();
 
   const response = await fetch(
-    `${WA_API_BASE_URL}/${WA_PHONE_NUMBER_ID}?fields=verified_name,display_phone_number,quality_rating`,
+    `${WA_API_BASE_URL}/${process.env.WA_PHONE_NUMBER_ID}?fields=verified_name,display_phone_number,quality_rating`,
     {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${WA_ACCESS_TOKEN}`,
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
       },
     }
   );
@@ -622,4 +686,4 @@ export async function getPhoneNumberProfile(): Promise<any> {
 }
 
 // Exporta constantes para uso em outros módulos
-export { WA_API_VERSION, WA_PHONE_NUMBER_ID };
+export { WA_API_VERSION };

@@ -11,197 +11,239 @@ import { useAuth } from "@/hooks/useAuth";
 import { WhatsAppSetupWizard } from "@/components/whatsapp-setup-wizard";
 import { WhatsAppChannelManager } from "@/components/whatsapp-channel-manager";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  Settings,
   User,
-  Building2,
   Bell,
   Shield,
-  Palette,
   MessageSquare,
-  CreditCard,
-  Globe,
   Save,
   Eye,
   EyeOff,
-  Plus,
-  Trash2
+  Bot,
+  Volume2,
+  Key,
+  CheckCircle2,
+  XCircle,
+  CreditCard,
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Calendar,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+
+interface BillingInfo {
+  plan: string;
+  planStatus: string;
+  daysRemaining: number | null;
+  expiresIn: string | null;
+  billingCycle: string | null;
+  mercadopagoSubscriptionId: string | null;
+}
 
 export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showWhatsAppWizard, setShowWhatsAppWizard] = useState(false);
+  const [billing, setBilling] = useState<BillingInfo | null>(null);
+  const [billingLoading, setBillingLoading] = useState(true);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelConfirmText, setCancelConfirmText] = useState("");
+  const [cancelling, setCancelling] = useState(false);
   const { showToast } = useToast();
   const { user, loading, updateUser, refresh } = useAuth();
+  const router = useRouter();
 
-  // Profile state
-  const [profile, setProfile] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-  });
-
-  // Company state
-  const [company, setCompany] = useState({
-    name: "",
-    cnpj: "",
-    ie: "",
-    address: "",
-  });
-
-  // Notifications state
-  const [notifications, setNotifications] = useState({
-    orders: true,
-    whatsapp: true,
-    reports: true,
-    lowStock: true,
-  });
-
-  // Password state
-  const [password, setPassword] = useState({
-    current: "",
-    new: "",
-    confirm: "",
-  });
+  const [profile, setProfile] = useState({ firstName: "", lastName: "", email: "", phone: "" });
+  const [notifications, setNotifications] = useState({ whatsapp: true, chatbot: true });
+  const [password, setPassword] = useState({ current: "", new: "", confirm: "" });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [apiStatus, setApiStatus] = useState({ openai: false, elevenlabs: false, whatsapp: false, loadingStatus: true });
+  const [apiKeys, setApiKeys] = useState({ openai: "", elevenlabs: "" });
+  const [savingApiKeys, setSavingApiKeys] = useState(false);
 
-  // Subscription state
-  const [subscription, setSubscription] = useState<{
-    plan: string;
-    planStatus: string;
-    planExpiresAt: string | null;
-    daysRemaining: number | null;
-    expiresIn: string | null;
-    isExpired: boolean;
-    isExpiringSoon: boolean;
-    billingCycle: string | null;
-    paymentMethod: string | null;
-    lastPaymentAt: string | null;
-  } | null>(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(true);
-
-  // Carregar dados do usuário quando disponível
   useEffect(() => {
     if (user && !loading) {
       const [firstName = "", lastName = ""] = (user.name || "").split(" ", 2);
-      setProfile({
-        firstName,
-        lastName,
-        email: user.email || "",
-        phone: "",
-      });
-
-      if (user.company) {
-        setCompany({
-          name: user.company.name || "",
-          cnpj: "",
-          ie: "",
-          address: "",
-        });
-      }
+      setProfile({ firstName, lastName, email: user.email || "", phone: "" });
     }
   }, [user, loading]);
 
-  // Carregar dados da assinatura
-  useEffect(() => {
-    async function fetchSubscription() {
-      try {
-        const response = await fetch('/api/billing/subscription', {
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSubscription(data.subscription);
-        }
-      } catch (error) {
-        console.error('Failed to fetch subscription:', error);
-      } finally {
-        setLoadingSubscription(false);
-      }
-    }
-
-    if (!loading) {
-      fetchSubscription();
-    }
-  }, [loading]);
-
-  // Carregar preferências de notificação
   useEffect(() => {
     async function fetchPreferences() {
       try {
-        const response = await fetch('/api/user/preferences', {
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.preferences && data.preferences.notifications) {
-            setNotifications(prev => ({
-              ...prev,
-              ...data.preferences.notifications,
-            }));
+        const res = await fetch("/api/user/preferences", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.preferences?.notifications) {
+            setNotifications((p) => ({ ...p, ...data.preferences.notifications }));
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch preferences:', error);
-      }
+      } catch { /* silent */ }
     }
-
-    if (!loading) {
-      fetchPreferences();
-    }
+    if (!loading) fetchPreferences();
   }, [loading]);
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    async function fetchBilling() {
+      try {
+        const res = await fetch("/api/billing/subscription", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setBilling({
+            plan: data.plan || "free",
+            planStatus: data.planStatus || "active",
+            daysRemaining: data.daysRemaining ?? null,
+            expiresIn: data.expiresIn ?? null,
+            billingCycle: data.billingCycle ?? null,
+            mercadopagoSubscriptionId: data.mercadopagoSubscriptionId ?? null,
+          });
+        }
+      } catch { /* silent */ } finally {
+        setBillingLoading(false);
+      }
     }
+    fetchBilling();
+  }, []);
+
+  const handleDeleteAccount = async () => {
+    if (cancelConfirmText !== "EXCLUIR") return;
+    setCancelling(true);
+    try {
+      const res = await fetch("/api/billing/delete-account", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erro ao excluir conta");
+      router.push("/?cancelled=true");
+    } catch (error: any) {
+      showToast(error.message || "Erro ao excluir conta", "error");
+      setCancelling(false);
+    }
+  };
+
+  const PLAN_LABELS: Record<string, string> = {
+    free: "Gratuito",
+    free_trial: "Teste Grátis",
+    starter: "Starter",
+    professional: "Professional",
+    enterprise: "Enterprise",
+  };
+
+  const PLAN_COLORS: Record<string, string> = {
+    free: "bg-gray-100 text-gray-700",
+    free_trial: "bg-blue-100 text-blue-700",
+    starter: "bg-green-100 text-green-700",
+    professional: "bg-purple-100 text-purple-700",
+    enterprise: "bg-orange-100 text-orange-700",
+  };
+
+  const STATUS_LABEL: Record<string, string> = {
+    active: "Ativo",
+    pending: "Pendente",
+    cancelled: "Cancelado",
+    expired: "Expirado",
+    trial: "Trial",
+    payment_failed: "Pagamento falhou",
+  };
+
+  useEffect(() => {
+    async function fetchChatbotSettingsKeys() {
+      try {
+        const res = await fetch("/api/chatbot/settings", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setApiKeys({
+            openai: data.settings?.openaiApiKey || "",
+            elevenlabs: data.settings?.elevenLabsApiKey || "",
+          });
+        }
+      } catch { /* silent */ }
+    }
+    fetchChatbotSettingsKeys();
+  }, []);
+
+  const handleSaveApiKeys = async () => {
+    setSavingApiKeys(true);
+    try {
+      const body: Record<string, string | null> = {};
+      // Only send openaiApiKey when user typed a new value or explicitly cleared it
+      if (!apiKeys.openai.includes("...")) {
+        body.openaiApiKey = apiKeys.openai.trim() || null;
+      }
+      // Only send elevenLabsApiKey when changed
+      if (!apiKeys.elevenlabs.includes("...")) {
+        body.elevenLabsApiKey = apiKeys.elevenlabs.trim() || null;
+      }
+      if (Object.keys(body).length === 0) {
+        showToast("Nenhuma alteração para salvar", "warning");
+        return;
+      }
+      const res = await fetch("/api/chatbot/settings", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Erro ao salvar chaves");
+      const data = await res.json();
+      setApiKeys({
+        openai: data.settings?.openaiApiKey || "",
+        elevenlabs: data.settings?.elevenLabsApiKey || "",
+      });
+      showToast("Chaves de API salvas com sucesso", "success");
+    } catch (error: any) {
+      showToast(error.message || "Erro ao salvar chaves", "error");
+    } finally {
+      setSavingApiKeys(false);
+    }
+  };
+
+  useEffect(() => {
+    async function fetchApiStatus() {
+      try {
+        const res = await fetch("/api/health", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setApiStatus({
+            openai: Boolean(data.openai ?? data.openAI),
+            elevenlabs: Boolean(data.elevenlabs ?? data.elevenLabs),
+            whatsapp: Boolean(data.whatsapp),
+            loadingStatus: false,
+          });
+        } else {
+          setApiStatus((p) => ({ ...p, loadingStatus: false }));
+        }
+      } catch {
+        setApiStatus((p) => ({ ...p, loadingStatus: false }));
+      }
+    }
+    fetchApiStatus();
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Salvar perfil do usuário
       const fullName = `${profile.firstName} ${profile.lastName}`.trim();
-      const response = await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: fullName,
-          email: profile.email,
-        }),
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: fullName, email: profile.email }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Erro ao salvar configurações");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao salvar");
       }
-
-      const data = await response.json();
-
-      // Atualizar contexto de autenticação
-      updateUser({
-        name: data.user.name,
-        email: data.user.email,
-      });
-
-      // Salvar configurações da empresa (se houver endpoint)
-      // await fetch('/api/company/settings', {
-      //   method: 'PUT',
-      //   body: JSON.stringify(company)
-      // });
-
-      showToast("Configurações salvas com sucesso!", "success");
-
-      // Recarregar dados do usuário para garantir sincronização
+      const data = await res.json();
+      updateUser({ name: data.user.name, email: data.user.email });
+      showToast("Configurações salvas!", "success");
       await refresh();
     } catch (error: any) {
-      console.error("Failed to save settings:", error);
       showToast(error.message || "Erro ao salvar configurações", "error");
     } finally {
       setSaving(false);
@@ -210,81 +252,84 @@ export default function SettingsPage() {
 
   const handleNotificationToggle = async (key: keyof typeof notifications) => {
     const newValue = !notifications[key];
-    setNotifications(prev => ({ ...prev, [key]: newValue }));
-
+    setNotifications((p) => ({ ...p, [key]: newValue }));
     try {
-      const response = await fetch('/api/user/preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+      const res = await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ notifications: { [key]: newValue } }),
       });
-
-      if (!response.ok) {
-        throw new Error("Erro ao salvar preferência");
-      }
-
+      if (!res.ok) throw new Error();
       showToast("Preferência atualizada", "success");
-    } catch (error) {
-      // Reverter em caso de erro
-      setNotifications(prev => ({ ...prev, [key]: !newValue }));
+    } catch {
+      setNotifications((p) => ({ ...p, [key]: !newValue }));
       showToast("Erro ao salvar preferência", "error");
     }
   };
 
   const handlePasswordChange = async () => {
-    // Validação
     if (!password.current || !password.new || !password.confirm) {
       showToast("Preencha todos os campos de senha", "error");
       return;
     }
-
     if (password.new.length < 8) {
       showToast("A nova senha deve ter no mínimo 8 caracteres", "error");
       return;
     }
-
     if (password.new !== password.confirm) {
       showToast("As senhas não coincidem", "error");
       return;
     }
-
     setChangingPassword(true);
     try {
-      const response = await fetch('/api/user/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword: password.current,
-          newPassword: password.new,
-        }),
+      const res = await fetch("/api/user/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword: password.current, newPassword: password.new }),
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Erro ao alterar senha");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao alterar senha");
       }
-
       showToast("Senha alterada com sucesso!", "success");
       setPassword({ current: "", new: "", confirm: "" });
     } catch (error: any) {
-      console.error("Failed to change password:", error);
       showToast(error.message || "Erro ao alterar senha", "error");
     } finally {
       setChangingPassword(false);
     }
   };
 
+  const ApiStatusBadge = ({ ok, loading: ld }: { ok: boolean; loading: boolean }) => {
+    if (ld) return <Badge variant="secondary">Verificando...</Badge>;
+    return ok ? (
+      <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+        <CheckCircle2 className="h-4 w-4" /> Configurada
+      </span>
+    ) : (
+      <span className="flex items-center gap-1 text-red-500 text-sm font-medium">
+        <XCircle className="h-4 w-4" /> Não configurada
+      </span>
+    );
+  };
+
+  const NAV = [
+    { id: "profile", icon: User, label: "Perfil" },
+    { id: "billing", icon: CreditCard, label: "Plano & Faturamento" },
+    { id: "whatsapp", icon: MessageSquare, label: "WhatsApp" },
+    { id: "api-keys", icon: Key, label: "Chaves de API" },
+    { id: "notifications", icon: Bell, label: "Notificações" },
+    { id: "security", icon: Shield, label: "Segurança" },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">
-            Gerencie suas preferências e configurações do sistema
-          </p>
+          <p className="text-muted-foreground">Gerencie seu perfil, integrações e preferências</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           <Save className="mr-2 h-4 w-4" />
@@ -293,230 +338,282 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Navigation */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Seções</CardTitle>
-          </CardHeader>
+        <Card className="lg:col-span-1 h-fit sticky top-4">
+          <CardHeader><CardTitle>Seções</CardTitle></CardHeader>
           <CardContent className="p-0">
             <nav className="space-y-1">
-              <button
-                onClick={() => scrollToSection("profile")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20"
-              >
-                <User className="mr-3 h-4 w-4" />
-                Perfil
-              </button>
-              <button
-                onClick={() => scrollToSection("company")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <Building2 className="mr-3 h-4 w-4" />
-                Empresa
-              </button>
-              <button
-                onClick={() => scrollToSection("notifications")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <Bell className="mr-3 h-4 w-4" />
-                Notificações
-              </button>
-              <button
-                onClick={() => scrollToSection("security")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <Shield className="mr-3 h-4 w-4" />
-                Segurança
-              </button>
-              <button
-                onClick={() => scrollToSection("appearance")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <Palette className="mr-3 h-4 w-4" />
-                Aparência
-              </button>
-              <button
-                onClick={() => scrollToSection("whatsapp")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <MessageSquare className="mr-3 h-4 w-4" />
-                WhatsApp
-              </button>
-              <button
-                onClick={() => scrollToSection("billing")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <CreditCard className="mr-3 h-4 w-4" />
-                Plano e Faturamento
-              </button>
-              <button
-                onClick={() => scrollToSection("integrations")}
-                className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50"
-              >
-                <Globe className="mr-3 h-4 w-4" />
-                Integrações
-              </button>
+              {NAV.map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => scrollToSection(id)}
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <Icon className="mr-3 h-4 w-4" />
+                  {label}
+                </button>
+              ))}
             </nav>
           </CardContent>
         </Card>
 
-        {/* Settings Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Profile Settings */}
           <Card id="profile">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="mr-2 h-5 w-5" />
-                Perfil
-              </CardTitle>
+              <CardTitle className="flex items-center"><User className="mr-2 h-5 w-5" />Perfil</CardTitle>
               <CardDescription>Gerencie suas informações pessoais</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Nome</Label>
-                  <Input
-                    id="firstName"
-                    value={profile.firstName}
-                    onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-                  />
+                  <Input id="firstName" value={profile.firstName} onChange={(e) => setProfile({ ...profile, firstName: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Sobrenome</Label>
-                  <Input
-                    id="lastName"
-                    value={profile.lastName}
-                    onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-                  />
+                  <Input id="lastName" value={profile.lastName} onChange={(e) => setProfile({ ...profile, lastName: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                />
+                <Input id="email" type="email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={profile.phone}
-                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                />
+                <Input id="phone" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
               </div>
             </CardContent>
           </Card>
 
-          {/* Company Settings */}
-          <Card id="company">
+          {/* ── BILLING ── */}
+          <Card id="billing">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Building2 className="mr-2 h-5 w-5" />
-                Empresa
+                <CreditCard className="mr-2 h-5 w-5" />
+                Plano & Faturamento
               </CardTitle>
-              <CardDescription>Informações da sua empresa</CardDescription>
+              <CardDescription>Gerencie sua assinatura e dados de pagamento</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="companyName">Nome da Empresa</Label>
-                <Input
-                  id="companyName"
-                  value={company.name}
-                  onChange={(e) => setCompany({ ...company, name: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    value={company.cnpj}
-                    onChange={(e) => setCompany({ ...company, cnpj: e.target.value })}
-                  />
+            <CardContent className="space-y-5">
+              {billingLoading ? (
+                <div className="flex items-center gap-2 text-gray-400 py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando informações do plano...
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ie">Inscrição Estadual</Label>
-                  <Input
-                    id="ie"
-                    value={company.ie}
-                    onChange={(e) => setCompany({ ...company, ie: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Endereço</Label>
-                <Input
-                  id="address"
-                  value={company.address}
-                  onChange={(e) => setCompany({ ...company, address: e.target.value })}
-                />
-              </div>
+              ) : (
+                <>
+                  {/* Plano atual */}
+                  <div className="flex items-start justify-between p-4 bg-gray-50 border rounded-xl">
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide">Plano atual</p>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${PLAN_COLORS[billing?.plan || "free"] || "bg-gray-100 text-gray-700"
+                          }`}>
+                          {PLAN_LABELS[billing?.plan || "free"] || billing?.plan}
+                        </span>
+                        <Badge variant="outline" className={billing?.planStatus === "active" ? "border-green-300 text-green-700" : "border-red-300 text-red-600"}>
+                          {STATUS_LABEL[billing?.planStatus || "active"] || billing?.planStatus}
+                        </Badge>
+                      </div>
+                      {billing?.billingCycle && (
+                        <p className="text-xs text-gray-500">
+                          Ciclo {billing.billingCycle === "yearly" ? "anual" : "mensal"}
+                        </p>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => router.push("/checkout?plan=professional")}>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Mudar plano
+                    </Button>
+                  </div>
+
+                  {/* Dias restantes */}
+                  {billing?.expiresIn && (
+                    <div className={`flex items-center gap-3 p-4 rounded-xl border ${(billing.daysRemaining ?? 999) <= 7
+                        ? "bg-red-50 border-red-200"
+                        : (billing.daysRemaining ?? 999) <= 30
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-blue-50 border-blue-200"
+                      }`}>
+                      <Calendar className={`h-5 w-5 flex-shrink-0 ${(billing.daysRemaining ?? 999) <= 7 ? "text-red-500" :
+                          (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
+                        }`} />
+                      <div>
+                        <p className="font-medium text-gray-800">{billing.expiresIn}</p>
+                        {(billing.daysRemaining ?? 999) <= 7 && (
+                          <p className="text-xs text-red-600 mt-0.5">Renove seu plano para manter o acesso</p>
+                        )}
+                      </div>
+                      {(billing.daysRemaining ?? 999) <= 30 && (
+                        <Button size="sm" className="ml-auto" onClick={() => router.push("/checkout?plan=" + (billing?.plan || "professional"))}>
+                          Renovar
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cancelar */}
+                  <div className="border border-red-200 rounded-xl p-4 bg-red-50">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-red-800">Zona de Perigo</p>
+                        <p className="text-sm text-red-700 mt-1">
+                          O cancelamento do plano apaga permanentemente todos os dados da sua conta.
+                        </p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => { setCancelConfirmText(""); setShowCancelModal(true); }}
+                      >
+                        Cancelar plano
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Notifications */}
+          <div id="whatsapp" className="space-y-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+                    <MessageSquare className="mr-2 h-5 w-5" />
+                    Configuração do WhatsApp Business
+                  </h4>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Use nosso guia interativo para conectar o WhatsApp Business API.
+                  </p>
+                  <Button onClick={() => setShowWhatsAppWizard(true)} className="bg-green-600 hover:bg-green-700" size="sm">
+                    Abrir Guia de Configuração
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <WhatsAppChannelManager />
+          </div>
+
+          <Card id="api-keys">
+            <CardHeader>
+              <CardTitle className="flex items-center"><Key className="mr-2 h-5 w-5" />Chaves de API</CardTitle>
+              <CardDescription>Adicione suas chaves para habilitar IA e voz. As chaves ficam armazenadas de forma segura e substituem as variáveis de ambiente globais.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* OpenAI */}
+              <div className="space-y-3 p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg"><Bot className="h-5 w-5 text-green-700" /></div>
+                  <div className="flex-1">
+                    <p className="font-medium">OpenAI (GPT + Whisper)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Respostas automáticas e transcrição de áudios</p>
+                  </div>
+                  <ApiStatusBadge ok={apiStatus.openai || apiKeys.openai.includes("...")} loading={apiStatus.loadingStatus} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="openai-key" className="text-sm">Chave OpenAI</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="openai-key"
+                      type="password"
+                      placeholder={apiKeys.openai.includes("...") ? `Chave atual: ${apiKeys.openai}` : "sk-proj-..."}
+                      value={apiKeys.openai.includes("...") ? "" : apiKeys.openai}
+                      onChange={(e) => setApiKeys((p) => ({ ...p, openai: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                    {apiKeys.openai && (
+                      <Button variant="outline" size="sm" onClick={() => setApiKeys((p) => ({ ...p, openai: "" }))}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  {apiKeys.openai.includes("...") && (
+                    <p className="text-xs text-muted-foreground">Chave armazenada. Deixe em branco para manter ou clique em Remover para apagar.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ElevenLabs */}
+              <div className="space-y-3 p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg"><Volume2 className="h-5 w-5 text-purple-700" /></div>
+                  <div className="flex-1">
+                    <p className="font-medium">ElevenLabs (Text-to-Speech)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Converte respostas em mensagens de voz</p>
+                  </div>
+                  <ApiStatusBadge ok={apiStatus.elevenlabs || apiKeys.elevenlabs.includes("...")} loading={apiStatus.loadingStatus} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="elevenlabs-key" className="text-sm">Chave ElevenLabs</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="elevenlabs-key"
+                      type="password"
+                      placeholder={apiKeys.elevenlabs.includes("...") ? `Chave atual: ${apiKeys.elevenlabs}` : "sk_..."}
+                      value={apiKeys.elevenlabs.includes("...") ? "" : apiKeys.elevenlabs}
+                      onChange={(e) => setApiKeys((p) => ({ ...p, elevenlabs: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                    {apiKeys.elevenlabs && (
+                      <Button variant="outline" size="sm" onClick={() => setApiKeys((p) => ({ ...p, elevenlabs: "" }))}>
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  {apiKeys.elevenlabs.includes("...") && (
+                    <p className="text-xs text-muted-foreground">Chave armazenada. Deixe em branco para manter ou clique em Remover para apagar.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* WhatsApp */}
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg"><MessageSquare className="h-5 w-5 text-green-700" /></div>
+                  <div>
+                    <p className="font-medium">WhatsApp Business API</p>
+                    <p className="text-xs text-muted-foreground font-mono">WA_PHONE_NUMBER_ID · WA_ACCESS_TOKEN</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Configurado na seção WhatsApp acima</p>
+                  </div>
+                </div>
+                <ApiStatusBadge ok={apiStatus.whatsapp} loading={apiStatus.loadingStatus} />
+              </div>
+
+              <Button onClick={handleSaveApiKeys} disabled={savingApiKeys}>
+                {savingApiKeys
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvando...</>
+                  : <><Save className="mr-2 h-4 w-4" />Salvar Chaves de API</>}
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card id="notifications">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Bell className="mr-2 h-5 w-5" />
-                Notificações
-              </CardTitle>
+              <CardTitle className="flex items-center"><Bell className="mr-2 h-5 w-5" />Notificações</CardTitle>
               <CardDescription>Configure como você recebe notificações</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium">Novos pedidos</div>
-                  <div className="text-sm text-muted-foreground">Receber notificação quando houver novos pedidos</div>
-                </div>
-                <Switch
-                  checked={notifications.orders}
-                  onCheckedChange={() => handleNotificationToggle('orders')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
                   <div className="font-medium">Mensagens WhatsApp</div>
-                  <div className="text-sm text-muted-foreground">Notificações de novas mensagens no WhatsApp</div>
+                  <div className="text-sm text-muted-foreground">Novas mensagens recebidas no WhatsApp</div>
                 </div>
-                <Switch
-                  checked={notifications.whatsapp}
-                  onCheckedChange={() => handleNotificationToggle('whatsapp')}
-                />
+                <Switch checked={notifications.whatsapp} onCheckedChange={() => handleNotificationToggle("whatsapp")} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-medium">Relatórios semanais</div>
-                  <div className="text-sm text-muted-foreground">Resumo semanal das vendas por email</div>
+                  <div className="font-medium">Atividade do Chatbot</div>
+                  <div className="text-sm text-muted-foreground">Alertas quando o chatbot precisar de atenção</div>
                 </div>
-                <Switch
-                  checked={notifications.reports}
-                  onCheckedChange={() => handleNotificationToggle('reports')}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">Estoque baixo</div>
-                  <div className="text-sm text-muted-foreground">Alerta quando produtos estiverem com estoque baixo</div>
-                </div>
-                <Switch
-                  checked={notifications.lowStock}
-                  onCheckedChange={() => handleNotificationToggle('lowStock')}
-                />
+                <Switch checked={notifications.chatbot} onCheckedChange={() => handleNotificationToggle("chatbot")} />
               </div>
             </CardContent>
           </Card>
 
-          {/* Security */}
           <Card id="security">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="mr-2 h-5 w-5" />
-                Segurança
-              </CardTitle>
+              <CardTitle className="flex items-center"><Shield className="mr-2 h-5 w-5" />Segurança</CardTitle>
               <CardDescription>Gerencie a segurança da sua conta</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -530,13 +627,7 @@ export default function SettingsPage() {
                     value={password.current}
                     onChange={(e) => setPassword({ ...password, current: e.target.value })}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
+                  <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3" onClick={() => setShowPassword(!showPassword)}>
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -544,307 +635,88 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="newPassword">Nova Senha</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    placeholder="Mínimo 8 caracteres"
-                    value={password.new}
-                    onChange={(e) => setPassword({ ...password, new: e.target.value })}
-                  />
+                  <Input id="newPassword" type="password" placeholder="Mínimo 8 caracteres" value={password.new} onChange={(e) => setPassword({ ...password, new: e.target.value })} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="Confirme a nova senha"
-                    value={password.confirm}
-                    onChange={(e) => setPassword({ ...password, confirm: e.target.value })}
-                  />
+                  <Input id="confirmPassword" type="password" placeholder="Confirme a nova senha" value={password.confirm} onChange={(e) => setPassword({ ...password, confirm: e.target.value })} />
                 </div>
               </div>
-              <Button
-                onClick={handlePasswordChange}
-                disabled={changingPassword}
-                className="w-full md:w-auto"
-              >
+              <Button onClick={handlePasswordChange} disabled={changingPassword} className="w-full md:w-auto">
                 {changingPassword ? "Alterando..." : "Alterar Senha"}
               </Button>
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                <div>
-                  <div className="font-medium text-green-800">Autenticação de 2 fatores</div>
-                  <div className="text-sm text-green-600">Adicione uma camada extra de segurança</div>
-                </div>
-                <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* WhatsApp Configuration */}
-          <div id="whatsapp" className="space-y-4">
-            {/* Wizard Helper */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
-                    <MessageSquare className="mr-2 h-5 w-5" />
-                    📱 Precisa de ajuda para configurar?
-                  </h4>
-                  <p className="text-sm text-blue-800 mb-3">
-                    Use nosso guia interativo passo a passo para obter suas credenciais do WhatsApp Business.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => setShowWhatsAppWizard(true)}
-                      className="bg-green-600 hover:bg-green-700"
-                      size="sm"
-                    >
-                      🚀 Abrir Guia de Configuração
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open('/TUTORIAL_WHATSAPP.md', '_blank')}
-                    >
-                      📖 Ver Documentação
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Channel Manager */}
-            <WhatsAppChannelManager />
-          </div>
-
-          {/* Billing */}
-          <Card id="billing">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5" />
-                Plano e Faturamento
-              </CardTitle>
-              <CardDescription>Gerencie seu plano e informações de pagamento</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {loadingSubscription ? (
-                <div className="flex items-center justify-center p-8">
-                  <div className="text-sm text-muted-foreground">Carregando informações do plano...</div>
-                </div>
-              ) : subscription ? (
-                <>
-                  <div className={`flex items-center justify-between p-4 rounded-lg ${subscription.isExpired
-                    ? 'bg-red-50'
-                    : subscription.isExpiringSoon
-                      ? 'bg-yellow-50'
-                      : 'bg-blue-50'
-                    }`}>
-                    <div>
-                      <div className={`font-medium ${subscription.isExpired
-                        ? 'text-red-800'
-                        : subscription.isExpiringSoon
-                          ? 'text-yellow-800'
-                          : 'text-blue-800'
-                        }`}>
-                        Plano Atual: {subscription.plan === 'free' ? 'Gratuito' :
-                          subscription.plan === 'starter' ? 'Starter' :
-                            subscription.plan === 'professional' ? 'Professional' :
-                              subscription.plan === 'enterprise' ? 'Enterprise' : subscription.plan}
-                        {subscription.planStatus !== 'active' && (
-                          <span className="ml-2 text-xs">({subscription.planStatus})</span>
-                        )}
-                      </div>
-                      <div className={`text-sm ${subscription.isExpired
-                        ? 'text-red-600'
-                        : subscription.isExpiringSoon
-                          ? 'text-yellow-600'
-                          : 'text-blue-600'
-                        }`}>
-                        {subscription.plan === 'starter' && 'R$ 97/mês'}
-                        {subscription.plan === 'professional' && 'R$ 197/mês'}
-                        {subscription.plan === 'enterprise' && 'R$ 497/mês'}
-                        {subscription.plan === 'free' && 'Gratuito'}
-                        {subscription.billingCycle === 'yearly' && ' (cobrado anualmente)'}
-                        {subscription.expiresIn && ` - ${subscription.expiresIn}`}
-                        {subscription.planExpiresAt && subscription.daysRemaining !== null && subscription.daysRemaining >= 0 && (
-                          <span className="block text-xs mt-1">
-                            Expira em {new Date(subscription.planExpiresAt).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric'
-                            })} ({subscription.daysRemaining} {subscription.daysRemaining === 1 ? 'dia' : 'dias'} restantes)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {subscription.plan !== 'enterprise' && (
-                        <Button variant="outline" size="sm">Fazer Upgrade</Button>
-                      )}
-                      {subscription.plan !== 'free' && subscription.planStatus === 'active' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {subscription.isExpired && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-sm text-red-800">
-                        Sua assinatura expirou. Renove agora para continuar usando todos os recursos.
-                      </p>
-                    </div>
-                  )}
-                  {subscription.isExpiringSoon && !subscription.isExpired && (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800">
-                        Sua assinatura está próxima do vencimento. Certifique-se de que seu método de pagamento está atualizado.
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-800">Plano Gratuito</div>
-                    <div className="text-sm text-gray-600">Faça upgrade para desbloquear mais recursos</div>
-                  </div>
-                  <Button variant="outline" size="sm">Ver Planos</Button>
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
-                {subscription && subscription.planStatus === 'trial' ? (
-                  <div className="p-3 border rounded-lg bg-blue-50 border-blue-200">
-                    <p className="text-sm text-blue-700">
-                      Você está no período de teste. Adicione uma forma de pagamento antes do término do trial para continuar usando o plano.
-                    </p>
-                  </div>
-                ) : subscription && subscription.paymentMethod ? (
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center">
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      <span className="text-sm">
-                        {subscription.paymentMethod === 'mercadopago' && 'Mercado Pago'}
-                        {subscription.paymentMethod === 'credit_card' && '**** **** **** ****'}
-                        {subscription.paymentMethod === 'pix' && 'PIX'}
-                      </span>
-                    </div>
-                    <Button variant="outline" size="sm">Alterar</Button>
-                  </div>
-                ) : (
-                  <div className="p-3 border rounded-lg border-dashed">
-                    <p className="text-sm text-muted-foreground">Nenhuma forma de pagamento cadastrada</p>
-                    <Button variant="outline" size="sm" className="mt-2">Adicionar</Button>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Histórico de Faturas</Label>
-                {subscription && subscription.lastPaymentAt ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="text-sm font-medium">
-                          {new Date(subscription.lastPaymentAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {subscription.plan === 'starter' && 'R$ 97,00'}
-                          {subscription.plan === 'professional' && 'R$ 197,00'}
-                          {subscription.plan === 'enterprise' && 'R$ 497,00'}
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" disabled>Download</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 border rounded-lg border-dashed text-center">
-                    <p className="text-sm text-muted-foreground">
-                      {subscription && subscription.planStatus === 'trial'
-                        ? 'Você está no período de teste. O histórico aparecerá após o primeiro pagamento.'
-                        : 'Nenhuma fatura encontrada'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Integrations */}
-          <Card id="integrations">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Globe className="mr-2 h-5 w-5" />
-                Integrações
-              </CardTitle>
-              <CardDescription>Conecte com outras ferramentas e serviços</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">WhatsApp API</h3>
-                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Comunique-se com seus hóspedes via WhatsApp
-                  </p>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/dashboard/whatsapp">Ver Conversas</Link>
-                  </Button>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">Mercado Pago</h3>
-                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Receba pagamentos de assinaturas e PIX
-                  </p>
-                  <Button variant="outline" size="sm" disabled>Configurado</Button>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">Google Analytics</h3>
-                    <Badge variant="secondary">Opcional</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Acompanhe o desempenho do seu site
-                  </p>
-                  <Input
-                    placeholder="ID do Google Analytics (ex: G-XXXXXXXXXX)"
-                    className="mt-2"
-                  />
-                  <Button variant="outline" size="sm" className="mt-2">Salvar</Button>
-                </div>
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">Chatbot IA</h3>
-                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Atendimento automatizado inteligente
-                  </p>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/dashboard/chatbot">Configurar Fluxos</Link>
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* WhatsApp Setup Wizard */}
       {showWhatsAppWizard && (
-        <WhatsAppSetupWizard
-          onClose={() => setShowWhatsAppWizard(false)}
-          onComplete={() => setShowWhatsAppWizard(false)}
-        />
+        <WhatsAppSetupWizard onClose={() => setShowWhatsAppWizard(false)} onComplete={() => setShowWhatsAppWizard(false)} />
+      )}
+
+      {/* ── Modal de cancelamento destrutivo ── */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="bg-red-100 rounded-full p-3">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Cancelar plano e excluir conta</h2>
+                <p className="text-sm text-gray-500">Esta ação é irreversível</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2 text-sm text-red-800">
+              <p className="font-semibold">⚠️ Ao confirmar, serão excluídos permanentemente:</p>
+              <ul className="list-disc list-inside space-y-1 ml-1">
+                <li>Todas as conversas e mensagens do WhatsApp</li>
+                <li>Histórico completo de contatos</li>
+                <li>Configurações do chatbot e da IA</li>
+                <li>Canais WhatsApp conectados</li>
+                <li>Todos os usuários e dados de login</li>
+                <li>Sua empresa e todos os registros associados</li>
+              </ul>
+              <p className="font-semibold mt-2">Não há como recuperar esses dados após a exclusão.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-700">
+                Para confirmar, digite <strong className="text-red-600">EXCLUIR</strong> abaixo:
+              </Label>
+              <Input
+                value={cancelConfirmText}
+                onChange={(e) => setCancelConfirmText(e.target.value)}
+                placeholder="EXCLUIR"
+                className="border-red-300 focus:ring-red-500"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+              >
+                Voltar
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={cancelConfirmText !== "EXCLUIR" || cancelling}
+                onClick={handleDeleteAccount}
+              >
+                {cancelling ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Excluindo...</>
+                ) : (
+                  "Excluir tudo e cancelar"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

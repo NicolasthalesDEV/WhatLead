@@ -106,11 +106,9 @@ export async function POST(req: NextRequest) {
     await writeFile(filePath, buffer);
 
     // Gerar URL pública
-    // Em produção, use URL do CDN/S3. Em dev, use URL local
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                    'http://localhost:3000';
-    
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+    if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
     const publicUrl = `${baseUrl}/uploads/whatsapp/${fileName}`;
 
     return NextResponse.json({

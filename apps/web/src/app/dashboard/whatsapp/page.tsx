@@ -28,6 +28,7 @@ import {
   Video,
   File,
   StopCircle,
+  Volume2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -106,6 +107,7 @@ export default function WhatsAppPage() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
+  const [sendingVoice, setSendingVoice] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,7 +128,7 @@ export default function WhatsAppPage() {
       if (searchQuery) params.append('search', searchQuery);
       if (unreadOnlyFilter) params.append('unreadOnly', 'true');
 
-      const response = await fetch(`/api/whatsapp/conversations?${params}`);
+      const response = await fetch(`/api/whatsapp/conversations?${params}`, { credentials: 'include' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || 'Failed to fetch conversations');
@@ -144,7 +146,7 @@ export default function WhatsAppPage() {
   const fetchMessages = async (customerId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/whatsapp/conversations/${customerId}`);
+      const response = await fetch(`/api/whatsapp/conversations/${customerId}`, { credentials: 'include' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || 'Failed to fetch messages');
@@ -168,7 +170,7 @@ export default function WhatsAppPage() {
   // Fetch quick responses
   const fetchQuickResponses = async () => {
     try {
-      const response = await fetch('/api/chatbot/quick-responses');
+      const response = await fetch('/api/chatbot/quick-responses', { credentials: 'include' });
       if (!response.ok) {
         setQuickResponses([]);
         return;
@@ -192,6 +194,7 @@ export default function WhatsAppPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             type: 'text',
             text: messageInput.trim(),
@@ -298,7 +301,7 @@ export default function WhatsAppPage() {
       scrollToBottom();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Erro ao enviar mídia');
-      console.error('Failed to send media:', error);
+      console.warn('Failed to send media:', error);
     } finally {
       setSending(false);
     }
@@ -380,6 +383,70 @@ export default function WhatsAppPage() {
     setMessageInput(content);
   };
 
+  // Send current text input as voice audio via ElevenLabs TTS
+  const sendAsVoice = async () => {
+    if (!messageInput.trim() || !selectedCustomerId || sendingVoice) return;
+    setSendingVoice(true);
+    try {
+      // 1. Generate audio from text
+      const ttsRes = await fetch('/api/whatsapp/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: messageInput.trim() }),
+      });
+
+      if (!ttsRes.ok) {
+        const err = await ttsRes.json().catch(() => ({ error: 'Falha ao gerar áudio' }));
+        throw new Error(err.error || 'Falha ao gerar áudio');
+      }
+
+      const audioBlob = await ttsRes.blob();
+
+      // 2. Upload audio to get public URL
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'voice.mp3');
+      const uploadRes = await fetch('/api/whatsapp/media/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({ error: 'Falha ao fazer upload' }));
+        throw new Error(err.error || 'Falha ao fazer upload do áudio');
+      }
+
+      const { url: mediaUrl } = await uploadRes.json();
+
+      // 3. Send audio message
+      const msgRes = await fetch(
+        `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ type: 'audio', mediaUrl }),
+        }
+      );
+
+      if (!msgRes.ok) {
+        const err = await msgRes.json().catch(() => ({ error: 'Falha ao enviar' }));
+        throw new Error(err.error || 'Falha ao enviar áudio');
+      }
+
+      const data = await msgRes.json();
+      setMessages((prev) => [...prev, data.message]);
+      setMessageInput('');
+      fetchConversations();
+      scrollToBottom();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao enviar áudio via ElevenLabs');
+    } finally {
+      setSendingVoice(false);
+    }
+  };
+
   // Search customers for new conversation
   const searchCustomers = async (query: string) => {
     if (!query.trim()) {
@@ -399,7 +466,7 @@ export default function WhatsAppPage() {
       const data = await response.json();
       setSearchResults(data.customers || []);
     } catch (error) {
-      console.error('Failed to search customers:', error);
+      console.warn('Failed to search customers:', error);
       setSearchResults([]);
     } finally {
       setSearchingCustomers(false);
@@ -453,7 +520,7 @@ export default function WhatsAppPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(errorMessage);
-      console.error('Failed to start conversation:', error);
+      console.warn('Failed to start conversation:', error);
     } finally {
       setStartingConversation(false);
     }
@@ -507,7 +574,7 @@ export default function WhatsAppPage() {
       }, 1000);
 
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.warn('Failed to start recording:', error);
       alert('Erro ao acessar o microfone. Verifique as permissões do navegador.');
     }
   };
@@ -579,7 +646,7 @@ export default function WhatsAppPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(errorMessage);
-      console.error('Failed to start conversation with phone:', error);
+      console.warn('Failed to start conversation with phone:', error);
     } finally {
       setStartingConversation(false);
     }
@@ -892,20 +959,37 @@ export default function WhatsAppPage() {
                     </div>
                   )}
 
-                  {/* Send or Mic button */}
+                  {/* Send, Voice-TTS, or Mic button */}
                   {!isRecording && (
                     messageInput.trim() ? (
-                      <Button
-                        size="sm"
-                        onClick={sendMessage}
-                        disabled={sending}
-                      >
-                        {sending ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <div className="flex gap-1">
+                        {/* ElevenLabs TTS – send as voice */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={sendAsVoice}
+                          disabled={sending || sendingVoice}
+                          title="Enviar como áudio (ElevenLabs)"
+                        >
+                          {sendingVoice ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                          ) : (
+                            <Volume2 className="h-4 w-4 text-purple-600" />
+                          )}
+                        </Button>
+                        {/* Regular text send */}
+                        <Button
+                          size="sm"
+                          onClick={sendMessage}
+                          disabled={sending || sendingVoice}
+                        >
+                          {sending ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         size="sm"

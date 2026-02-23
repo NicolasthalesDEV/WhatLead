@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Hotel, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Zap, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 
 function LoginPageContent() {
   const [email, setEmail] = useState("");
@@ -16,6 +16,13 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isRegistered = searchParams.get("registered") === "true";
+  const pendingPlan = searchParams.get("plan");
+  const pendingBillingCycle = searchParams.get("billing_cycle");
+  const pendingEmail = searchParams.get("email");
+
+  useEffect(() => {
+    if (pendingEmail) setEmail(pendingEmail);
+  }, [pendingEmail]);
 
   useEffect(() => {
     // Se já estiver autenticado, redirecionar para dashboard
@@ -52,9 +59,13 @@ function LoginPageContent() {
 
       if (res.ok && data.success) {
         // Login bem-sucedido - cookies já foram configurados pelo servidor
-        // Redirecionar após pequeno delay para garantir que cookies foram salvos
+        // Se veio do checkout, voltar para lá; senão, dashboard
         setTimeout(() => {
-          router.push("/dashboard");
+          if (pendingPlan) {
+            router.push(`/checkout?plan=${pendingPlan}&billing_cycle=${pendingBillingCycle || 'monthly'}`);
+          } else {
+            router.push("/dashboard");
+          }
         }, 100);
       } else {
         setMessage(data?.error?.message || "Erro no login");
@@ -74,10 +85,10 @@ function LoginPageContent() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push("/")}>
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-2">
-                <Hotel className="h-5 w-5 text-white" />
+                <Zap className="h-5 w-5 text-white" />
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                HotelCRM
+                WhatLead
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -100,11 +111,11 @@ function LoginPageContent() {
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-3">
-                <Hotel className="h-8 w-8 text-white" />
+                <Zap className="h-8 w-8 text-white" />
               </div>
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 bg-clip-text text-transparent">
-              Entrar no HotelCRM
+              Entrar no WhatLead
             </h1>
             <p className="text-gray-600 mt-2">Acesse sua conta para continuar</p>
           </div>
@@ -219,9 +230,9 @@ function LoginPageContent() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-2">
-                  <Hotel className="h-5 w-5 text-white" />
+                  <Zap className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-xl font-bold text-white">HotelCRM</span>
+                <span className="text-xl font-bold text-white">WhatLead</span>
               </div>
               <p className="text-sm">
                 A plataforma completa para gerenciar seu negócio no WhatsApp
@@ -253,7 +264,7 @@ function LoginPageContent() {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>&copy; 2026 HotelCRM. Todos os direitos reservados.</p>
+            <p>&copy; 2026 WhatLead. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

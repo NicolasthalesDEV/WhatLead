@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
     // Criar assinatura no Mercado Pago
     const mpClient = new MercadoPagoSubscriptionClient();
     
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+    if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
 
     const subscription = await mpClient.createSubscription({
       reason: `${planName} - ${data.billingCycle === 'yearly' ? 'Anual' : 'Mensal'}`,
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
         transaction_amount: price,
         currency_id: 'BRL',
       },
-      back_url: `${baseUrl}/dashboard/settings?section=billing&status=success`,
+      back_url: `${baseUrl}/checkout/success?plan=${data.planId}`,
       external_reference: company.id,
       payer_email: data.payerEmail,
     });

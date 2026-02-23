@@ -2,8 +2,6 @@ import { prisma } from "@wacrm/db";
 import { sendWhatsText } from "@/lib/wa/client";
 import crypto from "crypto";
 
-const chatbotDb = prisma as any;
-
 type NodeData = {
   message?: string;
   variable?: string;
@@ -30,11 +28,93 @@ type ExecutionContext = {
   lastInput?: string;
 };
 
+// ── Load chatbot settings (with defaults) ─────────────────
+async function loadChatbotSettings(companyId: string) {
+  const s = await prisma.chatbotSettings.findUnique({ where: { companyId } });
+  return {
+    botName: s?.botName ?? "Assistente",
+    botEmoji: s?.botEmoji ?? "🤖",
+    tone: s?.tone ?? "friendly",
+    autoReplyEnabled: s?.autoReplyEnabled ?? true,
+    typingDelay: s?.typingDelay ?? 1500,
+    sessionTimeoutMinutes: s?.sessionTimeoutMinutes ?? 30,
+    maxMessagesPerSession: s?.maxMessagesPerSession ?? 50,
+    welcomeMessage: s?.welcomeMessage ?? "Olá! Como posso ajudar você hoje? 😊",
+    farewellMessage: s?.farewellMessage ?? "Obrigado pelo contato! Até logo! 👋",
+    unknownCommandMessage: s?.unknownCommandMessage ?? "Desculpe, não entendi. Poderia reformular sua pergunta?",
+    offHoursEnabled: s?.offHoursEnabled ?? false,
+    offHoursMessage: s?.offHoursMessage ?? "Estamos fora do horário de atendimento. Retornaremos em breve!",
+    businessHoursStart: s?.businessHoursStart ?? "08:00",
+    businessHoursEnd: s?.businessHoursEnd ?? "18:00",
+    businessDays: (s?.businessDays as string[]) ?? ["MON","TUE","WED","THU","FRI"],
+    handoffEnabled: s?.handoffEnabled ?? true,
+    handoffKeyword: s?.handoffKeyword ?? "humano",
+    handoffMessage: s?.handoffMessage ?? "Transferindo para um atendente humano...",
+  };
+}
+
+// ── Check if currently within business hours ──────────────
+function isWithinBusinessHours(settings: Awaited<ReturnType<typeof loadChatbotSettings>>): boolean {
+  const now = new Date();
+  const dayNames = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+  const today = dayNames[now.getDay()];
+  if (!settings.businessDays.includes(today)) return false;
+
+  const [startH, startM] = settings.businessHoursStart.split(":").map(Number);
+  const [endH, endM] = settings.businessHoursEnd.split(":").map(Number);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+}
+
+// ── Public helper: pre-flight checks before starting a new flow ──
+export async function chatbotPreFlight(
+  companyId: string,
+  customerPhone: string,
+  incomingMessage: string
+): Promise<{ blocked: true; reason: string; replyWith?: string } | { blocked: false }> {
+  const settings = await loadChatbotSettings(companyId);
+
+  if (!settings.autoReplyEnabled) {
+    return { blocked: true, reason: "auto_reply_disabled" };
+  }
+
+  // Check handoff keyword
+  if (
+    settings.handoffEnabled &&
+    incomingMessage.toLowerCase().includes(settings.handoffKeyword.toLowerCase())
+  ) {
+    return { blocked: true, reason: "handoff_requested", replyWith: settings.handoffMessage };
+  }
+
+  // Check off-hours
+  if (settings.offHoursEnabled && !isWithinBusinessHours(settings)) {
+    return { blocked: true, reason: "off_hours", replyWith: settings.offHoursMessage };
+  }
+
+  return { blocked: false };
+}
+
+// ── Public: get fallback message when no flow matches ─────
+export async function getChatbotFallbackMessage(companyId: string): Promise<string | null> {
+  const s = await prisma.chatbotSettings.findUnique({ where: { companyId } });
+  return s?.unknownCommandMessage ?? null;
+}
+
+// ── Public: get welcome message ───────────────────────────
+export async function getChatbotWelcomeMessage(companyId: string): Promise<string | null> {
+  const s = await prisma.chatbotSettings.findUnique({ where: { companyId } });
+  return s?.welcomeMessage ?? null;
+}
+
+
 export class ChatbotEngine {
   private companyId: string;
   private customerId: string;
   private executionId: string;
   private context: ExecutionContext;
+  private settings: Awaited<ReturnType<typeof loadChatbotSettings>> | null = null;
 
   constructor(companyId: string, customerId: string, executionId: string) {
     this.companyId = companyId;
@@ -46,34 +126,39 @@ export class ChatbotEngine {
     };
   }
 
-  async start(flowId: string, initialMessage?: string) {
-    if (!chatbotDb.chatbotFlow || !chatbotDb.chatbotExecution) {
-      throw new Error("Chatbot feature is not available in current database schema");
+  private async getSettings() {
+    if (!this.settings) {
+      this.settings = await loadChatbotSettings(this.companyId);
     }
+    return this.settings;
+  }
 
-    const flow = await chatbotDb.chatbotFlow.findUnique({
+  async start(flowId: string, initialMessage?: string) {
+    const flow = await prisma.chatbotFlow.findUnique({
       where: { id: flowId },
-      include: { nodes: true },
+      include: { ChatbotNode: { orderBy: { order: "asc" } } },
     });
 
-    if (!flow || flow.status !== "ACTIVE") {
+    if (!flow || (flow.status !== "ACTIVE" && !flow.active)) {
       throw new Error("Flow not found or not active");
     }
 
+    const nodes = flow.ChatbotNode as any[];
+
     // Find the trigger node
-    const triggerNode = flow.nodes.find((n) => n.type === "TRIGGER");
+    const triggerNode = nodes.find((n: any) => n.type === "TRIGGER");
     if (!triggerNode) {
       throw new Error("Flow has no trigger node");
     }
 
     // Initialize execution
-    await chatbotDb.chatbotExecution.create({
+    await prisma.chatbotExecution.create({
       data: {
         id: this.executionId,
         flowId: flow.id,
         customerId: this.customerId,
         currentNode: triggerNode.id,
-        context: this.context,
+        context: this.context as any,
         status: "RUNNING",
       },
     });
@@ -83,46 +168,50 @@ export class ChatbotEngine {
     }
 
     // Start execution from trigger
-    await this.executeNode(triggerNode, flow.nodes);
+    await this.executeNode(triggerNode, nodes);
   }
 
   async resume(userInput: string) {
-    if (!chatbotDb.chatbotExecution) {
-      throw new Error("Chatbot feature is not available in current database schema");
-    }
-
-    const execution = await chatbotDb.chatbotExecution.findUnique({
+    const execution = await prisma.chatbotExecution.findUnique({
       where: { id: this.executionId },
-      include: { flow: { include: { nodes: true } } },
+      include: {
+        ChatbotFlow: {
+          include: { ChatbotNode: { orderBy: { order: "asc" } } },
+        },
+      },
     });
 
     if (!execution || execution.status !== "WAITING_INPUT") {
       throw new Error("Execution not found or not waiting for input");
     }
 
-    this.context = execution.context as ExecutionContext;
+    this.context = (execution.context as unknown as ExecutionContext) || {
+      customerId: this.customerId,
+      variables: {},
+    };
     this.context.lastInput = userInput;
 
-    const currentNode = execution.flow.nodes.find((n) => n.id === execution.currentNode);
+    const nodes = ((execution as any).ChatbotFlow?.ChatbotNode || []) as any[];
+    const currentNode = nodes.find((n: any) => n.id === execution.currentNode);
     if (!currentNode) {
       throw new Error("Current node not found");
     }
 
     // Update execution
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "RUNNING",
-        context: this.context,
+        context: this.context as any,
       },
     });
 
-    await this.executeNode(currentNode, execution.flow.nodes);
+    await this.executeNode(currentNode, nodes);
   }
 
   private async executeNode(node: any, allNodes: any[]) {
-    const nodeData = node.data as NodeData;
-    const connections = node.connections as Connection[];
+    const nodeData = ((node.data || node.config) ?? {}) as NodeData;
+    const connections = (node.connections || []) as Connection[];
 
     switch (node.type) {
       case "TRIGGER":
@@ -173,6 +262,24 @@ export class ChatbotEngine {
         await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
         break;
 
+      // VIII – AI_RESPONSE: gera resposta via OpenAI GPT
+      case "AI_RESPONSE": {
+        const aiText = await this.generateAIResponse(nodeData);
+        await this.sendMessage(aiText);
+        await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
+        break;
+      }
+
+      // IV – VOICE_REPLY: envia resposta em voz via ElevenLabs
+      case "VOICE_REPLY": {
+        const textToSpeak = this.replaceVariables(nodeData.message || "");
+        if (textToSpeak) {
+          await this.sendVoiceMessage(textToSpeak, nodeData);
+        }
+        await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
+        break;
+      }
+
       case "HANDOFF":
         await this.handoffToHuman();
         break;
@@ -199,7 +306,7 @@ export class ChatbotEngine {
       return;
     }
 
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: { currentNode: nodeId },
     });
@@ -216,17 +323,99 @@ export class ChatbotEngine {
     });
 
     if (customer) {
+      // Apply typing delay from settings
+      const s = await this.getSettings();
+      if (s.typingDelay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, s.typingDelay));
+      }
       await sendWhatsText(customer.phoneE164, processedMessage);
     }
   }
 
+  // VIII – Generate AI reply using OpenAI
+  private async generateAIResponse(nodeData: NodeData): Promise<string> {
+    try {
+      const { getAIReply, buildSystemPrompt, isOpenAIConfigured } = await import("@/lib/openai");
+
+      if (!isOpenAIConfigured()) {
+        console.warn("OpenAI not configured – returning fallback message");
+        return nodeData.message || "No momento não consigo responder automaticamente.";
+      }
+
+      const s = await this.getSettings();
+
+      // Build a contextual system prompt from chatbot settings
+      const company = await prisma.company.findUnique({
+        where: { id: this.companyId },
+        select: { name: true },
+      });
+
+      const systemPrompt = (nodeData as any).systemPrompt || buildSystemPrompt({
+        botName: s.botName,
+        botEmoji: s.botEmoji,
+        tone: s.tone,
+        companyName: company?.name,
+      });
+
+      // Build conversation history from context variables
+      const history = ((this.context.variables._aiHistory || []) as any[]).map(
+        (m: any) => ({ role: m.role as "user" | "assistant", content: m.content as string })
+      );
+
+      const reply = await getAIReply(
+        this.context.lastInput || (nodeData.message || "Olá"),
+        { systemPrompt, history }
+      );
+
+      // Store in history
+      this.context.variables._aiHistory = [
+        ...history,
+        { role: "user", content: this.context.lastInput || "" },
+        { role: "assistant", content: reply },
+      ].slice(-20); // keep last 20 messages
+
+      return reply;
+    } catch (err) {
+      console.error("AI response error:", err);
+      return nodeData.message || "Desculpe, ocorreu um erro ao processar sua mensagem.";
+    }
+  }
+
+  // IV – Send voice message via ElevenLabs + WhatsApp upload
+  private async sendVoiceMessage(text: string, nodeData: NodeData): Promise<void> {
+    try {
+      const { isElevenLabsConfigured } = await import("@/lib/elevenlabs");
+      const { sendWhatsVoiceFromText } = await import("@/lib/wa/client");
+
+      if (!isElevenLabsConfigured()) {
+        console.warn("ElevenLabs not configured – sending as text instead");
+        await this.sendMessage(text);
+        return;
+      }
+
+      const customer = await prisma.customer.findUnique({
+        where: { id: this.customerId },
+      });
+
+      if (customer) {
+        const voiceId = (nodeData as any).voiceId as string | undefined;
+        await sendWhatsVoiceFromText(customer.phoneE164, text, { voiceId });
+        console.log(`Voice message sent to ${customer.phoneE164}`);
+      }
+    } catch (err) {
+      console.error("Voice message error:", err);
+      // Fallback: send as text
+      await this.sendMessage(text);
+    }
+  }
+
   private async waitForInput(currentNodeId: string) {
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "WAITING_INPUT",
         currentNode: currentNodeId,
-        context: this.context,
+        context: this.context as any,
       },
     });
   }
@@ -275,9 +464,9 @@ export class ChatbotEngine {
         console.log(`Action ${action} not implemented`);
     }
 
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
-      data: { context: this.context },
+      data: { context: this.context as any },
     });
   }
 
@@ -301,13 +490,13 @@ export class ChatbotEngine {
       const result = await response.json();
       this.context.variables.apiResponse = result;
 
-      await chatbotDb.chatbotExecution.update({
+      await prisma.chatbotExecution.update({
         where: { id: this.executionId },
-        data: { context: this.context },
+        data: { context: this.context as any },
       });
     } catch (error) {
       console.error("API call failed:", error);
-      this.context.variables.apiError = error;
+      this.context.variables.apiError = String(error);
     }
   }
 
@@ -323,7 +512,7 @@ export class ChatbotEngine {
   }
 
   private async handoffToHuman() {
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "HANDOFF",
@@ -345,7 +534,7 @@ export class ChatbotEngine {
   }
 
   private async completeExecution() {
-    await chatbotDb.chatbotExecution.update({
+    await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
         status: "COMPLETED",
@@ -470,24 +659,20 @@ export class ChatbotEngine {
       }
     } catch (error) {
       console.error("Failed to update customer:", error);
-      this.context.variables.updateError = error;
+      this.context.variables.updateError = String(error);
     }
   }
 }
 
-// Helper function to match incoming messages with flows
+// Helper function to match incoming messages with active flows
 export async function matchFlowByMessage(
   companyId: string,
   message: string
 ): Promise<string | null> {
-  if (!chatbotDb.chatbotFlow) {
-    return null;
-  }
-
-  const flows = await chatbotDb.chatbotFlow.findMany({
+  const flows = await prisma.chatbotFlow.findMany({
     where: {
       companyId,
-      status: "ACTIVE",
+      OR: [{ status: "ACTIVE" }, { active: true }],
     },
     orderBy: { priority: "desc" },
   });
@@ -495,8 +680,9 @@ export async function matchFlowByMessage(
   const messageLower = message.toLowerCase();
 
   for (const flow of flows) {
-    for (const trigger of flow.triggers) {
-      if (messageLower.includes(trigger.toLowerCase())) {
+    const keywords = (flow.triggerKeywords as string[]) || [];
+    for (const keyword of keywords) {
+      if (keyword && messageLower.includes(keyword.toLowerCase())) {
         return flow.id;
       }
     }

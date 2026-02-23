@@ -2,8 +2,6 @@ import { prisma } from "@wacrm/db";
 import { ChatbotEngine } from "./engine";
 import crypto from "crypto";
 
-const chatbotDb = prisma as any;
-
 type TriggerConditions = {
   keywords?: string[];
   customerStatus?: string;
@@ -23,11 +21,11 @@ export class TriggerManager {
 
   // Check if message should trigger any chatbot flow
   async checkMessageTriggers(customerId: string, message: string, messageId: string) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return false;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -62,11 +60,11 @@ export class TriggerManager {
 
   // Check triggers when a new customer is created
   async checkNewCustomerTriggers(customerId: string) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -81,11 +79,11 @@ export class TriggerManager {
 
   // Check triggers when an order is created
   async checkOrderCreatedTriggers(customerId: string, orderId: string) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -100,11 +98,11 @@ export class TriggerManager {
 
   // Check triggers when payment is confirmed
   async checkOrderPaidTriggers(customerId: string, orderId: string) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -119,11 +117,11 @@ export class TriggerManager {
 
   // Check triggers for idle customers (call this from a cron job)
   async checkIdleCustomerTriggers() {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -165,11 +163,11 @@ export class TriggerManager {
       .padStart(2, "0")}`;
     const dayOfWeek = now.getDay();
 
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -204,11 +202,11 @@ export class TriggerManager {
 
   // Check funnel stage triggers
   async checkFunnelStageTriggers(customerId: string, stageId: string) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -226,11 +224,11 @@ export class TriggerManager {
 
   // Execute custom event trigger
   async triggerCustomEvent(eventName: string, customerId: string, metadata?: any) {
-    if (!chatbotDb.chatbotTrigger) {
+    if (!prisma.chatbotTrigger) {
       return;
     }
 
-    const triggers = await chatbotDb.chatbotTrigger.findMany({
+    const triggers = await prisma.chatbotTrigger.findMany({
       where: {
         companyId: this.companyId,
         enabled: true,
@@ -253,11 +251,11 @@ export class TriggerManager {
     metadata?: any
   ) {
     // Check if there's already an active execution for this customer
-    if (!chatbotDb.chatbotExecution) {
+    if (!prisma.chatbotExecution) {
       return;
     }
 
-    const activeExecution = await chatbotDb.chatbotExecution.findFirst({
+    const activeExecution = await prisma.chatbotExecution.findFirst({
       where: {
         customerId,
         status: { in: ["RUNNING", "WAITING_INPUT"] },
@@ -274,16 +272,17 @@ export class TriggerManager {
 
     try {
       await engine.start(flowId);
-
-      // Update analytics
       await this.updateAnalytics(flowId);
     } catch (error) {
       console.error("Failed to execute chatbot flow:", error);
-      
-      await chatbotDb.chatbotExecution.update({
-        where: { id: executionId },
-        data: { status: "FAILED", completedAt: new Date() },
-      });
+      try {
+        await prisma.chatbotExecution.update({
+          where: { id: executionId },
+          data: { status: "FAILED", completedAt: new Date() },
+        });
+      } catch {
+        // Execution might not have been created yet
+      }
     }
   }
 
@@ -308,11 +307,11 @@ export class TriggerManager {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (!chatbotDb.chatbotAnalytics) {
+    if (!prisma.chatbotAnalytics) {
       return;
     }
 
-    await chatbotDb.chatbotAnalytics.upsert({
+    await prisma.chatbotAnalytics.upsert({
       where: {
         companyId_flowId_date: {
           companyId: this.companyId,

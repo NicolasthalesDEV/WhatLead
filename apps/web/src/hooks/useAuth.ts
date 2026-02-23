@@ -39,7 +39,7 @@ export function useAuth() {
         credentials: "include",
       });
 
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 403) {
         // Não autenticado - apenas limpar estado, não redirecionar
         setState({
           user: null,
@@ -50,10 +50,20 @@ export function useAuth() {
       }
 
       if (!response.ok) {
-        throw new Error("Falha ao carregar perfil do usuário");
+        setState({
+          user: null,
+          loading: false,
+          error: "Falha ao carregar perfil do usuário",
+        });
+        return;
       }
 
       const data = await response.json();
+
+      if (!data.user) {
+        setState({ user: null, loading: false, error: null });
+        return;
+      }
       
       setState({
         user: data.user,
@@ -66,7 +76,8 @@ export function useAuth() {
         localStorage.setItem("user-data", JSON.stringify(data.user));
       }
     } catch (error: any) {
-      console.error("Error loading user:", error);
+      // Use warn to avoid triggering the Next.js dev overlay
+      console.warn("[useAuth] loadUser failed:", error?.message ?? error);
       setState({
         user: null,
         loading: false,

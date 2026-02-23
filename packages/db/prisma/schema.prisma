@@ -28,13 +28,16 @@ model Company {
   lastPaymentAt          DateTime?
   
   AuditLog               AuditLog[]
+  Appointment            Appointment[]
   ChatbotAnalytics       ChatbotAnalytics[]
   ChatbotFlow            ChatbotFlow[]
+  ChatbotSettings        ChatbotSettings?
   ChatbotTrigger         ChatbotTrigger[]
   Customer               Customer[]
   DailyMetric            DailyMetric[]
   FunnelCard             FunnelCard[]
   FunnelStage            FunnelStage[]
+  GoogleCalendarToken    GoogleCalendarToken?
   Notification           Notification[]
   Order                  Order[]
   Payment                Payment[]
@@ -56,6 +59,7 @@ model Customer {
   tags         String[]
   createdAt    DateTime       @default(now())
   Company      Company        @relation(fields: [companyId], references: [id])
+  Appointment  Appointment[]
   FunnelCard   FunnelCard[]
   Order        Order[]
   Quote        Quote[]
@@ -328,9 +332,11 @@ model ChatbotFlow {
   companyId         String
   name              String
   description       String?
-  triggerType       String
+  triggerType       String              @default("KEYWORD")
   triggerKeywords   String[]
-  active            Boolean             @default(true)
+  active            Boolean             @default(false)
+  status            String              @default("DRAFT")
+  priority          Int                 @default(0)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   Company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -339,15 +345,18 @@ model ChatbotFlow {
 
   @@index([companyId])
   @@index([active])
+  @@index([status])
 }
 
 model ChatbotNode {
   id          String   @id
   flowId      String
   type        String
-  name        String
-  config      Json
-  position    Json
+  name        String   @default("")
+  data        Json     @default("{}")
+  position    Json     @default("{\"x\":0,\"y\":0}")
+  connections Json     @default("[]")
+  order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   ChatbotFlow ChatbotFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
@@ -363,7 +372,8 @@ model ChatbotExecution {
   startedAt    DateTime    @default(now())
   completedAt  DateTime?
   currentNode  String?
-  variables    Json?
+  context      Json?       @default("{}")
+  variables    Json?       @default("{}")
   ChatbotFlow  ChatbotFlow @relation(fields: [flowId], references: [id])
 
   @@index([flowId])
@@ -419,6 +429,107 @@ model ChatbotAnalytics {
   @@unique([companyId, date])
   @@index([companyId])
   @@index([date])
+}
+
+model ChatbotSettings {
+  id                    String   @id
+  companyId             String   @unique
+  // Identity
+  botName               String   @default("Assistente")
+  botEmoji              String   @default("🤖")
+  language              String   @default("pt-BR")
+  // Tone
+  tone                  String   @default("friendly") // formal, informal, friendly, professional, fun
+  // Behavior
+  autoReplyEnabled      Boolean  @default(true)
+  typingDelay           Int      @default(1500)  // ms between messages
+  sessionTimeoutMinutes Int      @default(30)
+  maxMessagesPerSession Int      @default(50)
+  // Messages
+  welcomeMessage        String?  @default("Olá! Como posso ajudar você hoje? 😊")
+  farewellMessage       String?  @default("Obrigado pelo contato! Até logo! 👋")
+  unknownCommandMessage String?  @default("Desculpe, não entendi. Poderia reformular sua pergunta?")
+  offHoursEnabled       Boolean  @default(false)
+  offHoursMessage       String?  @default("Estamos fora do horário de atendimento. Retornaremos em breve!")
+  // Business hours used for off-hours
+  businessHoursStart    String   @default("08:00")
+  businessHoursEnd      String   @default("18:00")
+  businessDays          String[] @default(["MON","TUE","WED","THU","FRI"])
+  // Human handoff
+  handoffEnabled        Boolean  @default(true)
+  handoffKeyword        String   @default("humano")
+  handoffMessage        String?  @default("Transferindo para um atendente humano...")
+  // Agent personality & context
+  agentPersonality      String?                          // e.g. "Extrovertida, curiosa, usa humor leve"
+  agentContext          String?                          // Company/product context injected into system prompt
+  responseLength        String   @default("normal")     // brief | normal | detailed
+  // OpenAI AI mode
+  openAIEnabled         Boolean  @default(false)
+  openAIModel           String   @default("gpt-4o-mini")
+  openAISystemPrompt    String?                          // Full custom system prompt (overrides auto-built one)
+  openAITemperature     Float    @default(0.7)           // 0.0 = deterministic, 1.0 = very creative
+  openAIMaxTokens       Int      @default(512)           // Max tokens per GPT response
+  openAIContextMessages Int      @default(10)            // How many previous messages to send as history
+  // ElevenLabs TTS for voice replies
+  elevenLabsEnabled     Boolean  @default(false)
+  elevenLabsVoiceId     String?
+  elevenLabsModel       String   @default("eleven_multilingual_v2")
+  elevenLabsStability   Float    @default(0.5)           // 0–1: lower = more expressive
+  elevenLabsSimilarity  Float    @default(0.75)          // 0–1: voice similarity boost
+  elevenLabsStyle       Float    @default(0.0)           // 0–1: style exaggeration
+  // Per-company API keys (override global env vars)
+  openaiApiKey          String?                          // Encrypted at rest via DB
+  elevenLabsApiKey      String?
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  Company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+// XI – Agenda interna
+model Appointment {
+  id              String    @id
+  companyId       String
+  customerId      String?
+  userId          String?   // assigned staff member
+  title           String
+  description     String?
+  startAt         DateTime
+  endAt           DateTime
+  allDay          Boolean   @default(false)
+  status          String    @default("SCHEDULED") // SCHEDULED, CONFIRMED, CANCELLED, DONE
+  location        String?
+  notes           String?
+  // Google Calendar sync
+  googleEventId   String?
+  googleCalendarId String?
+  syncedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  Company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  Customer        Customer? @relation(fields: [customerId], references: [id])
+
+  @@index([companyId])
+  @@index([startAt])
+  @@index([customerId])
+}
+
+model GoogleCalendarToken {
+  id            String   @id
+  companyId     String   @unique
+  accessToken   String
+  refreshToken  String?
+  expiresAt     DateTime?
+  scope         String?
+  tokenType     String   @default("Bearer")
+  calendarId    String   @default("primary")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  Company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
 
 model WebhookDelivery {
