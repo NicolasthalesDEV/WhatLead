@@ -34,29 +34,40 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
-    console.log("WhatsApp Webhook:", JSON.stringify(payload, null, 2));
+    console.log("[WA Webhook] Received payload:", JSON.stringify(payload, null, 2));
 
-    const entry = payload.entry?.[0];
-    if (!entry) {
+    // Meta pode enviar múltiplos entries e múltiplos changes por payload
+    const entries = payload.entry || [];
+    if (entries.length === 0) {
+      console.log("[WA Webhook] No entries in payload — ignoring");
       return NextResponse.json({ received: true });
     }
 
-    const changes = entry.changes?.[0];
-    const value = changes?.value;
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        const value = change?.value;
+        if (!value) continue;
 
-    // Processar mensagens recebidas
-    if (value?.messages && value.messages.length > 0) {
-      await processIncomingMessages(value);
-    }
+        console.log("[WA Webhook] Processing change field:", change.field, "| phone_number_id:", value?.metadata?.phone_number_id);
 
-    // Processar status de mensagens enviadas
-    if (value?.statuses && value.statuses.length > 0) {
-      await processMessageStatuses(value);
+        // Processar mensagens recebidas
+        if (value?.messages && value.messages.length > 0) {
+          console.log(`[WA Webhook] ${value.messages.length} message(s) to process`);
+          await processIncomingMessages(value);
+        }
+
+        // Processar status de mensagens enviadas
+        if (value?.statuses && value.statuses.length > 0) {
+          console.log(`[WA Webhook] ${value.statuses.length} status update(s) to process`);
+          await processMessageStatuses(value);
+        }
+      }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Error processing WhatsApp webhook:", error);
+    console.error("[WA Webhook] Error processing webhook:", error);
     // Sempre retornar 200 para evitar reenvios do WhatsApp
     return NextResponse.json({ received: true });
   }
