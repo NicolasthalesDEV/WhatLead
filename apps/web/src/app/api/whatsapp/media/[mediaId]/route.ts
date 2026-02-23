@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { downloadMedia } from '@/lib/wa/client';
 import { prisma } from '@wacrm/db';
 
 /**
  * GET /api/whatsapp/media/[mediaId]
- * 
+ *
  * Baixa mídia do WhatsApp e retorna como stream
  * Requer autenticação para segurança
  */
@@ -26,7 +25,7 @@ export async function GET(
     const channel = await prisma.whatsChannel.findFirst({
       where: {
         companyId: user.companyId,
-        status: 'active',
+        status: 'ACTIVE',
       },
       select: {
         waAccessToken: true,
@@ -40,60 +39,42 @@ export async function GET(
       );
     }
 
-    // Temporariamente definir env vars para o canal
-    const originalToken = process.env.WA_ACCESS_TOKEN;
-    process.env.WA_ACCESS_TOKEN = channel.waAccessToken;
+    const version = process.env.WA_API_VERSION || 'v22.0';
+    const authHeader = { Authorization: `Bearer ${channel.waAccessToken}` };
 
-    try {
-      // Primeiro, buscar informações da mídia (URL e mime type)
-      const mediaInfoResponse = await fetch(
-        `https://graph.facebook.com/v22.0/${mediaId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${channel.waAccessToken}`,
-          },
-        }
-      );
+    // Buscar informações da mídia (URL e mime type)
+    const mediaInfoResponse = await fetch(
+      `https://graph.facebook.com/${version}/${mediaId}`,
+      { headers: authHeader }
+    );
 
-      if (!mediaInfoResponse.ok) {
-        throw new Error('Failed to get media info');
-      }
-
-      const mediaInfo = await mediaInfoResponse.json();
-      
-      // Baixar a mídia
-      const mediaBuffer = await downloadMedia(mediaInfo.url);
-
-      // Retornar stream de mídia
-      return new NextResponse(Buffer.from(mediaBuffer), {
-        headers: {
-          'Content-Type': mediaInfo.mime_type || 'application/octet-stream',
-          'Content-Length': mediaBuffer.byteLength.toString(),
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
-      });
-    } finally {
-      // Restaurar token original
-      if (originalToken) process.env.WA_ACCESS_TOKEN = originalToken;
+    if (!mediaInfoResponse.ok) {
+      const err = await mediaInfoResponse.json().catch(() => ({}));
+      console.error('Media info error:', err);
+      return NextResponse.json({ error: 'Erro ao obter informações da mídia' }, { status: 500 });
     }
+
+    const mediaInfo = await mediaInfoResponse.json();
+
+    // Baixar a mídia com o token autorizado
+    const mediaResponse = await fetch(mediaInfo.url, { headers: authHeader });
+
+    if (!mediaResponse.ok) {
+      return NextResponse.json({ error: 'Erro ao baixar mídia' }, { status: 500 });
+    }
+
+    const mediaBuffer = await mediaResponse.arrayBuffer();
+
+    return new NextResponse(Buffer.from(mediaBuffer), {
+      headers: {
+        'Content-Type': mediaInfo.mime_type || 'application/octet-stream',
+        'Content-Length': mediaBuffer.byteLength.toString(),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
 
   } catch (error) {
     console.error('Error downloading media:', error);
-
-    if (error instanceof Error && 'statusCode' in error) {
-      const waError = error as any;
-      return NextResponse.json(
-        { 
-          error: 'Erro ao baixar mídia do WhatsApp',
-          details: waError.message,
-        },
-        { status: waError.statusCode || 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Erro ao baixar mídia' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao baixar mídia' }, { status: 500 });
   }
 }

@@ -687,3 +687,132 @@ export async function getPhoneNumberProfile(): Promise<any> {
 
 // Exporta constantes para uso em outros módulos
 export { WA_API_VERSION };
+
+/**
+ * Cria um cliente WhatsApp com credenciais dinâmicas (multi-tenant).
+ * Não muta process.env — seguro para uso em serverless (Vercel).
+ */
+export function buildWhatsAppClient(phoneNumberId: string, accessToken: string) {
+  const version = process.env.WA_API_VERSION || 'v22.0';
+  const base = `https://graph.facebook.com/${version}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${accessToken}`,
+  };
+
+  async function callApi(payload: object): Promise<WhatsAppMessageResponse> {
+    const res = await fetch(`${base}/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = data as WhatsAppError;
+      throw new Error(`WhatsApp API Error ${err.error?.code}: ${err.error?.message}`);
+    }
+    return data as WhatsAppMessageResponse;
+  }
+
+  return {
+    sendText(to: string, body: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { preview_url: true, body: body.substring(0, 4096) },
+      });
+    },
+
+    sendImage(to: string, url: string, caption?: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'image',
+        image: { link: url, ...(caption && { caption }) },
+      });
+    },
+
+    sendDocument(to: string, url: string, filename?: string, caption?: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'document',
+        document: { link: url, ...(filename && { filename }), ...(caption && { caption }) },
+      });
+    },
+
+    sendVideo(to: string, url: string, caption?: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'video',
+        video: { link: url, ...(caption && { caption }) },
+      });
+    },
+
+    sendAudio(to: string, url: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'audio',
+        audio: { link: url },
+      });
+    },
+
+    sendSticker(to: string, url: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'sticker',
+        sticker: { link: url },
+      });
+    },
+
+    sendLocation(to: string, lat: number, lon: number, name?: string, address?: string) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'location',
+        location: { latitude: lat, longitude: lon, ...(name && { name }), ...(address && { address }) },
+      });
+    },
+
+    sendContacts(to: string, contacts: object[]) {
+      const phone = normalizePhoneNumber(to);
+      return callApi({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'contacts',
+        contacts,
+      });
+    },
+
+    markRead(waMessageId: string) {
+      return fetch(`${base}/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: waMessageId,
+        }),
+      }).then(r => r.json());
+    },
+  };
+}

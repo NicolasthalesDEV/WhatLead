@@ -2,16 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@wacrm/db';
 import { verifyAuth } from '@/lib/auth';
-import { 
-  sendWhatsText, 
-  sendWhatsImage, 
-  sendWhatsDocument, 
-  sendWhatsVideo,
-  sendWhatsAudio,
-  sendWhatsSticker,
-  sendWhatsLocation,
-  sendWhatsContact
-} from '@/lib/wa/client';
+import { buildWhatsAppClient } from '@/lib/wa/client';
 
 /**
  * POST /api/whatsapp/conversations/[customerId]/messages
@@ -121,7 +112,7 @@ export async function POST(
     const channel = await prisma.whatsChannel.findFirst({
       where: {
         companyId: user.companyId,
-        status: 'active',
+        status: 'ACTIVE',
       },
       select: {
         id: true,
@@ -132,7 +123,7 @@ export async function POST(
 
     if (!channel) {
       return NextResponse.json(
-        { error: 'Canal WhatsApp não configurado' },
+        { error: 'Canal WhatsApp não configurado. Adicione um canal em Configurações > WhatsApp.' },
         { status: 400 }
       );
     }
@@ -141,91 +132,39 @@ export async function POST(
     const body = await req.json();
     const data = sendMessageSchema.parse(body);
 
-    // Temporariamente definir env vars para o canal (para suportar multi-tenant)
-    const originalPhoneId = process.env.WA_PHONE_NUMBER_ID;
-    const originalToken = process.env.WA_ACCESS_TOKEN;
-    
-    process.env.WA_PHONE_NUMBER_ID = channel.phoneNumberId;
-    process.env.WA_ACCESS_TOKEN = channel.waAccessToken;
+    // Criar cliente com credenciais do canal (multi-tenant, sem mutar process.env)
+    const wa = buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
 
     // Enviar mensagem via WhatsApp API
     let whatsappResponse: any;
-    
-    try {
-      switch (data.type) {
-        case 'text':
-          whatsappResponse = await sendWhatsText(
-            customer.phoneE164,
-            data.text
-          );
-          break;
 
-        case 'image':
-          whatsappResponse = await sendWhatsImage(
-            customer.phoneE164,
-            data.mediaUrl,
-            data.caption
-          );
-          break;
-
-        case 'document':
-          whatsappResponse = await sendWhatsDocument(
-            customer.phoneE164,
-            data.mediaUrl,
-            data.fileName,
-            data.caption
-          );
-          break;
-
-        case 'video':
-          whatsappResponse = await sendWhatsVideo(
-            customer.phoneE164,
-            data.mediaUrl,
-            data.caption
-          );
-          break;
-
-        case 'audio':
-          whatsappResponse = await sendWhatsAudio(
-            customer.phoneE164,
-            data.mediaUrl
-          );
-          break;
-
-        case 'sticker':
-          whatsappResponse = await sendWhatsSticker(
-            customer.phoneE164,
-            data.mediaUrl
-          );
-          break;
-
-        case 'location':
-          whatsappResponse = await sendWhatsLocation(
-            customer.phoneE164,
-            data.latitude,
-            data.longitude,
-            data.name,
-            data.address
-          );
-          break;
-
-        case 'contact':
-          whatsappResponse = await sendWhatsContact(
-            customer.phoneE164,
-            data.contacts
-          );
-          break;
-
-        default:
-          return NextResponse.json(
-            { error: 'Tipo de mensagem não suportado' },
-            { status: 400 }
-          );
-      }
-    } finally {
-      // Restaurar env vars originais
-      if (originalPhoneId) process.env.WA_PHONE_NUMBER_ID = originalPhoneId;
-      if (originalToken) process.env.WA_ACCESS_TOKEN = originalToken;
+    switch (data.type) {
+      case 'text':
+        whatsappResponse = await wa.sendText(customer.phoneE164, data.text);
+        break;
+      case 'image':
+        whatsappResponse = await wa.sendImage(customer.phoneE164, data.mediaUrl, data.caption);
+        break;
+      case 'document':
+        whatsappResponse = await wa.sendDocument(customer.phoneE164, data.mediaUrl, data.fileName, data.caption);
+        break;
+      case 'video':
+        whatsappResponse = await wa.sendVideo(customer.phoneE164, data.mediaUrl, data.caption);
+        break;
+      case 'audio':
+        whatsappResponse = await wa.sendAudio(customer.phoneE164, data.mediaUrl);
+        break;
+      case 'sticker':
+        whatsappResponse = await wa.sendSticker(customer.phoneE164, data.mediaUrl);
+        break;
+      case 'location':
+        whatsappResponse = await wa.sendLocation(customer.phoneE164, data.latitude, data.longitude, data.name, data.address);
+        break;
+      case 'contact':
+        whatsappResponse = await wa.sendContacts(customer.phoneE164, data.contacts);
+        break;
+      default:
+        return NextResponse.json({ error: 'Tipo de mensagem não suportado' }, { status: 400 });
     }
 
     // Extrair messageId da resposta
