@@ -8,7 +8,7 @@
   "dependencies": {
     "@wacrm/db": "workspace:*",
     "bullmq": "^5.7.10",
-    "ioredis": "^5.4.1",
+    "ioredis": "^5.9.3",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
