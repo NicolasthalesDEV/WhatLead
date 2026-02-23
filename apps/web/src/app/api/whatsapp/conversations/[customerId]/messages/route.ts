@@ -271,7 +271,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { error: 'Erro ao enviar mensagem' },
+      { error: error instanceof Error ? error.message : 'Erro ao enviar mensagem' },
       { status: 500 }
     );
   }

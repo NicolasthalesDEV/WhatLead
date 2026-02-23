@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         email: true,
         role: true,
         createdAt: true,
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
         twoFactorEnabled: false,
         lastLoginAt: null,
         createdAt: profile.createdAt,
-        company: profile.company,
+        company: profile.Company,
       },
     });
   } catch (error) {
@@ -114,7 +114,7 @@ export async function PATCH(req: NextRequest) {
         email: true,
         role: true,
         createdAt: true,
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -136,7 +136,7 @@ export async function PATCH(req: NextRequest) {
         twoFactorEnabled: false,
         lastLoginAt: null,
         createdAt: updatedUser.createdAt,
-        company: updatedUser.company,
+        company: updatedUser.Company,
       },
     });
   } catch (error: any) {

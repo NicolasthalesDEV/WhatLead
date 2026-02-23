@@ -85,19 +85,22 @@ function validateCredentials() {
  * @returns Número no formato E.164 sem o +
  */
 export function normalizePhoneNumber(phone: string): string {
-  // Remove todos os caracteres não numéricos
-  let cleaned = phone.replace(/\D/g, '');
-  
-  // Se começar com 55 (Brasil), garante que tenha 13 dígitos (55 + DDD + número)
-  if (cleaned.startsWith('55') && cleaned.length >= 12) {
-    return cleaned;
+  // Remove tudo exceto dígitos e o + inicial
+  let cleaned = phone.replace(/[^\d+]/g, '');
+
+  // Garante o + no início (Meta recomenda incluir + e código do país)
+  if (!cleaned.startsWith('+')) {
+    // Se começar com 55 (Brasil) e tiver 12-13 dígitos, adiciona +
+    if (cleaned.startsWith('55') && cleaned.length >= 12) {
+      cleaned = '+' + cleaned;
+    } else if (cleaned.length === 11 || cleaned.length === 10) {
+      // Sem código do país — assume Brasil
+      cleaned = '+55' + cleaned;
+    } else {
+      cleaned = '+' + cleaned;
+    }
   }
-  
-  // Se não tiver código do país, adiciona 55 (Brasil)
-  if (cleaned.length === 11 || cleaned.length === 10) {
-    return '55' + cleaned;
-  }
-  
+
   return cleaned;
 }
 
