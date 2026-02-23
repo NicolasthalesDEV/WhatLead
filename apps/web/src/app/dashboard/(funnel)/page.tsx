@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -198,30 +200,30 @@ export default function Dashboard() {
 
       {stats.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="transition-all duration-300 hover:shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-                {stat.value}
-              </div>
-              <p className={`text-xs text-muted-foreground transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-                {stat.description}
-              </p>
-              <div className="flex items-center mt-2">
-                <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-                <span className={`text-xs text-green-500 transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-                  {stat.trend}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+          {stats.map((stat) => (
+            <Card key={stat.title} className="transition-all duration-300 hover:shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+                  {stat.value}
+                </div>
+                <p className={`text-xs text-muted-foreground transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+                  {stat.description}
+                </p>
+                <div className="flex items-center mt-2">
+                  <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                  <span className={`text-xs text-green-500 transition-all duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+                    {stat.trend}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 

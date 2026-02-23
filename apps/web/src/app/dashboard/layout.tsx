@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { useState } from "react";
