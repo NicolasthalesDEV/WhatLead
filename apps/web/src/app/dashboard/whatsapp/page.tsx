@@ -604,22 +604,36 @@ export default function WhatsAppPage() {
 
     setStartingConversation(true);
     try {
+      // Normalize phone: add + prefix if missing
+      const normalizedPhone = phone.startsWith('+') ? phone : `+${phone.replace(/\D/g, '')}`;
+
       // Check if customer exists or create new one
       const response = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: phone, // Will be updated when they respond
-          phone: phone,
+          name: normalizedPhone,
+          phoneE164: normalizedPhone,
         }),
       });
 
-      if (!response.ok) {
+      let customerId: string | undefined;
+
+      if (response.status === 409) {
+        // Customer already exists — find them by phone
+        const searchRes = await fetch(
+          `/api/customers?search=${encodeURIComponent(normalizedPhone)}&limit=1`,
+          { credentials: 'include' }
+        );
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          customerId = searchData.customers?.[0]?.id;
+        }
+      } else if (!response.ok) {
         let errorMsg = 'Erro ao criar cliente';
         try {
           const errorData = await response.json();
-          // Extrair mensagem de erro de forma segura
           if (typeof errorData.error === 'string') {
             errorMsg = errorData.error;
           } else if (typeof errorData.message === 'string') {
@@ -627,14 +641,12 @@ export default function WhatsAppPage() {
           } else if (errorData.error?.message) {
             errorMsg = errorData.error.message;
           }
-        } catch (e) {
-          // Se não conseguir parsear o JSON, usa a mensagem padrão
-        }
+        } catch (e) { /* ignore */ }
         throw new Error(errorMsg);
+      } else {
+        const data = await response.json();
+        customerId = data.customer?.id;
       }
-
-      const data = await response.json();
-      const customerId = data.customer?.id;
 
       if (!customerId) {
         throw new Error('ID do cliente não foi retornado pela API');

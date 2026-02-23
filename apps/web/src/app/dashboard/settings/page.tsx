@@ -233,6 +233,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ name: fullName, email: profile.email }),
       });
       if (!res.ok) {
@@ -429,13 +430,13 @@ export default function SettingsPage() {
                   {/* Dias restantes */}
                   {billing?.expiresIn && (
                     <div className={`flex items-center gap-3 p-4 rounded-xl border ${(billing.daysRemaining ?? 999) <= 7
-                        ? "bg-red-50 border-red-200"
-                        : (billing.daysRemaining ?? 999) <= 30
-                          ? "bg-yellow-50 border-yellow-200"
-                          : "bg-blue-50 border-blue-200"
+                      ? "bg-red-50 border-red-200"
+                      : (billing.daysRemaining ?? 999) <= 30
+                        ? "bg-yellow-50 border-yellow-200"
+                        : "bg-blue-50 border-blue-200"
                       }`}>
                       <Calendar className={`h-5 w-5 flex-shrink-0 ${(billing.daysRemaining ?? 999) <= 7 ? "text-red-500" :
-                          (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
+                        (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
                         }`} />
                       <div>
                         <p className="font-medium text-gray-800">{billing.expiresIn}</p>
