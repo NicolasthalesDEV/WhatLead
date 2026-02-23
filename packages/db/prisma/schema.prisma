@@ -11,7 +11,7 @@ datasource db {
 }
 
 model Company {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   name                   String
   slug                   String                   @unique
   createdAt              DateTime                 @default(now())
@@ -51,7 +51,7 @@ model Company {
 }
 
 model Customer {
-  id           String         @id
+  id           String         @id @default(uuid())
   companyId    String
   name         String
   phoneE164    String         @unique
@@ -67,7 +67,7 @@ model Customer {
 }
 
 model FunnelStage {
-  id         String       @id
+  id         String       @id @default(uuid())
   companyId  String
   name       String
   order      Int
@@ -78,7 +78,7 @@ model FunnelStage {
 }
 
 model FunnelCard {
-  id           String      @id
+  id           String      @id @default(uuid())
   companyId    String
   stageId      String
   customerId   String
@@ -102,7 +102,7 @@ model FunnelCard {
 }
 
 model DailyMetric {
-  id                 String   @id
+  id                 String   @id @default(uuid())
   companyId          String
   date               DateTime
   totalOrders        Int      @default(0)
@@ -126,7 +126,7 @@ model DailyMetric {
 }
 
 model NPSResponse {
-  id         String   @id
+  id         String   @id @default(uuid())
   surveyId   String
   customerId String
   score      Int
@@ -135,7 +135,7 @@ model NPSResponse {
 }
 
 model NPSSurvey {
-  id        String   @id
+  id        String   @id @default(uuid())
   companyId String
   name      String
   active    Boolean  @default(true)
@@ -143,7 +143,7 @@ model NPSSurvey {
 }
 
 model Order {
-  id         String      @id
+  id         String      @id @default(uuid())
   companyId  String
   customerId String
   quoteId    String?
@@ -158,7 +158,7 @@ model Order {
 }
 
 model OrderItem {
-  id         String  @id
+  id         String  @id @default(uuid())
   orderId    String
   productId  String
   qty        Int
@@ -168,7 +168,7 @@ model OrderItem {
 }
 
 model Payment {
-  id        String        @id
+  id        String        @id @default(uuid())
   companyId String
   orderId   String
   provider  String
@@ -182,7 +182,7 @@ model Payment {
 }
 
 model Price {
-  id          String   @id
+  id          String   @id @default(uuid())
   productId   String
   currency    String   @default("BRL")
   amount      Int
@@ -193,7 +193,7 @@ model Price {
 }
 
 model Product {
-  id          String      @id
+  id          String      @id @default(uuid())
   companyId   String
   title       String
   slug        String
@@ -208,7 +208,7 @@ model Product {
 }
 
 model Quote {
-  id         String      @id
+  id         String      @id @default(uuid())
   companyId  String
   customerId String
   status     QuoteStatus @default(DRAFT)
@@ -222,7 +222,7 @@ model Quote {
 }
 
 model QuoteItem {
-  id         String  @id
+  id         String  @id @default(uuid())
   quoteId    String
   productId  String
   qty        Int
@@ -232,7 +232,7 @@ model QuoteItem {
 }
 
 model Ticket {
-  id         String   @id
+  id         String   @id @default(uuid())
   companyId  String
   customerId String
   title      String
@@ -243,7 +243,7 @@ model Ticket {
 }
 
 model User {
-  id                     String                   @id
+  id                     String                   @id @default(uuid())
   companyId              String
   email                  String                   @unique
   hash                   String
@@ -259,7 +259,7 @@ model User {
 }
 
 model Session {
-  id           String   @id
+  id           String   @id @default(uuid())
   userId       String
   refreshToken String   @unique
   accessToken  String?
@@ -275,7 +275,7 @@ model Session {
 }
 
 model AuditLog {
-  id         String   @id
+  id         String   @id @default(uuid())
   userId     String?
   companyId  String
   action     String
@@ -295,7 +295,7 @@ model AuditLog {
 }
 
 model Notification {
-  id        String   @id
+  id        String   @id @default(uuid())
   userId    String
   companyId String
   type      String
@@ -314,7 +314,7 @@ model Notification {
 }
 
 model NotificationPreference {
-  id                 String   @id
+  id                 String   @id @default(uuid())
   userId             String   @unique
   emailEnabled       Boolean  @default(true)
   pushEnabled        Boolean  @default(true)
@@ -328,7 +328,7 @@ model NotificationPreference {
 }
 
 model ChatbotFlow {
-  id                String              @id
+  id                String              @id @default(uuid())
   companyId         String
   name              String
   description       String?
@@ -349,7 +349,7 @@ model ChatbotFlow {
 }
 
 model ChatbotNode {
-  id          String   @id
+  id          String   @id @default(uuid())
   flowId      String
   type        String
   name        String   @default("")
@@ -365,7 +365,7 @@ model ChatbotNode {
 }
 
 model ChatbotExecution {
-  id           String      @id
+  id           String      @id @default(uuid())
   flowId       String
   customerId   String
   status       String
@@ -382,7 +382,7 @@ model ChatbotExecution {
 }
 
 model ChatbotTrigger {
-  id          String   @id
+  id          String   @id @default(uuid())
   companyId   String
   flowId      String
   name        String
@@ -401,7 +401,7 @@ model ChatbotTrigger {
 }
 
 model QuickResponse {
-  id        String   @id
+  id        String   @id @default(uuid())
   companyId String
   shortcut  String
   message   String
@@ -414,7 +414,7 @@ model QuickResponse {
 }
 
 model ChatbotAnalytics {
-  id               String   @id
+  id               String   @id @default(uuid())
   companyId        String
   date             DateTime
   flowsExecuted    Int      @default(0)
@@ -432,7 +432,7 @@ model ChatbotAnalytics {
 }
 
 model ChatbotSettings {
-  id                    String   @id
+  id                    String   @id @default(uuid())
   companyId             String   @unique
   // Identity
   botName               String   @default("Assistente")
@@ -490,7 +490,7 @@ model ChatbotSettings {
 
 // XI – Agenda interna
 model Appointment {
-  id              String    @id
+  id              String    @id @default(uuid())
   companyId       String
   customerId      String?
   userId          String?   // assigned staff member
@@ -517,7 +517,7 @@ model Appointment {
 }
 
 model GoogleCalendarToken {
-  id            String   @id
+  id            String   @id @default(uuid())
   companyId     String   @unique
   accessToken   String
   refreshToken  String?
@@ -533,7 +533,7 @@ model GoogleCalendarToken {
 }
 
 model WebhookDelivery {
-  id         String   @id
+  id         String   @id @default(uuid())
   endpointId String
   eventType  String
   payload    Json
@@ -543,7 +543,7 @@ model WebhookDelivery {
 }
 
 model WebhookEndpoint {
-  id        String   @id
+  id        String   @id @default(uuid())
   companyId String
   url       String
   secret    String
@@ -554,7 +554,7 @@ model WebhookEndpoint {
 }
 
 model WhatsChannel {
-  id            String         @id
+  id            String         @id @default(uuid())
   companyId     String
   phoneNumberId String         @unique
   waAccessToken String
@@ -567,7 +567,7 @@ model WhatsChannel {
 }
 
 model WhatsMessage {
-  id           String           @id
+  id           String           @id @default(uuid())
   companyId    String
   customerId   String
   channelId    String

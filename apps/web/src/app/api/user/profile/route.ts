@@ -139,8 +139,11 @@ export async function PATCH(req: NextRequest) {
         company: updatedUser.company,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating profile:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

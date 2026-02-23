@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@wacrm/db';
 import { verifyAuth } from '@/lib/auth';
 import { buildWhatsAppClient } from '@/lib/wa/client';
+import crypto from 'crypto';
 
 /**
  * POST /api/whatsapp/conversations/[customerId]/messages
@@ -197,6 +198,7 @@ export async function POST(
     // Salvar mensagem no banco
     const message = await prisma.whatsMessage.create({
       data: {
+        id: crypto.randomUUID(),
         companyId: user.companyId,
         customerId: customer.id,
         channelId: channel.id,
