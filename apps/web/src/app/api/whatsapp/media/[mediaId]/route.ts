@@ -39,7 +39,7 @@ export async function GET(
       );
     }
 
-    const version = process.env.WA_API_VERSION || 'v22.0';
+    const version = process.env.WA_API_VERSION || 'v25.0';
     const authHeader = { Authorization: `Bearer ${channel.waAccessToken}` };
 
     // Buscar informações da mídia (URL e mime type)

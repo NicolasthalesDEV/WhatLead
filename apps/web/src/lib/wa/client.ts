@@ -8,10 +8,10 @@
  * - WA_ACCESS_TOKEN: Token de acesso permanente da API
  * - process.env.WA_BUSINESS_ACCOUNT_ID: ID da conta do WhatsApp Business (opcional)
  * - WA_VERIFY_TOKEN: Token para validação de webhook
- * - WA_API_VERSION: Versão da API (padrão: v22.0)
+ * - WA_API_VERSION: Versão da API (padrão: v25.0)
  */
 
-const WA_API_VERSION = process.env.WA_API_VERSION || 'v22.0';
+const WA_API_VERSION = process.env.WA_API_VERSION || 'v25.0';
 
 
 
@@ -704,7 +704,7 @@ export { WA_API_VERSION };
  * Não muta process.env — seguro para uso em serverless (Vercel).
  */
 export function buildWhatsAppClient(phoneNumberId: string, accessToken: string) {
-  const version = process.env.WA_API_VERSION || 'v22.0';
+  const version = process.env.WA_API_VERSION || 'v25.0';
   const base = `https://graph.facebook.com/${version}`;
   const headers = {
     'Content-Type': 'application/json',

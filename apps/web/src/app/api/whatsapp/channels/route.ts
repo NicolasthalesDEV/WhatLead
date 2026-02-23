@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     // Testar as credenciais antes de salvar
     try {
       const testResponse = await fetch(
-        `https://graph.facebook.com/v22.0/${validatedData.phoneNumberId}`,
+        `https://graph.facebook.com/${process.env.WA_API_VERSION || 'v25.0'}/${validatedData.phoneNumberId}`,
         {
           method: "GET",
           headers: {
@@ -196,7 +196,7 @@ export async function PATCH(req: NextRequest) {
 
       try {
         const testResponse = await fetch(
-          `https://graph.facebook.com/v22.0/${phoneId}`,
+          `https://graph.facebook.com/${process.env.WA_API_VERSION || 'v25.0'}/${phoneId}`,
           {
             method: "GET",
             headers: {
