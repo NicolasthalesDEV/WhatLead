@@ -143,8 +143,9 @@ export default function WhatsAppPage() {
   };
 
   // Fetch conversation messages
-  const fetchMessages = async (customerId: string) => {
-    setLoading(true);
+  // silent=true: usado no polling — não mostra spinner nem alerta, evita flicker
+  const fetchMessages = async (customerId: string, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const response = await fetch(`/api/whatsapp/conversations/${customerId}`, { credentials: 'include' });
       if (!response.ok) {
@@ -159,14 +160,16 @@ export default function WhatsAppPage() {
       // Refresh conversations list to update unread count
       fetchConversations();
     } catch (error) {
-      // Show error so user knows what's happening instead of silent empty screen
       const msg = error instanceof Error ? error.message : 'Erro ao carregar mensagens';
       console.error('fetchMessages error:', msg);
-      alert(`Erro ao carregar mensagens: ${msg}`);
-      setMessages([]);
-      setCustomer(null);
+      // Só mostra alerta no carregamento inicial, não no polling silencioso
+      if (!silent) {
+        alert(`Erro ao carregar mensagens: ${msg}`);
+        setMessages([]);
+        setCustomer(null);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -331,12 +334,13 @@ export default function WhatsAppPage() {
   // Load messages when conversation is selected
   useEffect(() => {
     if (selectedCustomerId) {
+      // Carregamento inicial — mostra spinner
       fetchMessages(selectedCustomerId);
 
-      // Poll for new messages in active conversation
+      // Poll silencioso a cada 4s — sem spinner, sem flicker
       const interval = setInterval(() => {
-        fetchMessages(selectedCustomerId);
-      }, 3000);
+        fetchMessages(selectedCustomerId, true);
+      }, 4000);
 
       return () => clearInterval(interval);
     }
