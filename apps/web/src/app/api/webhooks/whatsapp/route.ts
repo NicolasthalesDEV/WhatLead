@@ -247,6 +247,11 @@ async function processIncomingMessages(value: any) {
             timestamp,
             ...(mediaType && { mediaType }),
             ...(mediaUrl && { mediaUrl }),
+            // Store media objects at top level so conversations API can build proxy URLs
+            ...(message.audio    && { audio:    message.audio }),
+            ...(message.image    && { image:    message.image }),
+            ...(message.video    && { video:    message.video }),
+            ...(message.document && { document: message.document }),
             payload: message,
           },
         },

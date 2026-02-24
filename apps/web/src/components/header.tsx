@@ -194,7 +194,7 @@ export function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="relative z-50 w-full bg-background">
       {/* ── Barra de busca expandida (mobile) ─────────────── */}
       {mobileSearchOpen && (
         <div className="flex items-center gap-2 px-3 py-2 lg:hidden">
@@ -227,7 +227,7 @@ export function Header() {
       )}
 
       {/* ── Linha principal ─────────────────────────────────── */}
-      <div className={`flex h-14 items-center pl-10 pr-4 ${mobileSearchOpen ? 'hidden lg:flex' : 'flex'}`}>
+      <div className={`flex h-14 items-center px-2 sm:px-3 ${mobileSearchOpen ? 'hidden lg:flex' : 'flex'}`}>
         {/* Busca — desktop */}
         <div className="mr-6 hidden lg:flex">
           <div className="relative" ref={searchRef}>

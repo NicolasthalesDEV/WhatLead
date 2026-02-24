@@ -78,6 +78,110 @@ interface QuickResponse {
   content: string;
 }
 
+function WAAudioPlayer({ src, isOutgoing }: { src: string; isOutgoing: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [bars] = useState<number[]>(() => {
+    // Deterministic pseudo-random bars seeded by src length
+    const seed = src.length;
+    return Array.from({ length: 30 }, (_, i) => {
+      const x = Math.sin(seed * 9301 + i * 49297 + 233995) * 0.5 + 0.5;
+      return 0.15 + x * 0.7;
+    });
+  });
+
+  useEffect(() => {
+    const audio = new Audio(src);
+    audioRef.current = audio;
+    audio.onloadedmetadata = () => setDuration(audio.duration);
+    audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
+    audio.onended = () => { setPlaying(false); setCurrentTime(0); };
+    return () => { audio.pause(); audio.src = ""; };
+  }, [src]);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) { audio.pause(); setPlaying(false); }
+    else { audio.play().catch(() => null); setPlaying(true); }
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio || duration === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = ratio * duration;
+  };
+
+  const progress = duration > 0 ? currentTime / duration : 0;
+  const playedBars = Math.round(progress * bars.length);
+  const fmt = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  const barActive = isOutgoing ? "#ffffff" : "#25d366";
+  const barInactive = isOutgoing ? "rgba(255,255,255,0.4)" : "rgba(37,211,102,0.3)";
+
+  return (
+    <div className="flex items-center gap-2 px-2 py-1" style={{ minWidth: 220, maxWidth: 280 }}>
+      {/* Play / Pause button */}
+      <button
+        onClick={toggle}
+        className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+        style={{ background: isOutgoing ? "rgba(255,255,255,0.25)" : "#25d366" }}
+        aria-label={playing ? "Pausar áudio" : "Reproduzir áudio"}
+      >
+        {playing ? (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill={isOutgoing ? "#fff" : "#fff"}>
+            <rect x="2" y="1" width="3.5" height="12" rx="1" />
+            <rect x="8.5" y="1" width="3.5" height="12" rx="1" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 14 14" fill={isOutgoing ? "#fff" : "#fff"}>
+            <path d="M3 1.5 L12 7 L3 12.5 Z" />
+          </svg>
+        )}
+      </button>
+
+      {/* Waveform bars */}
+      <div
+        className="flex-1 flex items-center gap-[2px] cursor-pointer"
+        style={{ height: 32 }}
+        onClick={seek}
+        role="slider"
+        aria-valuenow={Math.round(progress * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        {bars.map((h, i) => (
+          <div
+            key={i}
+            className="flex-1 rounded-full transition-colors duration-150"
+            style={{
+              height: `${h * 100}%`,
+              background: i < playedBars ? barActive : barInactive,
+              minWidth: 2,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Time */}
+      <span
+        className="flex-shrink-0 text-[11px] tabular-nums"
+        style={{ color: isOutgoing ? "rgba(255,255,255,0.8)" : "#555", minWidth: 28 }}
+      >
+        {duration > 0 ? fmt(playing ? currentTime : duration) : "0:00"}
+      </span>
+    </div>
+  );
+}
+
 export default function WhatsAppPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -275,6 +379,7 @@ export default function WhatsAppPage() {
       const messagePayload: any = {
         type: messageType,
         ...mediaPayloadRef,
+        mimeType: file.type,  // stored in DB so conversations API can render without re-fetching
       };
 
       // Add caption for image/video/document
@@ -304,8 +409,21 @@ export default function WhatsAppPage() {
 
       const data = await response.json();
 
+      // If API returned no media (e.g. mediaId path), build a local preview so the
+      // message is immediately visible without waiting for the next poll.
+      const optimisticMessage = data.message.media
+        ? data.message
+        : {
+          ...data.message,
+          media: {
+            url: URL.createObjectURL(file),
+            mimeType: file.type,
+            fileName: file.name,
+          },
+        };
+
       // Add message to list
-      setMessages((prev) => [...prev, data.message]);
+      setMessages((prev) => [...prev, optimisticMessage]);
 
       // Refresh conversations to update last message
       fetchConversations();
@@ -325,6 +443,8 @@ export default function WhatsAppPage() {
     if (file) {
       sendMediaMessage(file);
     }
+    // Reset so the same file can be re-selected
+    e.target.value = '';
   };
 
   // Load conversations on mount
@@ -869,6 +989,13 @@ export default function WhatsAppPage() {
                     )}
                   </div>
                 )}
+                <a
+                  href={`tel:${customer.phoneE164}`}
+                  title={`Ligar para ${customer.phoneE164}`}
+                  className="inline-flex items-center justify-center h-8 w-8 rounded-md text-gray-500 hover:bg-gray-200 transition-colors"
+                >
+                  <Phone className="h-4 w-4" />
+                </a>
                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-500">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
@@ -930,7 +1057,10 @@ export default function WhatsAppPage() {
                                     className="max-w-full max-h-48 rounded-lg"
                                   />
                                 ) : message.media.mimeType?.startsWith('audio/') ? (
-                                  <audio src={message.media.url} controls className="w-full max-w-xs" />
+                                  <WAAudioPlayer
+                                    src={message.media.url}
+                                    isOutgoing={message.direction === 'OUT'}
+                                  />
                                 ) : (
                                   <a
                                     href={message.media.url}

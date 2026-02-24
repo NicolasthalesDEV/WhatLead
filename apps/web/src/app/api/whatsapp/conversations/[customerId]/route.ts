@@ -137,23 +137,32 @@ export async function GET(
 
       if (msg.raw && typeof msg.raw === 'object') {
         const raw = msg.raw as any;
-        
-        // Para mensagens recebidas
-        if (raw.image?.id || raw.video?.id || raw.document?.id || raw.audio?.id) {
-          const mediaType = raw.image ? 'image' : raw.video ? 'video' : raw.document ? 'document' : 'audio';
-          const media = raw[mediaType];
-          
-          // URL será construída pelo frontend usando a API de download
-          mediaUrl = `/api/whatsapp/media/${media.id}`;
-          mimeType = media.mime_type;
-          fileName = media.filename || null;
+
+        // Para mensagens recebidas — resolver o media ID para o proxy route
+        // Tenta: top-level (novo formato) → payload (formato antigo)
+        const mediaTypes = ['image', 'video', 'document', 'audio'] as const;
+        for (const mt of mediaTypes) {
+          const mediaObj = raw[mt] ?? raw.payload?.[mt];
+          if (mediaObj?.id) {
+            mediaUrl = `/api/whatsapp/media/${mediaObj.id}`;
+            mimeType = mediaObj.mime_type ?? null;
+            fileName = mediaObj.filename ?? null;
+            break;
+          }
         }
-        
-        // Para mensagens enviadas (pode já ter URL)
-        if (raw.mediaUrl) {
+
+        // Para mensagens enviadas (OUT) sem media ID — pode já ter URL direta
+        if (!mediaUrl && raw.mediaUrl && msg.direction === 'OUT') {
           mediaUrl = raw.mediaUrl;
-          mimeType = raw.mimeType || null;
-          fileName = raw.fileName || null;
+          mimeType = raw.mimeType ?? null;
+          fileName = raw.fileName ?? null;
+        }
+
+        // Fallback: mensagens enviadas com raw.mediaId (string) em vez de objeto aninhado
+        if (!mediaUrl && raw.mediaId) {
+          mediaUrl = `/api/whatsapp/media/${raw.mediaId}`;
+          mimeType = raw.mimeType ?? null;
+          fileName = raw.fileName ?? null;
         }
       }
 

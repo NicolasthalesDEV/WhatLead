@@ -223,12 +223,11 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+        <div className="flex items-center gap-3">
           <Link href="/dashboard/customers">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div>
@@ -236,16 +235,16 @@ export default function CustomerDetailsPage() {
             <p className="text-muted-foreground">Detalhes do cliente</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link href={`/dashboard/customers/${customer.id}/edit`}>
-            <Button>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
+            <Button size="sm">
+              <Edit className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar</span>
             </Button>
           </Link>
-          <Button variant="destructive" onClick={deleteCustomer}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Deletar
+          <Button size="sm" variant="destructive" onClick={deleteCustomer}>
+            <Trash2 className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Deletar</span>
           </Button>
         </div>
       </div>

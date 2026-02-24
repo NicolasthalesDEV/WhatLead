@@ -29,12 +29,14 @@ const sendMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('image'),
     mediaUrl: z.string().optional(),  // URL pública (fallback)
     mediaId: z.string().optional(),   // Meta media ID (preferido)
+    mimeType: z.string().optional(),  // MIME type do arquivo
     caption: z.string().max(1024).optional(),
   }),
   z.object({
     type: z.literal('document'),
     mediaUrl: z.string().optional(),
     mediaId: z.string().optional(),
+    mimeType: z.string().optional(),
     fileName: z.string().optional(),
     caption: z.string().max(1024).optional(),
   }),
@@ -42,17 +44,20 @@ const sendMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('video'),
     mediaUrl: z.string().optional(),
     mediaId: z.string().optional(),
+    mimeType: z.string().optional(),
     caption: z.string().max(1024).optional(),
   }),
   z.object({
     type: z.literal('audio'),
     mediaUrl: z.string().optional(),
     mediaId: z.string().optional(),
+    mimeType: z.string().optional(),
   }),
   z.object({
     type: z.literal('sticker'),
     mediaUrl: z.string().optional(),
     mediaId: z.string().optional(),
+    mimeType: z.string().optional(),
   }),
   z.object({
     type: z.literal('location'),
@@ -200,15 +205,16 @@ export async function POST(
       messageBody = data.text;
     } else if (data.type === 'image' || data.type === 'video' || data.type === 'document') {
       messageBody = (data as any).caption || null;
-      const mediaRef = (data as any).mediaId ?? (data as any).mediaUrl;
       if ((data as any).mediaId) rawData.mediaId = (data as any).mediaId;
       else if ((data as any).mediaUrl) rawData.mediaUrl = (data as any).mediaUrl;
+      if ((data as any).mimeType) rawData.mimeType = (data as any).mimeType;
       if (data.type === 'document' && (data as any).fileName) {
         rawData.fileName = (data as any).fileName;
       }
     } else if (data.type === 'audio' || data.type === 'sticker') {
       if ((data as any).mediaId) rawData.mediaId = (data as any).mediaId;
       else if ((data as any).mediaUrl) rawData.mediaUrl = (data as any).mediaUrl;
+      if ((data as any).mimeType) rawData.mimeType = (data as any).mimeType;
     } else if (data.type === 'location') {
       messageBody = data.name || null;
       rawData.latitude = data.latitude;
@@ -250,7 +256,12 @@ export async function POST(
 
     if (message.raw && typeof message.raw === 'object') {
       const raw = message.raw as any;
-      mediaUrl = raw.mediaUrl || null;
+      // Prefer proxy URL via stored mediaId (never expires)
+      if (raw.mediaId) {
+        mediaUrl = `/api/whatsapp/media/${raw.mediaId}`;
+      } else {
+        mediaUrl = raw.mediaUrl || null;
+      }
       mimeType = raw.mimeType || null;
       fileName = raw.fileName || null;
     }

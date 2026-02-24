@@ -227,10 +227,15 @@ export class ChatbotEngine {
     const connections = (node.connections || []) as Connection[];
 
     switch (node.type) {
-      case "TRIGGER":
-        // Just continue to next node
-        await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
+      case "TRIGGER": {
+        // Continue to next connected node.
+        // If the trigger node has no explicit connection, jump to the first non-trigger node.
+        const nextId =
+          connections[0]?.targetNodeId ??
+          allNodes.find((n: any) => n.type !== "TRIGGER" && n.id !== node.id)?.id;
+        await this.goToNextNode(nextId, allNodes);
         break;
+      }
 
       case "MESSAGE":
         await this.sendMessage(nodeData.message || "");
@@ -699,9 +704,19 @@ export async function matchFlowByMessage(
   });
 
   const messageLower = message.toLowerCase();
+  let catchAllFlowId: string | null = null;
 
   for (const flow of flows) {
     const keywords = (flow.triggerKeywords as string[]) || [];
+    const triggerType = (flow as any).triggerType as string | undefined;
+
+    // Flows with no keywords OR triggerType ALL_MESSAGES = catch-all (lower priority)
+    if (keywords.length === 0 || triggerType === "ALL_MESSAGES") {
+      if (!catchAllFlowId) catchAllFlowId = flow.id; // keep first (highest priority) catch-all
+      continue;
+    }
+
+    // Keyword match
     for (const keyword of keywords) {
       if (keyword && messageLower.includes(keyword.toLowerCase())) {
         return flow.id;
@@ -709,5 +724,6 @@ export async function matchFlowByMessage(
     }
   }
 
-  return null;
+  // No keyword match — fall back to catch-all flow (if any)
+  return catchAllFlowId;
 }
