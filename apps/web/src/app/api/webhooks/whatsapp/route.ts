@@ -164,10 +164,21 @@ async function processIncomingMessages(value: any) {
                 const { downloadMedia } = await import("@/lib/wa/client");
                 const { transcribeAudio } = await import("@/lib/openai");
                 const audioBuffer = Buffer.from(await downloadMedia(mediaUrl, channel.waAccessToken));
+                // Map chatbot language setting (e.g. "pt-BR") to Whisper language code (e.g. "pt")
+                let whisperLang = "pt";
+                try {
+                  const langSettings = await db.chatbotSettings.findUnique({
+                    where: { companyId: channel.companyId },
+                    select: { language: true },
+                  });
+                  if (langSettings?.language) {
+                    whisperLang = langSettings.language.split("-")[0]; // "pt-BR" → "pt"
+                  }
+                } catch { /* use default */ }
                 const transcription = await transcribeAudio(
                   audioBuffer,
                   `audio.${media.mime_type?.includes("ogg") ? "ogg" : "mp3"}`,
-                  "pt",
+                  whisperLang,
                   transcribeCompanyApiKey
                 );
                 if (transcription) {

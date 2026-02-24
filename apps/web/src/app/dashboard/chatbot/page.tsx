@@ -1660,10 +1660,20 @@ export default function ChatbotPage() {
                         onChange={(e) => setSettings({ ...settings, openAIModel: e.target.value })}
                         disabled={!settings.openAIEnabled}
                       >
-                        <option value="gpt-4o-mini">GPT-4o Mini — rápido e econômico ✦ recomendado</option>
-                        <option value="gpt-4o">GPT-4o — mais inteligente e preciso</option>
-                        <option value="gpt-4-turbo">GPT-4 Turbo — alta performance</option>
-                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo — mais barato</option>
+                        <optgroup label="── GPT-4o (multimodal) ──────────────">
+                          <option value="gpt-4o-mini">GPT-4o Mini — rápido e econômico ✦ recomendado</option>
+                          <option value="gpt-4o">GPT-4o — alta performance, multimodal</option>
+                          <option value="gpt-4o-2024-11-20">GPT-4o (nov 2024) — versão mais recente do 4o</option>
+                        </optgroup>
+                        <optgroup label="── o3 / o1 (raciocínio) ─────────────">
+                          <option value="o3-mini">o3-mini — raciocínio avançado, eficiente</option>
+                          <option value="o1">o1 — raciocínio profundo, respostas complexas</option>
+                          <option value="o1-mini">o1-mini — raciocínio rápido e econômico</option>
+                        </optgroup>
+                        <optgroup label="── Legado ───────────────────────────">
+                          <option value="gpt-4-turbo">GPT-4 Turbo — legado, alta capacidade</option>
+                          <option value="gpt-3.5-turbo">GPT-3.5 Turbo — legado, muito barato</option>
+                        </optgroup>
                       </select>
                     </div>
 

@@ -51,6 +51,11 @@ async function loadChatbotSettings(companyId: string) {
     handoffEnabled: s?.handoffEnabled ?? true,
     handoffKeyword: s?.handoffKeyword ?? "humano",
     handoffMessage: s?.handoffMessage ?? "Transferindo para um atendente humano...",
+    // Personality / prompt settings
+    language: s?.language ?? "pt-BR",
+    agentPersonality: s?.agentPersonality ?? "",
+    agentContext: s?.agentContext ?? "",
+    responseLength: s?.responseLength ?? "normal",
   };
 }
 
@@ -445,6 +450,9 @@ export class ChatbotEngine {
         botEmoji: s.botEmoji,
         tone: s.tone,
         companyName: company?.name,
+        agentPersonality: s.agentPersonality || undefined,
+        agentContext: s.agentContext || undefined,
+        responseLength: s.responseLength,
       });
 
       // Build conversation history from context variables
