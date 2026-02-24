@@ -25,6 +25,8 @@ import {
   Video,
   StopCircle,
   Volume2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -76,6 +78,21 @@ interface QuickResponse {
   id: string;
   title: string;
   content: string;
+}
+
+// Returns phone number when the contact has no real saved name (auto-generated "Cliente XXXX")
+function displayName(name: string, phone: string): string {
+  if (!name) return phone;
+  if (/^Cliente \d+$/.test(name.trim())) return phone;
+  if (name === phone) return phone;
+  return name;
+}
+
+// Initials for avatar — uses last 4 digits of phone when no real name exists
+function getInitials(name: string, phone: string): string {
+  const d = displayName(name, phone);
+  if (d === phone) return phone.slice(-4);
+  return d.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 function WAAudioPlayer({ src, isOutgoing }: { src: string; isOutgoing: boolean }) {
@@ -215,6 +232,12 @@ export default function WhatsAppPage() {
   const [showQuickResponses, setShowQuickResponses] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
 
+  // Contact rename
+  const [editingContact, setEditingContact] = useState(false);
+  const [editContactValue, setEditContactValue] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
+  const editContactInputRef = useRef<HTMLInputElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -222,9 +245,48 @@ export default function WhatsAppPage() {
   const documentInputRef = useRef<HTMLInputElement>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Rename / save contact
+  const startEditContact = () => {
+    if (!customer) return;
+    const current = displayName(customer.name, customer.phoneE164);
+    setEditContactValue(current === customer.phoneE164 ? "" : current);
+    setEditingContact(true);
+    // Focus after render
+    setTimeout(() => editContactInputRef.current?.focus(), 50);
+  };
+
+  const saveContact = async () => {
+    if (!customer || !selectedCustomerId) return;
+    const trimmed = editContactValue.trim();
+    if (!trimmed) { setEditingContact(false); return; }
+    setSavingContact(true);
+    try {
+      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setCustomer((prev) => prev ? { ...prev, name: trimmed } : prev);
+        // Also update in conversations list
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.customerId === selectedCustomerId
+              ? { ...c, customer: { ...c.customer, name: trimmed } }
+              : c
+          )
+        );
+      }
+    } catch { /* ignore */ } finally {
+      setSavingContact(false);
+      setEditingContact(false);
+    }
   };
 
   // Fetch conversations
@@ -884,16 +946,11 @@ export default function WhatsAppPage() {
             ) : (
               conversations.map((conv) => {
                 const isSelected = selectedCustomerId === conv.customerId;
-                const initials = conv.customer.name
-                  .split(' ')
-                  .map((n) => n[0])
-                  .join('')
-                  .toUpperCase()
-                  .slice(0, 2);
+                const initials = getInitials(conv.customer.name, conv.customer.phone);
                 return (
                   <div
                     key={conv.customerId}
-                    onClick={() => { setSelectedCustomerId(conv.customerId); setMobilePanel('chat'); }}
+                    onClick={() => { setSelectedCustomerId(conv.customerId); setMobilePanel('chat'); setEditingContact(false); }}
                     className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 transition-colors ${isSelected ? 'bg-[#f0f2f5]' : 'hover:bg-[#f5f6f6]'
                       }`}
                   >
@@ -904,7 +961,7 @@ export default function WhatsAppPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between gap-1">
                         <span className="font-medium text-sm text-gray-900 truncate">
-                          {conv.customer.name}
+                          {displayName(conv.customer.name, conv.customer.phone)}
                         </span>
                         <span className="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">
                           {format(new Date(conv.lastMessage.timestamp), 'HH:mm')}
@@ -948,10 +1005,54 @@ export default function WhatsAppPage() {
                 </svg>
               </button>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm flex-shrink-0">
-                {customer.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                {getInitials(customer.name, customer.phoneE164)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-900 leading-tight">{customer.name}</p>
+                {editingContact ? (
+                  <form
+                    className="flex items-center gap-1"
+                    onSubmit={(e) => { e.preventDefault(); saveContact(); }}
+                  >
+                    <input
+                      ref={editContactInputRef}
+                      className="flex-1 min-w-0 text-sm font-semibold bg-white border border-green-400 rounded-md px-2 py-0.5 outline-none focus:ring-1 focus:ring-green-400"
+                      value={editContactValue}
+                      onChange={(e) => setEditContactValue(e.target.value)}
+                      placeholder={customer.phoneE164}
+                      maxLength={80}
+                      disabled={savingContact}
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingContact}
+                      className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                      aria-label="Salvar"
+                    >
+                      {savingContact
+                        ? <div className="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                        : <Check className="h-4 w-4" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingContact(false)}
+                      className="p-1 text-gray-400 hover:text-gray-600"
+                      aria-label="Cancelar"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    className="flex items-center gap-1 group text-left w-full min-w-0"
+                    onClick={startEditContact}
+                    title="Renomear contato"
+                  >
+                    <p className="font-semibold text-sm text-gray-900 leading-tight truncate">
+                      {displayName(customer.name, customer.phoneE164)}
+                    </p>
+                    <Pencil className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0 transition-opacity" />
+                  </button>
+                )}
                 <p className="text-xs text-gray-500 truncate">{customer.phoneE164}</p>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">

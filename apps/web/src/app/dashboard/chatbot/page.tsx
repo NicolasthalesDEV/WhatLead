@@ -331,8 +331,8 @@ function ChatbotNode({ id, data, selected }: NodeProps) {
         )}
       </div>
 
-      {/* Output handle (bottom) */}
-      {!(data.type === "END_FLOW") && (
+      {/* Output handle (bottom) — hidden for CONDITION (uses true/false handles) and END_FLOW */}
+      {!(data.type === "END_FLOW" || data.type === "CONDITION") && (
         <Handle
           type="source"
           position={Position.Bottom}

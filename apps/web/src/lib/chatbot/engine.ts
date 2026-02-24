@@ -133,14 +133,20 @@ export class ChatbotEngine {
     return this.settings;
   }
 
-  /** Retorna um cliente WhatsApp com as credenciais do canal ativo da empresa */
-  private async getWaClient() {
+  /** Retorna cliente WhatsApp + dados do canal (necessário para salvar mensagens no DB) */
+  private async getWaClientWithChannel() {
     const channel = await prisma.whatsChannel.findFirst({
       where: { companyId: this.companyId, status: 'ACTIVE' },
-      select: { phoneNumberId: true, waAccessToken: true },
+      select: { id: true, phoneNumberId: true, waAccessToken: true },
     });
     if (!channel) throw new Error(`No active WhatsApp channel for company ${this.companyId}`);
-    return buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
+    return { wa: buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken), channel };
+  }
+
+  /** @deprecated use getWaClientWithChannel */
+  private async getWaClient() {
+    const { wa } = await this.getWaClientWithChannel();
+    return wa;
   }
 
   async start(flowId: string, initialMessage?: string) {
@@ -210,7 +216,7 @@ export class ChatbotEngine {
       throw new Error("Current node not found");
     }
 
-    // Update execution
+    // Update execution status
     await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
@@ -218,6 +224,22 @@ export class ChatbotEngine {
         context: this.context as any,
       },
     });
+
+    // QUESTION nodes: don't re-execute (that would re-send the question).
+    // Instead, store the user's answer in the named variable and advance.
+    if (currentNode.type === "QUESTION") {
+      const nodeData = ((currentNode.data || currentNode.config) ?? {}) as NodeData;
+      const connections = (currentNode.connections || []) as Connection[];
+      if (nodeData.variable && userInput) {
+        this.context.variables[nodeData.variable] = userInput;
+        await prisma.chatbotExecution.update({
+          where: { id: this.executionId },
+          data: { context: this.context as any },
+        });
+      }
+      await this.goToNextNode(connections[0]?.targetNodeId, nodes);
+      return;
+    }
 
     await this.executeNode(currentNode, nodes);
   }
@@ -275,10 +297,18 @@ export class ChatbotEngine {
         await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
         break;
 
-      case "ASSIGN_TAG":
-        await this.assignTags(nodeData.tags || []);
+      case "ASSIGN_TAG": {
+        // tags may be stored as a comma-separated string from the editor
+        const rawTags = nodeData.tags as unknown;
+        const tagsArray: string[] = Array.isArray(rawTags)
+          ? (rawTags as string[])
+          : typeof rawTags === "string"
+            ? (rawTags as string).split(",").map((t) => t.trim()).filter(Boolean)
+            : [];
+        await this.assignTags(tagsArray);
         await this.goToNextNode(connections[0]?.targetNodeId, allNodes);
         break;
+      }
 
       // VIII – AI_RESPONSE: gera resposta via OpenAI GPT
       case "AI_RESPONSE": {
@@ -333,21 +363,44 @@ export class ChatbotEngine {
   }
 
   private async sendMessage(message: string) {
-    // Replace variables in message
     const processedMessage = this.replaceVariables(message);
 
     const customer = await prisma.customer.findUnique({
       where: { id: this.customerId },
     });
 
-    if (customer) {
-      // Apply typing delay from settings
-      const s = await this.getSettings();
-      if (s.typingDelay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, s.typingDelay));
-      }
-      const wa = await this.getWaClient();
-      await wa.sendText(customer.phoneE164, processedMessage);
+    if (!customer) return;
+
+    // Apply typing delay
+    const s = await this.getSettings();
+    if (s.typingDelay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, s.typingDelay));
+    }
+
+    const { wa, channel } = await this.getWaClientWithChannel();
+    const resp = await wa.sendText(customer.phoneE164, processedMessage);
+
+    // Persist message so it appears in the chat UI
+    try {
+      await prisma.whatsMessage.create({
+        data: {
+          companyId: this.companyId,
+          customerId: this.customerId,
+          channelId: channel.id,
+          direction: "OUT",
+          type: "text",
+          body: processedMessage,
+          status: "sent",
+          raw: {
+            whatsappMessageId: resp.messages?.[0]?.id ?? null,
+            automated: true,
+            flowExecutionId: this.executionId,
+          },
+        },
+      });
+    } catch (dbErr) {
+      // Non-fatal — message was already sent via WhatsApp
+      console.error("[ChatbotEngine] Failed to persist bot message to DB:", dbErr);
     }
   }
 
