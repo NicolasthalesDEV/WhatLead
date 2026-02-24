@@ -157,6 +157,9 @@ export async function GET(
         }
       }
 
+      // Extrair erro de entrega, se houver
+      const deliveryError = (msg.raw as any)?.deliveryError || null;
+
       return {
         id: msg.id,
         direction: msg.direction,
@@ -164,6 +167,7 @@ export async function GET(
         body: msg.body,
         templateName: msg.templateName,
         status: msg.status,
+        deliveryError,
         media: mediaUrl ? {
           url: mediaUrl,
           mimeType,

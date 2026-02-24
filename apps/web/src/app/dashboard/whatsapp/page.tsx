@@ -59,6 +59,7 @@ interface Message {
   body: string | null;
   templateName?: string;
   status: string;
+  deliveryError?: { code: number; title: string; message: string } | null;
   media: {
     url: string;
     mimeType: string | null;
@@ -370,7 +371,7 @@ export default function WhatsAppPage() {
   };
 
   // Render message status icon
-  const renderStatusIcon = (status: string) => {
+  const renderStatusIcon = (status: string, deliveryError?: { code: number; title: string; message: string } | null) => {
     switch (status) {
       case 'sent':
         return <Check className="h-3 w-3" />;
@@ -378,8 +379,16 @@ export default function WhatsAppPage() {
         return <CheckCheck className="h-3 w-3" />;
       case 'read':
         return <CheckCheck className="h-3 w-3 text-blue-500" />;
-      case 'failed':
-        return <AlertCircle className="h-3 w-3 text-red-500" />;
+      case 'failed': {
+        const tooltip = deliveryError
+          ? `Erro ${deliveryError.code}: ${deliveryError.message}`
+          : 'Falha na entrega';
+        return (
+          <span title={tooltip} className="cursor-help">
+            <AlertCircle className="h-3 w-3 text-red-500" />
+          </span>
+        );
+      }
       default:
         return <Clock className="h-3 w-3" />;
     }
@@ -871,7 +880,7 @@ export default function WhatsAppPage() {
                           </span>
                           {message.direction === 'OUT' && (
                             <span className="text-primary-foreground/70">
-                              {renderStatusIcon(message.status)}
+                              {renderStatusIcon(message.status, message.deliveryError)}
                             </span>
                           )}
                         </div>

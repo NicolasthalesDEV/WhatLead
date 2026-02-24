@@ -238,6 +238,7 @@ export async function POST(
         type: message.type,
         body: message.body,
         status: message.status,
+        deliveryError: null,
         media: mediaUrl ? {
           url: mediaUrl,
           mimeType,

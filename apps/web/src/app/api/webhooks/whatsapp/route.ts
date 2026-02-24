@@ -523,31 +523,44 @@ async function processMessageStatuses(value: any) {
     try {
       const messageId = status.id;
       const statusValue = status.status; // sent, delivered, read, failed
-      const timestamp = status.timestamp;
-      // Atualizar status da mensagem no banco
-      const updated = await db.whatsMessage.updateMany({
+
+      // Buscar mensagens correspondentes para atualizar raw com erro, se necessário
+      const existingMessages = await db.whatsMessage.findMany({
         where: {
           raw: {
             path: ["whatsappMessageId"],
             equals: messageId,
           },
         },
-        data: {
-          // Manter lowercase para consistência com o status inicial ('sent', 'delivered', 'read', 'failed')
-          status: statusValue.toLowerCase(),
-        },
+        select: { id: true, raw: true },
       });
 
-      if (updated.count > 0) {
-        console.log(`Message ${messageId} status updated to ${statusValue}`);
+      for (const msg of existingMessages) {
+        const currentRaw = (msg.raw as Record<string, any>) || {};
+        const newRaw: Record<string, any> = { ...currentRaw };
+
+        // Se falhou, salva detalhes do erro no raw para exibição na UI
+        if (statusValue === "failed" && status.errors?.length > 0) {
+          const err = status.errors[0];
+          newRaw.deliveryError = {
+            code: err.code,
+            title: err.title,
+            message: err.message || err.title,
+          };
+          console.error(`[WA Webhook] Message ${messageId} delivery failed:`, err);
+        }
+
+        await db.whatsMessage.update({
+          where: { id: msg.id },
+          data: {
+            status: statusValue.toLowerCase(),
+            raw: newRaw,
+          },
+        });
       }
 
-      // Se falhou, registrar erro
-      if (statusValue === "failed" && status.errors) {
-        console.error("Message delivery failed:", {
-          messageId,
-          errors: status.errors,
-        });
+      if (existingMessages.length > 0) {
+        console.log(`[WA Webhook] Message ${messageId} status updated to ${statusValue} (${existingMessages.length} record(s))`);
       }
     } catch (error) {
       console.error("Error processing message status:", error);
