@@ -212,3 +212,45 @@ export async function GET(
     );
   }
 }
+
+/**
+ * DELETE /api/whatsapp/conversations/[customerId]
+ *
+ * Query params:
+ *  - mode=clear   → apaga apenas as mensagens (mantém o cliente na lista)
+ *  - mode=delete  → apaga as mensagens (front-end remove da lista)
+ *
+ * Ambos os modos realizam o mesmo DELETE no banco; é o front-end que decide
+ * se remove ou não a conversa da lista de contatos.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ customerId: string }> }
+) {
+  try {
+    const user = await verifyAuth(req);
+    if (!user) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
+    const { customerId } = await params;
+    const { searchParams } = new URL(req.url);
+    const mode = searchParams.get('mode') ?? 'delete'; // 'clear' | 'delete'
+
+    // Garante que o cliente pertence à empresa do usuário
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, companyId: user.companyId },
+      select: { id: true },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
+    }
+
+    await prisma.whatsMessage.deleteMany({
+      where: { customerId, companyId: user.companyId },
+    });
+
+    return NextResponse.json({ success: true, mode });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    return NextResponse.json({ error: 'Erro ao apagar conversa' }, { status: 500 });
+  }
+}

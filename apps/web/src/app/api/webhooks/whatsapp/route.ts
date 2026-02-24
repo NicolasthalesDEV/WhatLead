@@ -230,6 +230,12 @@ async function processIncomingMessages(value: any) {
         console.log(`New customer created: ${customer.id} (${from})`);
       }
 
+      // Ignorar mensagens de clientes bloqueados
+      if (customer.tags?.includes('__blocked')) {
+        console.log(`Skipping blocked customer ${customer.phoneE164} (${customer.id})`);
+        continue;
+      }
+
       // Salvar mensagem no banco de dados
       const savedMessage = await db.whatsMessage.create({
         data: {
@@ -261,24 +267,29 @@ async function processIncomingMessages(value: any) {
 
       // Criar notificação para o novo mensagem recebida
       try {
-        // Buscar o primeiro usuário da empresa para associar a notificação
-        const companyUser = await db.user.findFirst({
-          where: { companyId: channel.companyId },
-          select: { id: true },
-        });
-        if (companyUser) {
-          await db.notification.create({
-            data: {
-              userId: companyUser.id,
-              companyId: channel.companyId,
-              type: "whatsapp_message",
-              title: `Nova mensagem de ${customer.name}`,
-              message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
-              link: `/dashboard/whatsapp?customer=${customer.id}`,
-              read: false,
-            },
+        // Não criar notificação para clientes silenciados
+        if (customer.tags?.includes('__muted')) {
+          console.log(`Skipping notification for muted customer ${customer.phoneE164}`);
+        } else {
+          // Buscar o primeiro usuário da empresa para associar a notificação
+          const companyUser = await db.user.findFirst({
+            where: { companyId: channel.companyId },
+            select: { id: true },
           });
-          console.log(`Notification created for message from ${customer.name}`);
+          if (companyUser) {
+            await db.notification.create({
+              data: {
+                userId: companyUser.id,
+                companyId: channel.companyId,
+                type: "whatsapp_message",
+                title: `Nova mensagem de ${customer.name}`,
+                message: messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText,
+                link: `/dashboard/whatsapp?customer=${customer.id}`,
+                read: false,
+              },
+            });
+            console.log(`Notification created for message from ${customer.name}`);
+          }
         }
       } catch (error) {
         console.error("Error creating notification:", error);

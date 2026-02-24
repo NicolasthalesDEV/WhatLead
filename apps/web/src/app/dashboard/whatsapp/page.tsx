@@ -27,6 +27,11 @@ import {
   Volume2,
   Pencil,
   X,
+  Ban,
+  BellOff,
+  Bell,
+  Trash2,
+  MessageSquareX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -238,6 +243,11 @@ export default function WhatsAppPage() {
   const [savingContact, setSavingContact] = useState(false);
   const editContactInputRef = useRef<HTMLInputElement>(null);
 
+  // Contact three-dot menu
+  const [showContactMenu, setShowContactMenu] = useState(false);
+  const [menuActionLoading, setMenuActionLoading] = useState<string | null>(null);
+  const contactMenuRef = useRef<HTMLDivElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -286,6 +296,99 @@ export default function WhatsAppPage() {
     } catch { /* ignore */ } finally {
       setSavingContact(false);
       setEditingContact(false);
+    }
+  };
+
+  // ─── Three-dot menu: close on outside click ───────────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contactMenuRef.current && !contactMenuRef.current.contains(e.target as Node)) {
+        setShowContactMenu(false);
+      }
+    };
+    if (showContactMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showContactMenu]);
+
+  // Block / Unblock contact
+  const toggleBlockContact = async () => {
+    if (!customer || !selectedCustomerId) return;
+    setMenuActionLoading('block');
+    const isBlocked = customer.tags.includes('__blocked');
+    const newTags = isBlocked
+      ? customer.tags.filter((t) => t !== '__blocked')
+      : [...customer.tags, '__blocked'];
+    try {
+      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tags: newTags }),
+      });
+      if (res.ok) setCustomer((prev) => prev ? { ...prev, tags: newTags } : prev);
+    } catch { /* ignore */ } finally {
+      setMenuActionLoading(null);
+      setShowContactMenu(false);
+    }
+  };
+
+  // Mute / Unmute contact
+  const toggleMuteContact = async () => {
+    if (!customer || !selectedCustomerId) return;
+    setMenuActionLoading('mute');
+    const isMuted = customer.tags.includes('__muted');
+    const newTags = isMuted
+      ? customer.tags.filter((t) => t !== '__muted')
+      : [...customer.tags, '__muted'];
+    try {
+      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tags: newTags }),
+      });
+      if (res.ok) setCustomer((prev) => prev ? { ...prev, tags: newTags } : prev);
+    } catch { /* ignore */ } finally {
+      setMenuActionLoading(null);
+      setShowContactMenu(false);
+    }
+  };
+
+  // Clear conversation (wipe messages, keep in list)
+  const clearConversation = async () => {
+    if (!selectedCustomerId) return;
+    if (!window.confirm('Apagar todas as mensagens desta conversa?')) return;
+    setMenuActionLoading('clear');
+    try {
+      await fetch(`/api/whatsapp/conversations/${selectedCustomerId}?mode=clear`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      setMessages([]);
+    } catch { /* ignore */ } finally {
+      setMenuActionLoading(null);
+      setShowContactMenu(false);
+    }
+  };
+
+  // Delete conversation (wipe messages + remove from list)
+  const deleteConversation = async () => {
+    if (!selectedCustomerId) return;
+    if (!window.confirm('Remover esta conversa da lista? As mensagens serão apagadas.')) return;
+    setMenuActionLoading('delete');
+    try {
+      await fetch(`/api/whatsapp/conversations/${selectedCustomerId}?mode=delete`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      setConversations((prev) => prev.filter((c) => c.customerId !== selectedCustomerId));
+      setSelectedCustomerId(null);
+      setMessages([]);
+      setCustomer(null);
+      setMobilePanel('list');
+    } catch { /* ignore */ } finally {
+      setMenuActionLoading(null);
+      setShowContactMenu(false);
     }
   };
 
@@ -1117,9 +1220,66 @@ export default function WhatsAppPage() {
                 >
                   <Phone className="h-4 w-4" />
                 </a>
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-500">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
+                {/* Three-dot menu */}
+                <div ref={contactMenuRef} className="relative">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-gray-500"
+                    onClick={() => setShowContactMenu((v) => !v)}
+                    title="Mais opções"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+
+                  {showContactMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-sm">
+                      {/* Block / Unblock */}
+                      <button
+                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 text-red-600 disabled:opacity-50"
+                        disabled={menuActionLoading === 'block'}
+                        onClick={toggleBlockContact}
+                      >
+                        <Ban className="h-4 w-4 shrink-0" />
+                        {customer.tags.includes('__blocked') ? 'Desbloquear contato' : 'Bloquear contato'}
+                      </button>
+
+                      {/* Mute / Unmute */}
+                      <button
+                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 text-gray-700 disabled:opacity-50"
+                        disabled={menuActionLoading === 'mute'}
+                        onClick={toggleMuteContact}
+                      >
+                        {customer.tags.includes('__muted')
+                          ? <Bell className="h-4 w-4 shrink-0" />
+                          : <BellOff className="h-4 w-4 shrink-0" />}
+                        {customer.tags.includes('__muted') ? 'Reativar notificações' : 'Silenciar notificações'}
+                      </button>
+
+                      <div className="border-t border-gray-100 my-1" />
+
+                      {/* Clear conversation */}
+                      <button
+                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 text-yellow-700 disabled:opacity-50"
+                        disabled={menuActionLoading === 'clear'}
+                        onClick={clearConversation}
+                      >
+                        <MessageSquareX className="h-4 w-4 shrink-0" />
+                        Limpar conversa
+                      </button>
+
+                      {/* Delete conversation */}
+                      <button
+                        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 text-red-600 disabled:opacity-50"
+                        disabled={menuActionLoading === 'delete'}
+                        onClick={deleteConversation}
+                      >
+                        <Trash2 className="h-4 w-4 shrink-0" />
+                        Apagar conversa
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
