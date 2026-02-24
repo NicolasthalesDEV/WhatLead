@@ -1869,28 +1869,29 @@ export default function ChatbotPage() {
 
   // ── LIST VIEW ──
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-5 p-3 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2.5">
-            <div className="p-2 bg-blue-100 rounded-xl">
-              <Bot className="h-6 w-6 text-blue-600" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
+            <div className="p-2 bg-blue-100 rounded-xl flex-shrink-0">
+              <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
             Chatbot & Automação
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1 text-sm">
             Crie fluxos visuais para responder automaticamente via WhatsApp
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setView("settings")}>
-            <SlidersHorizontal className="h-4 w-4 mr-2" />
-            Personalizar
+        <div className="flex gap-2 flex-shrink-0">
+          <Button variant="outline" size="sm" onClick={() => setView("settings")}>
+            <SlidersHorizontal className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Personalizar</span>
           </Button>
-          <Button onClick={() => setShowCreateDialog(true)} disabled={loading}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Fluxo
+          <Button size="sm" onClick={() => setShowCreateDialog(true)} disabled={loading}>
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Novo Fluxo</span>
+            <span className="sm:hidden">Novo</span>
           </Button>
         </div>
       </div>
@@ -1974,7 +1975,7 @@ export default function ChatbotPage() {
               {flows.map((flow) => (
                 <div
                   key={flow.id}
-                  className="flex items-center justify-between p-4 rounded-xl border bg-white hover:shadow-sm transition-all"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-xl border bg-white hover:shadow-sm transition-all gap-2 sm:gap-0"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
@@ -2037,35 +2038,35 @@ export default function ChatbotPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 ml-4">
+                  <div className="flex items-center gap-1 sm:ml-4 border-t sm:border-t-0 pt-2 sm:pt-0">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleStatus(flow)}
                       title={flow.status === "ACTIVE" ? "Pausar" : "Ativar"}
-                      className="text-gray-500 hover:text-gray-900"
+                      className="flex-1 sm:flex-none text-gray-500 hover:text-gray-900"
                     >
                       {flow.status === "ACTIVE" ? (
-                        <Pause className="h-4 w-4" />
+                        <><Pause className="h-4 w-4 sm:mr-0 mr-1" /><span className="sm:hidden text-xs">Pausar</span></>
                       ) : (
-                        <Play className="h-4 w-4" />
+                        <><Play className="h-4 w-4 sm:mr-0 mr-1" /><span className="sm:hidden text-xs">Ativar</span></>
                       )}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => openEditor(flow)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="flex-1 sm:flex-none text-blue-600 hover:text-blue-800"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4 sm:mr-0 mr-1" /><span className="sm:hidden text-xs">Editar</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => deleteFlow(flow.id)}
-                      className="text-red-500 hover:text-red-700"
+                      className="flex-1 sm:flex-none text-red-500 hover:text-red-700"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 sm:mr-0 mr-1" /><span className="sm:hidden text-xs">Excluir</span>
                     </Button>
                   </div>
                 </div>
