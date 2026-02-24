@@ -27,27 +27,32 @@ const sendMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('image'),
-    mediaUrl: z.string().url(),
+    mediaUrl: z.string().optional(),  // URL pública (fallback)
+    mediaId: z.string().optional(),   // Meta media ID (preferido)
     caption: z.string().max(1024).optional(),
   }),
   z.object({
     type: z.literal('document'),
-    mediaUrl: z.string().url(),
+    mediaUrl: z.string().optional(),
+    mediaId: z.string().optional(),
     fileName: z.string().optional(),
     caption: z.string().max(1024).optional(),
   }),
   z.object({
     type: z.literal('video'),
-    mediaUrl: z.string().url(),
+    mediaUrl: z.string().optional(),
+    mediaId: z.string().optional(),
     caption: z.string().max(1024).optional(),
   }),
   z.object({
     type: z.literal('audio'),
-    mediaUrl: z.string().url(),
+    mediaUrl: z.string().optional(),
+    mediaId: z.string().optional(),
   }),
   z.object({
     type: z.literal('sticker'),
-    mediaUrl: z.string().url(),
+    mediaUrl: z.string().optional(),
+    mediaId: z.string().optional(),
   }),
   z.object({
     type: z.literal('location'),
@@ -143,21 +148,37 @@ export async function POST(
       case 'text':
         whatsappResponse = await wa.sendText(customer.phoneE164, data.text);
         break;
-      case 'image':
-        whatsappResponse = await wa.sendImage(customer.phoneE164, data.mediaUrl, data.caption);
+      case 'image': {
+        // Prefere mediaId (upload direto Meta) ↔ fallback mediaUrl (link público)
+        const imgRef = (data as any).mediaId ?? (data as any).mediaUrl ?? '';
+        if (!imgRef) return NextResponse.json({ error: 'mediaId ou mediaUrl obrigatório para imagens' }, { status: 400 });
+        whatsappResponse = await wa.sendImage(customer.phoneE164, imgRef, (data as any).caption);
         break;
-      case 'document':
-        whatsappResponse = await wa.sendDocument(customer.phoneE164, data.mediaUrl, data.fileName, data.caption);
+      }
+      case 'document': {
+        const docRef = (data as any).mediaId ?? (data as any).mediaUrl ?? '';
+        if (!docRef) return NextResponse.json({ error: 'mediaId ou mediaUrl obrigatório para documentos' }, { status: 400 });
+        whatsappResponse = await wa.sendDocument(customer.phoneE164, docRef, (data as any).fileName, (data as any).caption);
         break;
-      case 'video':
-        whatsappResponse = await wa.sendVideo(customer.phoneE164, data.mediaUrl, data.caption);
+      }
+      case 'video': {
+        const vidRef = (data as any).mediaId ?? (data as any).mediaUrl ?? '';
+        if (!vidRef) return NextResponse.json({ error: 'mediaId ou mediaUrl obrigatório para vídeos' }, { status: 400 });
+        whatsappResponse = await wa.sendVideo(customer.phoneE164, vidRef, (data as any).caption);
         break;
-      case 'audio':
-        whatsappResponse = await wa.sendAudio(customer.phoneE164, data.mediaUrl);
+      }
+      case 'audio': {
+        const audRef = (data as any).mediaId ?? (data as any).mediaUrl ?? '';
+        if (!audRef) return NextResponse.json({ error: 'mediaId ou mediaUrl obrigatório para áudios' }, { status: 400 });
+        whatsappResponse = await wa.sendAudio(customer.phoneE164, audRef);
         break;
-      case 'sticker':
-        whatsappResponse = await wa.sendSticker(customer.phoneE164, data.mediaUrl);
+      }
+      case 'sticker': {
+        const stkRef = (data as any).mediaId ?? (data as any).mediaUrl ?? '';
+        if (!stkRef) return NextResponse.json({ error: 'mediaId ou mediaUrl obrigatório para stickers' }, { status: 400 });
+        whatsappResponse = await wa.sendSticker(customer.phoneE164, stkRef);
         break;
+      }
       case 'location':
         whatsappResponse = await wa.sendLocation(customer.phoneE164, data.latitude, data.longitude, data.name, data.address);
         break;
@@ -178,13 +199,16 @@ export async function POST(
     if (data.type === 'text') {
       messageBody = data.text;
     } else if (data.type === 'image' || data.type === 'video' || data.type === 'document') {
-      messageBody = data.caption || null;
-      rawData.mediaUrl = data.mediaUrl;
-      if (data.type === 'document' && data.fileName) {
-        rawData.fileName = data.fileName;
+      messageBody = (data as any).caption || null;
+      const mediaRef = (data as any).mediaId ?? (data as any).mediaUrl;
+      if ((data as any).mediaId) rawData.mediaId = (data as any).mediaId;
+      else if ((data as any).mediaUrl) rawData.mediaUrl = (data as any).mediaUrl;
+      if (data.type === 'document' && (data as any).fileName) {
+        rawData.fileName = (data as any).fileName;
       }
     } else if (data.type === 'audio' || data.type === 'sticker') {
-      rawData.mediaUrl = data.mediaUrl;
+      if ((data as any).mediaId) rawData.mediaId = (data as any).mediaId;
+      else if ((data as any).mediaUrl) rawData.mediaUrl = (data as any).mediaUrl;
     } else if (data.type === 'location') {
       messageBody = data.name || null;
       rawData.latitude = data.latitude;

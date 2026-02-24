@@ -254,7 +254,11 @@ export default function WhatsAppPage() {
       }
 
       const uploadData = await uploadResponse.json();
-      const mediaUrl = uploadData.url;
+      // Prefere mediaId (upload direto para Meta, sem URL pública necessária)
+      // Fallback para url se mediaId não estiver disponível
+      const mediaPayloadRef = uploadData.mediaId
+        ? { mediaId: uploadData.mediaId as string }
+        : { mediaUrl: uploadData.url as string };
 
       // 2. Determine message type based on file MIME type
       let messageType: 'image' | 'video' | 'audio' | 'document' = 'document';
@@ -266,10 +270,10 @@ export default function WhatsAppPage() {
         messageType = 'audio';
       }
 
-      // 3. Send message with media URL
+      // 3. Send message with media ID or URL
       const messagePayload: any = {
         type: messageType,
-        mediaUrl: mediaUrl,
+        ...mediaPayloadRef,
       };
 
       // Add caption for image/video/document
@@ -433,7 +437,10 @@ export default function WhatsAppPage() {
         throw new Error(err.error || 'Falha ao fazer upload do áudio');
       }
 
-      const { url: mediaUrl } = await uploadRes.json();
+      const uploadData = await uploadRes.json();
+      const audioPayloadRef = uploadData.mediaId
+        ? { mediaId: uploadData.mediaId as string }
+        : { mediaUrl: uploadData.url as string };
 
       // 3. Send audio message
       const msgRes = await fetch(
@@ -442,7 +449,7 @@ export default function WhatsAppPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ type: 'audio', mediaUrl }),
+          body: JSON.stringify({ type: 'audio', ...audioPayloadRef }),
         }
       );
 
@@ -556,7 +563,7 @@ export default function WhatsAppPage() {
       };
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+        const audioBlob = new Blob(chunks, { type: 'audio/ogg' });
 
         // Create file from blob
         const audioFile = audioBlob as any as File;

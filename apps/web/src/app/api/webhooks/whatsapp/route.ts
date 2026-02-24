@@ -304,8 +304,9 @@ async function processIncomingMessages(value: any) {
       if (preFlight.blocked) {
         console.log(`Chatbot pre-flight blocked (${preFlight.reason}) for ${customer.phoneE164}`);
         if (preFlight.replyWith) {
-          const { sendWhatsText } = await import("@/lib/wa/client");
-          await sendWhatsText(customer.phoneE164, preFlight.replyWith).catch(
+          const { buildWhatsAppClient } = await import("@/lib/wa/client");
+          const wa = buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
+          await wa.sendText(customer.phoneE164, preFlight.replyWith).catch(
             (e: unknown) => console.error("Pre-flight reply failed:", e)
           );
         }
@@ -380,7 +381,8 @@ async function processIncomingMessages(value: any) {
       if (chatbotSettings?.openAIEnabled && (process.env.OPENAI_API_KEY || chatbotSettings.openaiApiKey)) {
         try {
           const { chatCompletion, buildSystemPrompt } = await import("@/lib/openai");
-          const { sendWhatsText, sendWhatsAudio } = await import("@/lib/wa/client");
+          const { buildWhatsAppClient } = await import("@/lib/wa/client");
+          const wa = buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
 
           // Build system prompt — custom overrides auto-built one
           const systemPrompt = chatbotSettings.openAISystemPrompt?.trim()
@@ -463,25 +465,23 @@ async function processIncomingMessages(value: any) {
                   new Blob([new Uint8Array(audioBuffer)], { type: "audio/mpeg" }),
                   "reply.mp3"
                 );
-                const uploadRes = await fetch(
-                  `${process.env.NEXT_PUBLIC_APP_URL}/api/whatsapp/media/upload`,
-                  { method: "POST", body: form }
-                );
-
-                if (uploadRes.ok) {
-                  const { url } = await uploadRes.json();
-                  await sendWhatsAudio(customer.phoneE164, url);
+                // Upload direto para a API da Meta (sem rota interna)
+                try {
+                  const mediaId = await wa.uploadMedia(
+                    Buffer.from(audioBuffer), "audio/mpeg", "reply.mp3"
+                  );
+                  await wa.sendAudio(customer.phoneE164, mediaId);
                   console.log(`AI voice reply sent to ${customer.phoneE164}`);
-                } else {
+                } catch {
                   // Fallback to text if upload fails
-                  await sendWhatsText(customer.phoneE164, reply);
+                  await wa.sendText(customer.phoneE164, reply);
                 }
               } catch (ttsErr) {
                 console.error("ElevenLabs TTS failed, sending text:", ttsErr);
-                await sendWhatsText(customer.phoneE164, reply);
+                await wa.sendText(customer.phoneE164, reply);
               }
             } else {
-              await sendWhatsText(customer.phoneE164, reply);
+              await wa.sendText(customer.phoneE164, reply);
             }
             console.log(`OpenAI reply sent to ${customer.phoneE164}`);
           }
@@ -490,8 +490,9 @@ async function processIncomingMessages(value: any) {
           // Fall through to regular fallback
           const fallback = await getChatbotFallbackMessage(customer.companyId);
           if (fallback) {
-            const { sendWhatsText } = await import("@/lib/wa/client");
-            await sendWhatsText(customer.phoneE164, fallback).catch(
+            const { buildWhatsAppClient: bwa } = await import("@/lib/wa/client");
+            const fallbackWa = bwa(channel.phoneNumberId, channel.waAccessToken);
+            await fallbackWa.sendText(customer.phoneE164, fallback).catch(
               (e: unknown) => console.error("Fallback reply failed:", e)
             );
           }
@@ -502,8 +503,9 @@ async function processIncomingMessages(value: any) {
       // 5. Fallback padrão (sem OpenAI)
       const fallback = await getChatbotFallbackMessage(customer.companyId);
       if (fallback) {
-        const { sendWhatsText } = await import("@/lib/wa/client");
-        await sendWhatsText(customer.phoneE164, fallback).catch(
+        const { buildWhatsAppClient: bwa } = await import("@/lib/wa/client");
+        const fallbackWa = bwa(channel.phoneNumberId, channel.waAccessToken);
+        await fallbackWa.sendText(customer.phoneE164, fallback).catch(
           (e: unknown) => console.error("Fallback reply failed:", e)
         );
       }

@@ -1,5 +1,5 @@
 import { prisma } from "@wacrm/db";
-import { sendWhatsText } from "@/lib/wa/client";
+import { buildWhatsAppClient } from "@/lib/wa/client";
 import crypto from "crypto";
 
 type NodeData = {
@@ -133,6 +133,16 @@ export class ChatbotEngine {
     return this.settings;
   }
 
+  /** Retorna um cliente WhatsApp com as credenciais do canal ativo da empresa */
+  private async getWaClient() {
+    const channel = await prisma.whatsChannel.findFirst({
+      where: { companyId: this.companyId, status: 'ACTIVE' },
+      select: { phoneNumberId: true, waAccessToken: true },
+    });
+    if (!channel) throw new Error(`No active WhatsApp channel for company ${this.companyId}`);
+    return buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
+  }
+
   async start(flowId: string, initialMessage?: string) {
     const flow = await prisma.chatbotFlow.findUnique({
       where: { id: flowId },
@@ -145,10 +155,13 @@ export class ChatbotEngine {
 
     const nodes = flow.ChatbotNode as any[];
 
-    // Find the trigger node
-    const triggerNode = nodes.find((n: any) => n.type === "TRIGGER");
+    // Find the trigger node — se não existir, usa o primeiro nó pelo order
+    const triggerNode =
+      nodes.find((n: any) => n.type === "TRIGGER") ||
+      [...nodes].sort((a, b) => a.order - b.order)[0];
+
     if (!triggerNode) {
-      throw new Error("Flow has no trigger node");
+      throw new Error("Flow has no nodes");
     }
 
     // Initialize execution
@@ -328,7 +341,8 @@ export class ChatbotEngine {
       if (s.typingDelay > 0) {
         await new Promise((resolve) => setTimeout(resolve, s.typingDelay));
       }
-      await sendWhatsText(customer.phoneE164, processedMessage);
+      const wa = await this.getWaClient();
+      await wa.sendText(customer.phoneE164, processedMessage);
     }
   }
 
@@ -384,8 +398,7 @@ export class ChatbotEngine {
   // IV – Send voice message via ElevenLabs + WhatsApp upload
   private async sendVoiceMessage(text: string, nodeData: NodeData): Promise<void> {
     try {
-      const { isElevenLabsConfigured } = await import("@/lib/elevenlabs");
-      const { sendWhatsVoiceFromText } = await import("@/lib/wa/client");
+      const { isElevenLabsConfigured, generateVoiceMessage } = await import("@/lib/elevenlabs");
 
       if (!isElevenLabsConfigured()) {
         console.warn("ElevenLabs not configured – sending as text instead");
@@ -399,7 +412,14 @@ export class ChatbotEngine {
 
       if (customer) {
         const voiceId = (nodeData as any).voiceId as string | undefined;
-        await sendWhatsVoiceFromText(customer.phoneE164, text, { voiceId });
+        const { audioBuffer, mimeType } = await generateVoiceMessage(text, { voiceId });
+        const wa = await this.getWaClient();
+        const mediaId = await wa.uploadMedia(
+          Buffer.from(audioBuffer),
+          mimeType || "audio/mpeg",
+          "voice.mp3"
+        );
+        await wa.sendAudio(customer.phoneE164, mediaId);
         console.log(`Voice message sent to ${customer.phoneE164}`);
       }
     } catch (err) {
@@ -526,7 +546,8 @@ export class ChatbotEngine {
     });
 
     if (customer) {
-      await sendWhatsText(
+      const wa = await this.getWaClient();
+      await wa.sendText(
         customer.phoneE164,
         "Vou transferir você para um de nossos atendentes. Aguarde um momento."
       );

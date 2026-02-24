@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@wacrm/db';
 import { verifyAuth } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import crypto from 'crypto';
+import { buildWhatsAppClient } from '@/lib/wa/client';
 
 /**
  * POST /api/whatsapp/media/upload
- * 
- * Faz upload de arquivo de mídia para enviar via WhatsApp
- * Salva o arquivo localmente ou em storage (S3, etc.) e retorna URL pública
- * 
+ *
+ * Faz upload de arquivo de mídia DIRETAMENTE para a API da Meta (WhatsApp Cloud API).
+ * Retorna o `mediaId` que pode ser usado nos envios de mensagem sem precisar de URL pública.
+ * Funciona corretamente no Vercel (sem sistema de arquivos persistente).
+ *
  * Body: FormData com campo 'file'
- * 
+ *
  * Response:
  * {
- *   url: string, // URL pública do arquivo
+ *   mediaId: string,  // ID da mídia na Meta — use no lugar de mediaUrl
  *   mimeType: string,
  *   size: number,
  *   fileName: string
@@ -33,15 +32,11 @@ export async function POST(req: NextRequest) {
     const file = formData.get('file') as File;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'Arquivo não fornecido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Arquivo não fornecido' }, { status: 400 });
     }
 
-    // Validações
-    const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB (limite do WhatsApp)
-    
+    // Validar tamanho (limite do WhatsApp)
+    const MAX_FILE_SIZE = 16 * 1024 * 1024; // 16MB
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: 'Arquivo muito grande. Máximo 16MB' },
@@ -49,22 +44,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validar tipo de arquivo
+    // Tipos aceitos pelo WhatsApp Cloud API
     const allowedMimeTypes = [
-      // Imagens
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      // Vídeos
-      'video/mp4',
-      'video/3gpp',
-      // Áudios
-      'audio/aac',
-      'audio/mp4',
-      'audio/mpeg',
-      'audio/amr',
-      'audio/ogg',
-      // Documentos
+      'image/jpeg', 'image/png', 'image/webp',
+      'video/mp4', 'video/3gpp',
+      'audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg', 'audio/webm',
       'application/pdf',
       'application/vnd.ms-powerpoint',
       'application/msword',
@@ -76,9 +60,11 @@ export async function POST(req: NextRequest) {
       'text/csv',
     ];
 
-    if (!allowedMimeTypes.includes(file.type)) {
+    // Aceitar mime types com parâmetros (ex: 'audio/ogg; codecs=opus')
+    const baseMime = file.type.split(';')[0].trim();
+    if (!allowedMimeTypes.includes(baseMime)) {
       return NextResponse.json(
-        { 
+        {
           error: 'Tipo de arquivo não suportado',
           supportedTypes: allowedMimeTypes,
         },
@@ -86,53 +72,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Gerar nome único para o arquivo
-    const fileExt = file.name.split('.').pop() || 'bin';
-    const uniqueId = crypto.randomBytes(16).toString('hex');
-    const fileName = `${uniqueId}.${fileExt}`;
+    // Buscar canal WhatsApp ativo da empresa
+    const channel = await prisma.whatsChannel.findFirst({
+      where: { companyId: user.companyId, status: 'ACTIVE' },
+      select: { phoneNumberId: true, waAccessToken: true },
+    });
 
-    // Diretório de uploads (public/uploads)
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'whatsapp');
-    
-    // Criar diretório se não existir
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
+    if (!channel) {
+      return NextResponse.json(
+        { error: 'Canal WhatsApp não configurado. Adicione um canal ativo em Configurações > WhatsApp.' },
+        { status: 400 }
+      );
     }
 
-    // Salvar arquivo
-    const filePath = join(uploadsDir, fileName);
+    // Converter File para Buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Gerar URL pública
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
-    if (!baseUrl) throw new Error('NEXT_PUBLIC_APP_URL not configured');
-    const publicUrl = `${baseUrl}/uploads/whatsapp/${fileName}`;
+    // Usar mime type sem parâmetros adicionais (ex: 'audio/ogg' em vez de 'audio/ogg; codecs=opus')
+    const mimeType = file.type.split(';')[0].trim();
 
-    return NextResponse.json({
-      url: publicUrl,
-      mimeType: file.type,
-      size: file.size,
-      fileName: file.name,
-      originalName: file.name,
-    }, { status: 201 });
+    // Upload direto para a API da Meta (sem gravar em disco — Vercel-safe)
+    const wa = buildWhatsAppClient(channel.phoneNumberId, channel.waAccessToken);
+    const mediaId = await wa.uploadMedia(buffer, mimeType, file.name);
 
+    return NextResponse.json(
+      {
+        mediaId,
+        mimeType: file.type,
+        size: file.size,
+        fileName: file.name,
+        originalName: file.name,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error uploading media:', error);
     return NextResponse.json(
-      { error: 'Erro ao fazer upload do arquivo' },
+      { error: error instanceof Error ? error.message : 'Erro ao fazer upload do arquivo' },
       { status: 500 }
     );
   }
 }
-
-/**
- * Configuração do Next.js para permitir upload de arquivos grandes
- */
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

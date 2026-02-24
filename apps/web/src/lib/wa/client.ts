@@ -725,7 +725,38 @@ export function buildWhatsAppClient(phoneNumberId: string, accessToken: string) 
     return data as WhatsAppMessageResponse;
   }
 
+  /**
+   * Sobe uma mídia para a API da Meta e retorna o media ID.
+   * Use o ID retornado em sendImage/sendDocument/sendVideo/sendAudio.
+   */
+  async function uploadMedia(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
+    const formData = new FormData();
+    formData.append('messaging_product', 'whatsapp');
+    formData.append('type', mimeType);
+    formData.append('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
+
+    const res = await fetch(`${base}/${phoneNumberId}/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = data as WhatsAppError;
+      throw new Error(`WhatsApp Upload Error ${err.error?.code}: ${err.error?.message}`);
+    }
+    return data.id as string;
+  }
+
+  /** Retorna { link: url } ou { id: mediaId } dependendo do valor passado */
+  function mediaRef(urlOrId: string): { link: string } | { id: string } {
+    // Meta media IDs são strings numéricas longas; URLs começam com http
+    return urlOrId.startsWith('http') ? { link: urlOrId } : { id: urlOrId };
+  }
+
   return {
+    uploadMedia,
+
     sendText(to: string, body: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
@@ -737,58 +768,58 @@ export function buildWhatsAppClient(phoneNumberId: string, accessToken: string) 
       });
     },
 
-    sendImage(to: string, url: string, caption?: string) {
+    sendImage(to: string, urlOrId: string, caption?: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: phone,
         type: 'image',
-        image: { link: url, ...(caption && { caption }) },
+        image: { ...mediaRef(urlOrId), ...(caption && { caption }) },
       });
     },
 
-    sendDocument(to: string, url: string, filename?: string, caption?: string) {
+    sendDocument(to: string, urlOrId: string, filename?: string, caption?: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: phone,
         type: 'document',
-        document: { link: url, ...(filename && { filename }), ...(caption && { caption }) },
+        document: { ...mediaRef(urlOrId), ...(filename && { filename }), ...(caption && { caption }) },
       });
     },
 
-    sendVideo(to: string, url: string, caption?: string) {
+    sendVideo(to: string, urlOrId: string, caption?: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: phone,
         type: 'video',
-        video: { link: url, ...(caption && { caption }) },
+        video: { ...mediaRef(urlOrId), ...(caption && { caption }) },
       });
     },
 
-    sendAudio(to: string, url: string) {
+    sendAudio(to: string, urlOrId: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: phone,
         type: 'audio',
-        audio: { link: url },
+        audio: mediaRef(urlOrId),
       });
     },
 
-    sendSticker(to: string, url: string) {
+    sendSticker(to: string, urlOrId: string) {
       const phone = normalizePhoneNumber(to);
       return callApi({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
         to: phone,
         type: 'sticker',
-        sticker: { link: url },
+        sticker: mediaRef(urlOrId),
       });
     },
 
