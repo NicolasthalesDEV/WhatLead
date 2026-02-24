@@ -31,31 +31,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Nenhum canal ativo" }, { status: 404 });
   }
 
-  // Últimas 15 mensagens OUT com info de entrega
-  const messages = await prisma.whatsMessage.findMany({
-    where: { direction: "OUT" },
-    orderBy: { createdAt: "desc" },
-    take: 15,
-    select: {
-      id: true,
-      type: true,
-      body: true,
-      status: true,
-      createdAt: true,
-      raw: true,
-      customer: {
-        select: { name: true, phoneE164: true },
-      },
-    },
-  });
-
-  // Verificar token via Meta
   const version = process.env.WA_API_VERSION || "v25.0";
-  let tokenCheck: any = null;
+
+  // Verificar token e info do número via Meta
   let phoneInfo: any = null;
+  let tokenCheck: any = null;
   try {
     const tokenRes = await fetch(
-      `https://graph.facebook.com/${version}/${channel.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,platform_type,throughput`,
+      `https://graph.facebook.com/${version}/${channel.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,platform_type`,
       { headers: { Authorization: `Bearer ${channel.waAccessToken}` } }
     );
     phoneInfo = await tokenRes.json();
@@ -64,27 +47,27 @@ export async function GET(req: NextRequest) {
     tokenCheck = { error: String(e) };
   }
 
-  // Formatar mensagens com erro de entrega
+  // Últimas 5 mensagens OUT (simples, sem join)
+  const messages = await prisma.whatsMessage.findMany({
+    where: { direction: "OUT" },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true, type: true, status: true, createdAt: true, raw: true },
+  });
+
   const formatted = messages.map((m) => {
     const raw = m.raw as any;
     return {
-      id: m.id,
-      to: m.customer?.phoneE164,
-      customer: m.customer?.name,
+      id: m.id.substring(0, 8),
       type: m.type,
-      body: m.body?.substring(0, 60),
       status: m.status,
-      whatsappMsgId: raw?.whatsappMessageId,
       deliveryError: raw?.deliveryError ?? null,
       sentAt: m.createdAt,
     };
   });
 
   return NextResponse.json({
-    channel: {
-      phoneNumberId: channel.phoneNumberId,
-      displayName: channel.displayName,
-    },
+    channel: { phoneNumberId: channel.phoneNumberId, displayName: channel.displayName },
     tokenCheck,
     phoneInfo,
     recentMessages: formatted,
