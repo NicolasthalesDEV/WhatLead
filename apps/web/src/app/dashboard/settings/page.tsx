@@ -431,8 +431,8 @@ export default function SettingsPage() {
                         </span>
                         <Badge variant="outline" className={
                           billing?.planStatus === "active" ? "border-green-300 text-green-700" :
-                          billing?.planStatus === "trial" ? "border-blue-300 text-blue-700" :
-                          "border-red-300 text-red-600"
+                            billing?.planStatus === "trial" ? "border-blue-300 text-blue-700" :
+                              "border-red-300 text-red-600"
                         }>
                           {STATUS_LABEL[billing?.planStatus || "active"] || billing?.planStatus}
                         </Badge>
@@ -451,20 +451,18 @@ export default function SettingsPage() {
 
                   {/* Dias restantes / Trial */}
                   {billing?.expiresIn && (
-                    <div className={`flex items-center gap-3 p-4 rounded-xl border ${
-                      (billing.daysRemaining ?? 999) <= 3
+                    <div className={`flex items-center gap-3 p-4 rounded-xl border ${(billing.daysRemaining ?? 999) <= 3
                         ? "bg-red-50 border-red-200"
                         : (billing.daysRemaining ?? 999) <= 7
                           ? "bg-orange-50 border-orange-200"
                           : (billing.daysRemaining ?? 999) <= 30
                             ? "bg-yellow-50 border-yellow-200"
                             : "bg-blue-50 border-blue-200"
-                    }`}>
-                      <Calendar className={`h-5 w-5 flex-shrink-0 ${
-                        (billing.daysRemaining ?? 999) <= 3 ? "text-red-500" :
-                        (billing.daysRemaining ?? 999) <= 7 ? "text-orange-500" :
-                        (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
-                      }`} />
+                      }`}>
+                      <Calendar className={`h-5 w-5 flex-shrink-0 ${(billing.daysRemaining ?? 999) <= 3 ? "text-red-500" :
+                          (billing.daysRemaining ?? 999) <= 7 ? "text-orange-500" :
+                            (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
+                        }`} />
                       <div>
                         <p className="font-medium text-gray-800">{billing.expiresIn}</p>
                         {(billing.daysRemaining ?? 999) <= 3 && (

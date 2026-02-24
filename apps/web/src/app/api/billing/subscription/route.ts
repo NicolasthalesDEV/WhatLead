@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
         paymentMethod: true,
         lastPaymentAt: true,
         mercadopagoSubscriptionId: true,
+        createdAt: true,
       },
     });
 
@@ -35,22 +36,34 @@ export async function GET(req: NextRequest) {
       throw new UnauthorizedError('Empresa não encontrada');
     }
 
-    // Calcular dias restantes
+    // Para plano free (trial), calcular dias restantes a partir de createdAt + 14 dias
+    // Para planos pagos, usar planExpiresAt
+    const TRIAL_DAYS = 14;
     let daysRemaining: number | null = null;
     let expiresIn: string | null = null;
-    
-    if (company.planExpiresAt) {
+    let isTrial = false;
+
+    const effectiveExpiresAt =
+      company.planExpiresAt ??
+      (company.plan === 'free'
+        ? new Date(new Date(company.createdAt).getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000)
+        : null);
+
+    if (effectiveExpiresAt) {
       const now = new Date();
-      const expiresAt = new Date(company.planExpiresAt);
+      const expiresAt = new Date(effectiveExpiresAt);
       const diffTime = expiresAt.getTime() - now.getTime();
       daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      isTrial = company.plan === 'free';
 
       if (daysRemaining < 0) {
-        expiresIn = 'Expirado';
+        expiresIn = isTrial ? 'Trial expirado' : 'Expirado';
       } else if (daysRemaining === 0) {
-        expiresIn = 'Expira hoje';
+        expiresIn = isTrial ? 'Último dia de trial' : 'Expira hoje';
       } else if (daysRemaining === 1) {
-        expiresIn = 'Expira amanhã';
+        expiresIn = isTrial ? '1 dia de trial restante' : 'Expira amanhã';
+      } else if (isTrial) {
+        expiresIn = `${daysRemaining} dias de trial restantes`;
       } else if (daysRemaining <= 30) {
         expiresIn = `Expira em ${daysRemaining} dias`;
       } else {
@@ -59,14 +72,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Retornar resposta plana (sem wrapper `subscription`) para compatibilidade com frontend
     return NextResponse.json({
-      subscription: {
-        ...company,
-        daysRemaining,
-        expiresIn,
-        isExpired: daysRemaining !== null && daysRemaining < 0,
-        isExpiringSoon: daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0,
-      },
+      id: company.id,
+      name: company.name,
+      plan: company.plan,
+      planStatus: company.plan === 'free' ? 'trial' : company.planStatus,
+      planStartedAt: company.planStartedAt,
+      planExpiresAt: company.planExpiresAt,
+      billingCycle: company.billingCycle,
+      paymentMethod: company.paymentMethod,
+      lastPaymentAt: company.lastPaymentAt,
+      mercadopagoSubscriptionId: company.mercadopagoSubscriptionId,
+      daysRemaining,
+      expiresIn,
+      isTrial,
+      isExpired: daysRemaining !== null && daysRemaining < 0,
+      isExpiringSoon: daysRemaining !== null && daysRemaining <= 7 && daysRemaining >= 0,
     });
 
   } catch (error: any) {
