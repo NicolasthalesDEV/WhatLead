@@ -735,8 +735,25 @@ export default function WhatsAppPage() {
   // Start recording audio
   const startRecording = async () => {
     try {
+      // mediaDevices only available in secure context (HTTPS / localhost)
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        alert('Gravação de áudio não disponível. Acesse via HTTPS ou localhost.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+
+      // Pick best supported mime type: webm (Chrome/Firefox) → mp4 (Safari) → ogg fallback
+      const preferredTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: Blob[] = [];
 
       recorder.ondataavailable = (e) => {
@@ -746,27 +763,22 @@ export default function WhatsAppPage() {
       };
 
       recorder.onstop = async () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/ogg' });
+        // Determine actual mime type used (may differ from requested)
+        const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+        const ext = actualMime.includes('mp4') ? 'mp4' : actualMime.includes('ogg') ? 'ogg' : 'webm';
 
-        // Create file from blob
-        const audioFile = audioBlob as any as File;
-        Object.defineProperty(audioFile, 'name', {
-          value: `audio-${Date.now()}.ogg`,
-          writable: false,
-        });
+        // Build a proper File (type is set correctly so upload route accepts it)
+        const audioBlob = new Blob(chunks, { type: actualMime });
+        const audioFile = new File([audioBlob], `audio-${Date.now()}.${ext}`, { type: actualMime });
 
-        // Send audio file
         await sendMediaMessage(audioFile);
 
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        // Release microphone
+        stream.getTracks().forEach((track) => track.stop());
 
-        // Reset
         setAudioChunks([]);
         setRecordingTime(0);
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-        }
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       };
 
       recorder.start();
@@ -774,14 +786,22 @@ export default function WhatsAppPage() {
       setIsRecording(true);
       setAudioChunks(chunks);
 
-      // Start timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
 
     } catch (error) {
       console.warn('Failed to start recording:', error);
-      alert('Erro ao acessar o microfone. Verifique as permissões do navegador.');
+      const err = error as any;
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        alert('Permissão de microfone negada. Clique no ícone de cadeado na barra de endereço e permita o uso do microfone.');
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        alert('Nenhum microfone encontrado. Verifique se há um microfone conectado ao dispositivo.');
+      } else if (err?.name === 'NotSupportedError') {
+        alert('Gravação de áudio não suportada neste navegador. Tente Chrome ou Firefox.');
+      } else {
+        alert(`Erro ao acessar o microfone: ${err?.message ?? 'erro desconhecido'}`);
+      }
     }
   };
 
