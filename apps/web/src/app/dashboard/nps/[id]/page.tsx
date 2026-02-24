@@ -112,7 +112,7 @@ export default function NPSSurveyDetailPage({
         </div>
 
         {/* KPIs principais */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">Total de Respostas</p>
             <p className="text-3xl font-bold">{survey.metrics.totalResponses}</p>
@@ -121,11 +121,11 @@ export default function NPSSurveyDetailPage({
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">NPS Score</p>
             <p className={`text-3xl font-bold ${survey.metrics.npsScore !== null
-                ? survey.metrics.npsScore >= 70 ? "text-green-600"
-                  : survey.metrics.npsScore >= 50 ? "text-yellow-600"
-                    : survey.metrics.npsScore >= 0 ? "text-orange-600"
-                      : "text-red-600"
-                : "text-gray-400"
+              ? survey.metrics.npsScore >= 70 ? "text-green-600"
+                : survey.metrics.npsScore >= 50 ? "text-yellow-600"
+                  : survey.metrics.npsScore >= 0 ? "text-orange-600"
+                    : "text-red-600"
+              : "text-gray-400"
               }`}>
               {survey.metrics.npsScore !== null ? survey.metrics.npsScore : "-"}
             </p>
@@ -170,7 +170,7 @@ export default function NPSSurveyDetailPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Distribuição de Scores */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold mb-4">Distribuição de Scores</h2>
@@ -182,8 +182,8 @@ export default function NPSSurveyDetailPage({
                     {item.count > 0 && (
                       <div
                         className={`h-full rounded-full ${item.score >= 9 ? "bg-green-500"
-                            : item.score >= 7 ? "bg-yellow-500"
-                              : "bg-red-500"
+                          : item.score >= 7 ? "bg-yellow-500"
+                            : "bg-red-500"
                           }`}
                         style={{
                           width: `${(item.count / survey.metrics.totalResponses) * 100}%`,

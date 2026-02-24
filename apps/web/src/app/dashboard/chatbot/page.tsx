@@ -1206,8 +1206,8 @@ export default function ChatbotPage() {
                           key={opt.key}
                           onClick={() => setSettings({ ...settings, responseLength: opt.key })}
                           className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${settings.responseLength === opt.key
-                              ? "border-violet-400 bg-violet-50 shadow-sm"
-                              : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            ? "border-violet-400 bg-violet-50 shadow-sm"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                             }`}
                         >
                           <span className="text-2xl">{opt.emoji}</span>
@@ -1868,7 +1868,7 @@ export default function ChatbotPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
             label: "Fluxos Ativos",

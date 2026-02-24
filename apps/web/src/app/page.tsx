@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +15,13 @@ import {
   Sparkles,
   Clock,
   Shield,
+  Menu,
+  X,
 } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const validateToken = async () => {
@@ -117,6 +120,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
+            {/* Logo */}
             <div className="flex items-center space-x-2">
               <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg p-2">
                 <Zap className="h-6 w-6 text-white" />
@@ -125,18 +129,52 @@ export default function Home() {
                 WhatLead
               </span>
             </div>
-            <div className="flex items-center gap-4">
+
+            {/* Desktop nav */}
+            <div className="hidden sm:flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={() => {
-                  document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
-                }}
+                onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
               >
                 Preços
               </Button>
               <Button onClick={() => router.push("/login")}>Entrar</Button>
             </div>
+
+            {/* Mobile nav */}
+            <div className="flex sm:hidden items-center gap-2">
+              <Button size="sm" onClick={() => router.push("/login")}>Entrar</Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Menu"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </div>
           </div>
+
+          {/* Mobile dropdown menu */}
+          {mobileMenuOpen && (
+            <div className="sm:hidden mt-3 pb-3 border-t pt-3 flex flex-col gap-2">
+              <button
+                className="text-left text-sm font-medium text-gray-700 hover:text-purple-600 py-2"
+                onClick={() => {
+                  document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+                  setMobileMenuOpen(false);
+                }}
+              >
+                Preços
+              </button>
+              <button
+                className="text-left text-sm font-medium text-gray-700 hover:text-purple-600 py-2"
+                onClick={() => { router.push("/register"); setMobileMenuOpen(false); }}
+              >
+                Criar Conta
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -144,7 +182,7 @@ export default function Home() {
       <section className="relative overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-white">
         <div className="container mx-auto px-4 py-24 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 bg-clip-text text-transparent leading-tight">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 bg-clip-text text-transparent leading-tight">
               Atendimento automático no WhatsApp com IA
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
@@ -244,7 +282,7 @@ export default function Home() {
               Escolha o plano que melhor se encaixa no seu negócio
             </p>
           </div>
-          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto overflow-x-hidden">
             {/* Starter */}
             <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
               <CardHeader className="text-center pb-6 pt-8">
@@ -281,7 +319,7 @@ export default function Home() {
             </Card>
 
             {/* Professional */}
-            <Card className="border-2 border-purple-600 shadow-xl scale-105 relative">
+            <Card className="border-2 border-purple-600 shadow-xl md:scale-105 relative">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold px-4 py-1 rounded-full flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />

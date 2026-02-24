@@ -90,6 +90,9 @@ export default function WhatsAppPage() {
   const [unreadOnlyFilter, setUnreadOnlyFilter] = useState(false);
   const [quickResponses, setQuickResponses] = useState<QuickResponse[]>([]);
 
+  // Mobile: controla qual painel é exibido (lista ou chat)
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'chat'>('list');
+
   // New conversation states
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -711,7 +714,7 @@ export default function WhatsAppPage() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ══ LEFT: Conversations sidebar ══════════════════════════ */}
-        <div className="w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-border">
+        <div className={`${mobilePanel === 'list' ? 'flex' : 'hidden'} sm:flex w-full sm:w-[320px] sm:flex-shrink-0 flex-col bg-white border-r border-border`}>
 
           {/* Sidebar header */}
           <div className="flex items-center justify-between px-4 py-3 bg-[#f0f2f5] border-b border-border">
@@ -740,11 +743,10 @@ export default function WhatsAppPage() {
             </div>
             <button
               onClick={() => setUnreadOnlyFilter(!unreadOnlyFilter)}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                unreadOnlyFilter
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${unreadOnlyFilter
                   ? 'bg-green-600 text-white border-green-600'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-              }`}
+                }`}
             >
               {unreadOnlyFilter ? '✕ Não lidas' : 'Não lidas'}
             </button>
@@ -769,10 +771,9 @@ export default function WhatsAppPage() {
                 return (
                   <div
                     key={conv.customerId}
-                    onClick={() => setSelectedCustomerId(conv.customerId)}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 transition-colors ${
-                      isSelected ? 'bg-[#f0f2f5]' : 'hover:bg-[#f5f6f6]'
-                    }`}
+                    onClick={() => { setSelectedCustomerId(conv.customerId); setMobilePanel('chat'); }}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-gray-100 transition-colors ${isSelected ? 'bg-[#f0f2f5]' : 'hover:bg-[#f5f6f6]'
+                      }`}
                   >
                     {/* Avatar */}
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center flex-shrink-0 text-white font-semibold text-sm shadow-sm">
@@ -810,10 +811,20 @@ export default function WhatsAppPage() {
 
         {/* ══ RIGHT: Chat panel ════════════════════════════════════ */}
         {selectedCustomerId && customer ? (
-          <div className="flex flex-col flex-1 min-w-0 bg-white">
+          <div className={`${mobilePanel === 'chat' ? 'flex' : 'hidden'} sm:flex flex-col flex-1 min-w-0 bg-white`}>
 
             {/* Chat header */}
             <div className="flex items-center gap-3 px-4 py-2.5 bg-[#f0f2f5] border-b border-border flex-shrink-0">
+              {/* Botão voltar — mobile */}
+              <button
+                className="sm:hidden mr-1 text-gray-500 hover:text-gray-700 flex-shrink-0"
+                onClick={() => setMobilePanel('list')}
+                aria-label="Voltar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm flex-shrink-0">
                 {customer.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
@@ -887,11 +898,10 @@ export default function WhatsAppPage() {
                           className={`flex mb-1 ${isOut ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`relative max-w-[65%] rounded-2xl px-3 py-2 shadow-sm ${
-                              isOut
+                            className={`relative max-w-[65%] rounded-2xl px-3 py-2 shadow-sm ${isOut
                                 ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-sm'
                                 : 'bg-white text-gray-900 rounded-tl-sm'
-                            }`}
+                              }`}
                           >
                             {/* Media */}
                             {message.media && (
@@ -1074,8 +1084,8 @@ export default function WhatsAppPage() {
             </div>
           </div>
         ) : (
-          /* Empty state */
-          <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f2f5]">
+          /* Empty state — hidden on mobile (user hasn't selected a conversation) */
+          <div className="hidden sm:flex flex-1 flex-col items-center justify-center bg-[#f0f2f5]">
             <div className="text-center max-w-xs">
               <div className="w-20 h-20 rounded-full bg-white shadow-md flex items-center justify-center mx-auto mb-4">
                 <MessageSquare className="h-9 w-9 text-green-500" />
