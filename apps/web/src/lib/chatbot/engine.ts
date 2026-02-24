@@ -430,9 +430,16 @@ export class ChatbotEngine {
   // VIII – Generate AI reply using OpenAI
   private async generateAIResponse(nodeData: NodeData): Promise<string> {
     try {
-      const { getAIReply, buildSystemPrompt, isOpenAIConfigured } = await import("@/lib/openai");
+      const { chatCompletion, buildSystemPrompt, isOpenAIConfigured } = await import("@/lib/openai");
 
-      if (!isOpenAIConfigured()) {
+      // Load per-company API key from DB
+      const cbRow = await prisma.chatbotSettings.findUnique({
+        where: { companyId: this.companyId },
+        select: { openaiApiKey: true, openAIModel: true, openAITemperature: true, openAIMaxTokens: true },
+      });
+      const companyApiKey = cbRow?.openaiApiKey || undefined;
+
+      if (!isOpenAIConfigured(companyApiKey)) {
         console.warn("OpenAI not configured – returning fallback message");
         return nodeData.message || "No momento não consigo responder automaticamente.";
       }
@@ -460,10 +467,18 @@ export class ChatbotEngine {
         (m: any) => ({ role: m.role as "user" | "assistant", content: m.content as string })
       );
 
-      const reply = await getAIReply(
-        this.context.lastInput || (nodeData.message || "Olá"),
-        { systemPrompt, history }
-      );
+      const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
+        { role: "system", content: systemPrompt },
+        ...history,
+        { role: "user", content: this.context.lastInput || (nodeData.message as string) || "Olá" },
+      ];
+
+      const reply = await chatCompletion(messages, {
+        model: cbRow?.openAIModel || undefined,
+        temperature: cbRow?.openAITemperature ?? undefined,
+        maxTokens: cbRow?.openAIMaxTokens ?? undefined,
+        apiKey: companyApiKey,
+      });
 
       // Store in history
       this.context.variables._aiHistory = [
