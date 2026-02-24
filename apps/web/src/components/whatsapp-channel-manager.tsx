@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { Plus, Trash2, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Pencil, Power } from "lucide-react";
 
 interface WhatsAppChannel {
   id: string;
@@ -19,20 +19,33 @@ interface WhatsAppChannel {
   createdAt: string;
 }
 
+const emptyForm = {
+  phoneNumberId: "",
+  waAccessToken: "",
+  waBusinessId: "",
+  displayName: "",
+};
+
 export function WhatsAppChannelManager() {
   const { showToast } = useToast();
   const [channels, setChannels] = useState<WhatsAppChannel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showTokens, setShowTokens] = useState<{ [key: string]: boolean }>({});
-  const [saving, setSaving] = useState(false);
 
-  const [formData, setFormData] = useState({
-    phoneNumberId: "",
-    waAccessToken: "",
-    waBusinessId: "",
-    displayName: "",
-  });
+  // Add dialog
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addForm, setAddForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [showAddToken, setShowAddToken] = useState(false);
+
+  // Edit dialog
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<WhatsAppChannel | null>(null);
+  const [editForm, setEditForm] = useState({ ...emptyForm, status: "ACTIVE" as "ACTIVE" | "INACTIVE" });
+  const [editing, setEditing] = useState(false);
+  const [showEditToken, setShowEditToken] = useState(false);
+
+  // Per-channel action loading
+  const [actionLoading, setActionLoading] = useState<{ [id: string]: boolean }>({});
 
   useEffect(() => {
     loadChannels();
@@ -41,93 +54,155 @@ export function WhatsAppChannelManager() {
   const loadChannels = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/whatsapp/channels");
+      const response = await fetch("/api/whatsapp/channels", { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setChannels(data.channels || []);
       } else {
         showToast("Erro ao carregar canais", "error");
       }
-    } catch (error) {
-      console.error("Error loading channels:", error);
+    } catch {
       showToast("Erro ao carregar canais", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // ── ADD ──────────────────────────────────────────────────────────────────────
   const handleAddChannel = async () => {
-    if (!formData.phoneNumberId || !formData.waAccessToken || !formData.waBusinessId) {
+    if (!addForm.phoneNumberId || !addForm.waAccessToken || !addForm.waBusinessId) {
       showToast("Preencha todos os campos obrigatórios", "warning");
       return;
     }
-
     setSaving(true);
     try {
       const response = await fetch("/api/whatsapp/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        credentials: "include",
+        body: JSON.stringify(addForm),
       });
-
       const data = await response.json();
-
       if (response.ok) {
-        showToast("Canal WhatsApp adicionado com sucesso!", "success");
+        showToast("Canal adicionado com sucesso!", "success");
         setShowAddDialog(false);
-        setFormData({
-          phoneNumberId: "",
-          waAccessToken: "",
-          waBusinessId: "",
-          displayName: "",
-        });
+        setAddForm(emptyForm);
         await loadChannels();
       } else {
         showToast(data.error || "Erro ao adicionar canal", "error");
       }
-    } catch (error) {
-      console.error("Error adding channel:", error);
+    } catch {
       showToast("Erro ao adicionar canal", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteChannel = async (channelId: string) => {
-    if (!confirm("Tem certeza que deseja remover este canal?")) {
-      return;
-    }
+  // ── EDIT ─────────────────────────────────────────────────────────────────────
+  const openEditDialog = (channel: WhatsAppChannel) => {
+    setEditingChannel(channel);
+    setEditForm({
+      phoneNumberId: channel.phoneNumberId,
+      waAccessToken: "",
+      waBusinessId: channel.waBusinessId,
+      displayName: channel.displayName,
+      status: channel.status,
+    });
+    setShowEditToken(false);
+    setShowEditDialog(true);
+  };
 
+  const handleEditChannel = async () => {
+    if (!editingChannel) return;
+    setEditing(true);
     try {
-      const response = await fetch(`/api/whatsapp/channels?channelId=${channelId}`, {
-        method: "DELETE",
+      const payload: any = {
+        channelId: editingChannel.id,
+        phoneNumberId: editForm.phoneNumberId,
+        waBusinessId: editForm.waBusinessId,
+        displayName: editForm.displayName,
+        status: editForm.status,
+      };
+      if (editForm.waAccessToken.trim()) {
+        payload.waAccessToken = editForm.waAccessToken.trim();
+      }
+      const response = await fetch("/api/whatsapp/channels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
-
       const data = await response.json();
-
       if (response.ok) {
-        if (data.deactivated) {
-          showToast("Canal desativado (possui mensagens)", "warning");
-        } else {
-          showToast("Canal removido com sucesso", "success");
-        }
+        showToast("Canal atualizado com sucesso!", "success");
+        setShowEditDialog(false);
+        setEditingChannel(null);
+        await loadChannels();
+      } else {
+        showToast(data.error || "Erro ao atualizar canal", "error");
+      }
+    } catch {
+      showToast("Erro ao atualizar canal", "error");
+    } finally {
+      setEditing(false);
+    }
+  };
+
+  // ── TOGGLE STATUS ─────────────────────────────────────────────────────────────
+  const handleToggleStatus = async (channel: WhatsAppChannel) => {
+    const newStatus = channel.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    setActionLoading((p) => ({ ...p, [channel.id]: true }));
+    try {
+      const response = await fetch("/api/whatsapp/channels", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ channelId: channel.id, status: newStatus }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(
+          newStatus === "ACTIVE" ? "Canal reativado!" : "Canal desativado",
+          newStatus === "ACTIVE" ? "success" : "warning"
+        );
+        await loadChannels();
+      } else {
+        showToast(data.error || "Erro ao alterar status", "error");
+      }
+    } catch {
+      showToast("Erro ao alterar status", "error");
+    } finally {
+      setActionLoading((p) => ({ ...p, [channel.id]: false }));
+    }
+  };
+
+  // ── DELETE ────────────────────────────────────────────────────────────────────
+  const handleDeleteChannel = async (channel: WhatsAppChannel) => {
+    if (!confirm(`Remover o canal "${channel.displayName}"? Canais com mensagens serão apenas desativados.`)) return;
+    setActionLoading((p) => ({ ...p, [channel.id]: true }));
+    try {
+      const response = await fetch(`/api/whatsapp/channels?channelId=${channel.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showToast(
+          data.deactivated ? "Canal desativado (possui mensagens)" : "Canal removido",
+          data.deactivated ? "warning" : "success"
+        );
         await loadChannels();
       } else {
         showToast(data.error || "Erro ao remover canal", "error");
       }
-    } catch (error) {
-      console.error("Error deleting channel:", error);
+    } catch {
       showToast("Erro ao remover canal", "error");
+    } finally {
+      setActionLoading((p) => ({ ...p, [channel.id]: false }));
     }
   };
 
-  const toggleShowToken = (channelId: string) => {
-    setShowTokens((prev) => ({
-      ...prev,
-      [channelId]: !prev[channelId],
-    }));
-  };
-
+  // ── RENDER ────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <Card>
@@ -146,9 +221,7 @@ export function WhatsAppChannelManager() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Canais WhatsApp</CardTitle>
-              <CardDescription>
-                Gerencie os números do WhatsApp conectados à sua conta
-              </CardDescription>
+              <CardDescription>Gerencie os números do WhatsApp conectados à sua conta</CardDescription>
             </div>
             <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -160,9 +233,7 @@ export function WhatsAppChannelManager() {
           {channels.length === 0 ? (
             <div className="text-center py-8">
               <div className="bg-gray-50 rounded-lg p-6">
-                <p className="text-muted-foreground mb-4">
-                  Nenhum canal WhatsApp configurado.
-                </p>
+                <p className="text-muted-foreground mb-4">Nenhum canal WhatsApp configurado.</p>
                 <Button onClick={() => setShowAddDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Adicionar Primeiro Canal
@@ -171,79 +242,88 @@ export function WhatsAppChannelManager() {
             </div>
           ) : (
             <div className="space-y-3">
-              {channels.map((channel) => (
-                <div
-                  key={channel.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{channel.displayName}</span>
-                      <Badge
-                        variant={channel.status === "ACTIVE" ? "default" : "secondary"}
+              {channels.map((channel) => {
+                const busy = actionLoading[channel.id];
+                return (
+                  <div key={channel.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-medium">{channel.displayName}</span>
+                        <Badge variant={channel.status === "ACTIVE" ? "default" : "secondary"}>
+                          {channel.status === "ACTIVE" ? (
+                            <><CheckCircle2 className="h-3 w-3 mr-1" />Ativo</>
+                          ) : (
+                            <><XCircle className="h-3 w-3 mr-1" />Inativo</>
+                          )}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-0.5">
+                        <div>
+                          <span className="font-medium">Phone ID:</span>{" "}
+                          <code className="bg-gray-100 px-1 rounded text-xs">{channel.phoneNumberId}</code>
+                        </div>
+                        <div>
+                          <span className="font-medium">Business ID:</span>{" "}
+                          <code className="bg-gray-100 px-1 rounded text-xs">{channel.waBusinessId}</code>
+                        </div>
+                        <div className="text-xs">
+                          Adicionado em {new Date(channel.createdAt).toLocaleDateString("pt-BR")}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 ml-4 shrink-0">
+                      {/* Ativar / Desativar */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title={channel.status === "ACTIVE" ? "Desativar canal" : "Reativar canal"}
+                        disabled={busy}
+                        onClick={() => handleToggleStatus(channel)}
                       >
-                        {channel.status === "ACTIVE" ? (
-                          <>
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Ativo
-                          </>
+                        {busy ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <>
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Inativo
-                          </>
+                          <Power className={`h-4 w-4 ${channel.status === "ACTIVE" ? "text-green-600" : "text-gray-400"}`} />
                         )}
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div>
-                        <span className="font-medium">Phone ID:</span>{" "}
-                        <code className="bg-gray-100 px-1 rounded">
-                          {channel.phoneNumberId}
-                        </code>
-                      </div>
-                      <div>
-                        <span className="font-medium">Business ID:</span>{" "}
-                        <code className="bg-gray-100 px-1 rounded">
-                          {channel.waBusinessId}
-                        </code>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Adicionado em{" "}
-                        {new Date(channel.createdAt).toLocaleDateString("pt-BR")}
-                      </div>
+                      </Button>
+
+                      {/* Editar */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Editar canal"
+                        disabled={busy}
+                        onClick={() => openEditDialog(channel)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+
+                      {/* Excluir */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Remover canal"
+                        disabled={busy}
+                        onClick={() => handleDeleteChannel(channel)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteChannel(channel.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* Info Box */}
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h4 className="font-semibold text-blue-900 text-sm mb-2">
-              ℹ️ Sobre os Canais WhatsApp
-            </h4>
+            <h4 className="font-semibold text-blue-900 text-sm mb-2">ℹ️ Sobre os Canais WhatsApp</h4>
             <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
               <li>Cada canal representa um número do WhatsApp Business</li>
               <li>Você pode ter múltiplos canais (para diferentes departamentos)</li>
               <li>
                 As credenciais são obtidas no{" "}
-                <a
-                  href="https://developers.facebook.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-blue-900"
-                >
+                <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-900">
                   Meta for Developers
                 </a>
               </li>
@@ -253,120 +333,139 @@ export function WhatsAppChannelManager() {
         </CardContent>
       </Card>
 
-      {/* Add Channel Dialog */}
+      {/* ── ADD DIALOG ──────────────────────────────────────────────────────────── */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Adicionar Canal WhatsApp</DialogTitle>
-            <DialogDescription>
-              Configure um novo número do WhatsApp Business para sua empresa
-            </DialogDescription>
+            <DialogDescription>Configure um novo número do WhatsApp Business</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="phoneNumberId">
-                Phone Number ID <span className="text-red-500">*</span>
-              </Label>
+              <Label>Phone Number ID <span className="text-red-500">*</span></Label>
               <Input
-                id="phoneNumberId"
                 placeholder="123456789012345"
-                value={formData.phoneNumberId}
-                onChange={(e) =>
-                  setFormData({ ...formData, phoneNumberId: e.target.value })
-                }
+                value={addForm.phoneNumberId}
+                onChange={(e) => setAddForm({ ...addForm, phoneNumberId: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Encontre em: Meta for Developers → WhatsApp → API Setup
-              </p>
+              <p className="text-xs text-muted-foreground">Meta for Developers → WhatsApp → API Setup</p>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="waAccessToken">
-                Access Token <span className="text-red-500">*</span>
+              <Label>Access Token <span className="text-red-500">*</span></Label>
+              <div className="relative">
+                <Input
+                  type={showAddToken ? "text" : "password"}
+                  placeholder="EAA..."
+                  value={addForm.waAccessToken}
+                  onChange={(e) => setAddForm({ ...addForm, waAccessToken: e.target.value })}
+                />
+                <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full" onClick={() => setShowAddToken((v) => !v)}>
+                  {showAddToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Token permanente (não expira)</p>
+            </div>
+            <div className="space-y-2">
+              <Label>WhatsApp Business Account ID <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="123456789012345"
+                value={addForm.waBusinessId}
+                onChange={(e) => setAddForm({ ...addForm, waBusinessId: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome de Exibição (opcional)</Label>
+              <Input
+                placeholder="WhatsApp - Suporte"
+                value={addForm.displayName}
+                onChange={(e) => setAddForm({ ...addForm, displayName: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleAddChannel} disabled={saving}>
+              {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Validando...</> : <><Plus className="h-4 w-4 mr-2" />Adicionar Canal</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── EDIT DIALOG ─────────────────────────────────────────────────────────── */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Canal WhatsApp</DialogTitle>
+            <DialogDescription>Atualize os dados do canal. Deixe o Access Token em branco para manter o atual.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Phone Number ID <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="123456789012345"
+                value={editForm.phoneNumberId}
+                onChange={(e) => setEditForm({ ...editForm, phoneNumberId: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>
+                Novo Access Token{" "}
+                <span className="text-muted-foreground text-xs">(deixe em branco para manter o atual)</span>
               </Label>
               <div className="relative">
                 <Input
-                  id="waAccessToken"
-                  type={showTokens["new"] ? "text" : "password"}
-                  placeholder="EAA..."
-                  value={formData.waAccessToken}
-                  onChange={(e) =>
-                    setFormData({ ...formData, waAccessToken: e.target.value })
-                  }
+                  type={showEditToken ? "text" : "password"}
+                  placeholder="EAA... (opcional)"
+                  value={editForm.waAccessToken}
+                  onChange={(e) => setEditForm({ ...editForm, waAccessToken: e.target.value })}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full"
-                  onClick={() => toggleShowToken("new")}
-                >
-                  {showTokens["new"] ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full" onClick={() => setShowEditToken((v) => !v)}>
+                  {showEditToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Token permanente (não expira). Configure no Meta for Developers.
-              </p>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="waBusinessId">
-                WhatsApp Business Account ID <span className="text-red-500">*</span>
-              </Label>
+              <Label>WhatsApp Business Account ID <span className="text-red-500">*</span></Label>
               <Input
-                id="waBusinessId"
                 placeholder="123456789012345"
-                value={formData.waBusinessId}
-                onChange={(e) =>
-                  setFormData({ ...formData, waBusinessId: e.target.value })
-                }
+                value={editForm.waBusinessId}
+                onChange={(e) => setEditForm({ ...editForm, waBusinessId: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                ID da conta do WhatsApp Business
-              </p>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="displayName">Nome de Exibição (opcional)</Label>
+              <Label>Nome de Exibição</Label>
               <Input
-                id="displayName"
                 placeholder="WhatsApp - Suporte"
-                value={formData.displayName}
-                onChange={(e) =>
-                  setFormData({ ...formData, displayName: e.target.value })
-                }
+                value={editForm.displayName}
+                onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Nome amigável para identificar este canal
-              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editForm.status === "ACTIVE" ? "default" : "outline"}
+                  onClick={() => setEditForm({ ...editForm, status: "ACTIVE" })}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Ativo
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={editForm.status === "INACTIVE" ? "default" : "outline"}
+                  onClick={() => setEditForm({ ...editForm, status: "INACTIVE" })}
+                >
+                  <XCircle className="h-4 w-4 mr-1" /> Inativo
+                </Button>
+              </div>
             </div>
           </div>
-
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowAddDialog(false)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleAddChannel} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Validando...
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Canal
-                </>
-              )}
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={editing}>Cancelar</Button>
+            <Button onClick={handleEditChannel} disabled={editing}>
+              {editing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : <><Pencil className="h-4 w-4 mr-2" />Salvar Alterações</>}
             </Button>
           </DialogFooter>
         </DialogContent>
