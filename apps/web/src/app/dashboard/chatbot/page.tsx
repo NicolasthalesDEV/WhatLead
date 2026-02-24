@@ -128,6 +128,9 @@ type ChatbotSettings = {
   elevenLabsStability: number;
   elevenLabsSimilarity: number;
   elevenLabsStyle: number;
+  // Per-company API keys (returned masked on GET; only sent on PUT when user explicitly sets)
+  openaiApiKey?: string;
+  elevenLabsApiKey?: string;
 };
 
 const DEFAULT_SETTINGS: ChatbotSettings = {
@@ -165,6 +168,8 @@ const DEFAULT_SETTINGS: ChatbotSettings = {
   elevenLabsStability: 0.5,
   elevenLabsSimilarity: 0.75,
   elevenLabsStyle: 0.0,
+  openaiApiKey: "",
+  elevenLabsApiKey: "",
 };
 
 type NodeData = {
@@ -823,6 +828,11 @@ export default function ChatbotPage() {
   const [settings, setSettings] = useState<ChatbotSettings>(DEFAULT_SETTINGS);
   const [settingsSection, setSettingsSection] = useState<"identity" | "personality" | "tone" | "messages" | "hours" | "handoff" | "behavior" | "openai" | "voice">("identity");
   const [savingSettings, setSavingSettings] = useState(false);
+  // API Key states — kept separate to avoid sending masked keys back
+  const [openaiKeyInput, setOpenaiKeyInput] = useState("");
+  const [openaiKeyConfigured, setOpenaiKeyConfigured] = useState(false);
+  const [elevenLabsKeyInput, setElevenLabsKeyInput] = useState("");
+  const [elevenLabsKeyConfigured, setElevenLabsKeyConfigured] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -848,6 +858,9 @@ export default function ChatbotPage() {
       const data = await res.json();
       if (data.settings) {
         setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+        // Detect whether API keys are already configured on the server
+        if (data.settings.openaiApiKey) setOpenaiKeyConfigured(true);
+        if (data.settings.elevenLabsApiKey) setElevenLabsKeyConfigured(true);
       }
     } catch {
       showToast("Erro ao carregar configurações", "error");
@@ -857,12 +870,22 @@ export default function ChatbotPage() {
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
+      // Build payload — strip the masked API key fields from the main settings object
+      // Only include keys if the user explicitly typed a new one
+      const { openaiApiKey: _oa, elevenLabsApiKey: _el, ...rest } = settings;
+      const payload: Record<string, unknown> = { ...rest };
+      if (openaiKeyInput.trim()) payload.openaiApiKey = openaiKeyInput.trim();
+      if (elevenLabsKeyInput.trim()) payload.elevenLabsApiKey = elevenLabsKeyInput.trim();
+
       const res = await fetch("/api/chatbot/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
+        // After a successful save, mark keys as configured if we just set them
+        if (openaiKeyInput.trim()) { setOpenaiKeyConfigured(true); setOpenaiKeyInput(""); }
+        if (elevenLabsKeyInput.trim()) { setElevenLabsKeyConfigured(true); setElevenLabsKeyInput(""); }
         showToast("Configurações salvas!", "success");
       } else {
         showToast("Erro ao salvar configurações", "error");
@@ -871,6 +894,23 @@ export default function ChatbotPage() {
       showToast("Erro ao salvar configurações", "error");
     }
     setSavingSettings(false);
+  };
+
+  const clearApiKey = async (field: "openaiApiKey" | "elevenLabsApiKey") => {
+    try {
+      const res = await fetch("/api/chatbot/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: null }),
+      });
+      if (res.ok) {
+        if (field === "openaiApiKey") setOpenaiKeyConfigured(false);
+        else setElevenLabsKeyConfigured(false);
+        showToast("Chave removida!", "success");
+      }
+    } catch {
+      showToast("Erro ao remover chave", "error");
+    }
   };
 
   const createFlow = async () => {
@@ -1717,11 +1757,34 @@ export default function ChatbotPage() {
                       </p>
                     </div>
 
-                    {settings.openAIEnabled && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                        ⚠️ Certifique-se que <code className="font-mono bg-yellow-100 px-1 rounded">OPENAI_API_KEY</code> está configurada no servidor.
+                    {/* OpenAI API Key */}
+                    <div className="border-t pt-5">
+                      <Label className="text-sm font-semibold">Chave API OpenAI (por empresa)</Label>
+                      <p className="text-xs text-gray-400 mt-0.5 mb-2">
+                        Opcional. Substitui a variável de ambiente <code className="font-mono bg-gray-100 px-1 rounded">OPENAI_API_KEY</code> para esta empresa. Salve após preencher.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          className="font-mono text-sm flex-1"
+                          placeholder={openaiKeyConfigured ? "●●●●●● (chave já configurada)" : "sk-proj-..."}
+                          value={openaiKeyInput}
+                          onChange={(e) => setOpenaiKeyInput(e.target.value)}
+                          disabled={!settings.openAIEnabled}
+                        />
+                        {openaiKeyConfigured && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            className="text-red-500 hover:text-red-700 shrink-0"
+                            onClick={() => clearApiKey("openaiApiKey")}
+                          >
+                            Remover
+                          </Button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -1851,11 +1914,34 @@ export default function ChatbotPage() {
                       </div>
                     </div>
 
-                    {settings.elevenLabsEnabled && (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                        ⚠️ Certifique-se que <code className="font-mono bg-yellow-100 px-1 rounded">ELEVENLABS_API_KEY</code> está configurada no servidor.
+                    {/* ElevenLabs API Key */}
+                    <div className="border-t pt-5">
+                      <Label className="text-sm font-semibold">Chave API ElevenLabs (por empresa)</Label>
+                      <p className="text-xs text-gray-400 mt-0.5 mb-2">
+                        Opcional. Substitui a variável de ambiente <code className="font-mono bg-gray-100 px-1 rounded">ELEVENLABS_API_KEY</code> para esta empresa. Salve após preencher.
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          className="font-mono text-sm flex-1"
+                          placeholder={elevenLabsKeyConfigured ? "●●●●●● (chave já configurada)" : "sk_..."}
+                          value={elevenLabsKeyInput}
+                          onChange={(e) => setElevenLabsKeyInput(e.target.value)}
+                          disabled={!settings.elevenLabsEnabled}
+                        />
+                        {elevenLabsKeyConfigured && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            type="button"
+                            className="text-red-500 hover:text-red-700 shrink-0"
+                            onClick={() => clearApiKey("elevenLabsApiKey")}
+                          >
+                            Remover
+                          </Button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>

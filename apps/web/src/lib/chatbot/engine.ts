@@ -26,6 +26,7 @@ type ExecutionContext = {
   messageId?: string;
   variables: Record<string, any>;
   lastInput?: string;
+  msgCount?: number;
 };
 
 // ── Load chatbot settings (with defaults) ─────────────────
@@ -210,13 +211,30 @@ export class ChatbotEngine {
     };
     this.context.lastInput = userInput;
 
+    // Track per-session message count and enforce maxMessagesPerSession
+    this.context.msgCount = (this.context.msgCount ?? 0) + 1;
+    const sessionSettings = await this.getSettings();
+    if (this.context.msgCount >= sessionSettings.maxMessagesPerSession) {
+      console.log(`Max messages per session (${sessionSettings.maxMessagesPerSession}) reached for execution ${this.executionId}`);
+      if (sessionSettings.farewellMessage) {
+        await this.sendMessage(sessionSettings.farewellMessage).catch((e: unknown) =>
+          console.error("Farewell (max-messages) failed:", e)
+        );
+      }
+      await prisma.chatbotExecution.update({
+        where: { id: this.executionId },
+        data: { status: "COMPLETED", completedAt: new Date(), context: this.context as any },
+      });
+      return;
+    }
+
     const nodes = ((execution as any).ChatbotFlow?.ChatbotNode || []) as any[];
     const currentNode = nodes.find((n: any) => n.id === execution.currentNode);
     if (!currentNode) {
       throw new Error("Current node not found");
     }
 
-    // Update execution status
+    // Update execution status (include updated msgCount in context)
     await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {
@@ -598,21 +616,40 @@ export class ChatbotEngine {
       },
     });
 
-    // Send message to notify handoff
+    // Send configured handoff message
     const customer = await prisma.customer.findUnique({
       where: { id: this.customerId },
     });
 
     if (customer) {
-      const wa = await this.getWaClient();
-      await wa.sendText(
-        customer.phoneE164,
-        "Vou transferir você para um de nossos atendentes. Aguarde um momento."
-      );
+      const s = await this.getSettings();
+      const handoffMsg = s.handoffMessage || "Vou transferir você para um de nossos atendentes. Aguarde um momento.";
+      const { wa, channel } = await this.getWaClientWithChannel();
+      await wa.sendText(customer.phoneE164, handoffMsg);
+      // Persist so it appears in the chat UI
+      await prisma.whatsMessage.create({
+        data: {
+          companyId: this.companyId,
+          customerId: this.customerId,
+          channelId: channel.id,
+          direction: "OUT",
+          type: "text",
+          body: handoffMsg,
+          status: "sent",
+          raw: { automated: true, type: "handoff" },
+        },
+      }).catch((e: unknown) => console.error("Persist handoff message failed:", e));
     }
   }
 
   private async completeExecution() {
+    // Send farewell message before marking as complete
+    const s = await this.getSettings();
+    if (s.farewellMessage) {
+      await this.sendMessage(s.farewellMessage).catch((e: unknown) =>
+        console.error("Farewell message failed:", e)
+      );
+    }
     await prisma.chatbotExecution.update({
       where: { id: this.executionId },
       data: {

@@ -210,6 +210,7 @@ async function processIncomingMessages(value: any) {
       // 4. Buscar ou criar cliente — SEMPRE filtrando pela empresa
       //    do canal para evitar dados cruzados entre tenants.
       // ───────────────────────────────────────────────────────────
+      let isNewCustomer = false;
       let customer = await db.customer.findFirst({
         where: {
           phoneE164: from,
@@ -227,6 +228,7 @@ async function processIncomingMessages(value: any) {
           },
           include: { Company: true },
         });
+        isNewCustomer = true;
         console.log(`New customer created: ${customer.id} (${from})`);
       }
 
@@ -295,6 +297,40 @@ async function processIncomingMessages(value: any) {
         console.error("Error creating notification:", error);
       }
 
+      // Enviar mensagem de boas-vindas para contatos novos
+      if (isNewCustomer) {
+        try {
+          const cbWelcome = await db.chatbotSettings.findUnique({
+            where: { companyId: channel.companyId },
+            select: { autoReplyEnabled: true, welcomeMessage: true },
+          });
+          if ((cbWelcome?.autoReplyEnabled ?? true) && cbWelcome?.welcomeMessage) {
+            const { buildWhatsAppClient: bwaWelcome } = await import("@/lib/wa/client");
+            const waWelcome = bwaWelcome(channel.phoneNumberId, channel.waAccessToken);
+            const wr = await waWelcome.sendText(customer.phoneE164, cbWelcome.welcomeMessage);
+            await db.whatsMessage.create({
+              data: {
+                companyId: channel.companyId,
+                customerId: customer.id,
+                channelId: channel.id,
+                direction: "OUT",
+                type: "text",
+                body: cbWelcome.welcomeMessage,
+                status: "sent",
+                raw: {
+                  automated: true,
+                  type: "welcome",
+                  whatsappMessageId: (wr as any)?.messages?.[0]?.id ?? null,
+                },
+              },
+            });
+            console.log(`Welcome message sent to new contact ${customer.phoneE164}`);
+          }
+        } catch (wErr) {
+          console.error("Welcome message failed:", wErr);
+        }
+      }
+
       // Marcar mensagem como lida usando credenciais do canal
       try {
         const { buildWhatsAppClient } = await import("@/lib/wa/client");
@@ -343,6 +379,23 @@ async function processIncomingMessages(value: any) {
       }
 
       // 2. Verificar execução em andamento
+      // Primeiro, expirar execuções paradas há mais tempo que o session timeout
+      {
+        const cbTimeout = await db.chatbotSettings.findUnique({
+          where: { companyId: customer.companyId },
+          select: { sessionTimeoutMinutes: true },
+        });
+        const timeoutMs = (cbTimeout?.sessionTimeoutMinutes ?? 30) * 60 * 1000;
+        await db.chatbotExecution.updateMany({
+          where: {
+            customerId: customer.id,
+            status: "WAITING_INPUT",
+            startedAt: { lt: new Date(Date.now() - timeoutMs) },
+          },
+          data: { status: "EXPIRED", completedAt: new Date() },
+        });
+      }
+
       const activeExecution = await db.chatbotExecution.findFirst({
         where: {
           customerId: customer.id,
