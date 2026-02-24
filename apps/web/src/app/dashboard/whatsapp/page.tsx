@@ -704,11 +704,11 @@ export default function WhatsAppPage() {
   };
 
   return (
-    /* Full-height shell — fills the content area without the page header */
-    <div className="flex flex-col h-[calc(100vh-5rem)] -mt-2">
+    /* Escapa o p-6 do wrapper do layout e preenche h-full do main */
+    <div className="flex flex-col h-full -m-6 overflow-hidden rounded-lg">
 
       {/* ── MAIN PANEL ─────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0 gap-0 rounded-xl overflow-hidden border border-border shadow-sm">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ══ LEFT: Conversations sidebar ══════════════════════════ */}
         <div className="w-[320px] flex-shrink-0 flex flex-col bg-white border-r border-border">
