@@ -83,7 +83,7 @@ export default function AddProductPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Adicionar Produto</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Adicionar Produto</h1>
           <p className="text-muted-foreground">Cadastre um novo produto rapidamente</p>
         </div>
       </div>

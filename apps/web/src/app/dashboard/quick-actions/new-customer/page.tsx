@@ -92,7 +92,7 @@ export default function NewCustomerPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Novo Cliente</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Novo Cliente</h1>
           <p className="text-muted-foreground">Cadastre um novo cliente rapidamente</p>
         </div>
       </div>
@@ -161,8 +161,8 @@ export default function NewCustomerPage() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="col-span-1 sm:col-span-2 space-y-2">
                 <Label htmlFor="city">Cidade</Label>
                 <Input
                   id="city"

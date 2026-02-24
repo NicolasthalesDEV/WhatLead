@@ -91,13 +91,14 @@ function LoginPageContent() {
                 WhatLead
               </span>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => router.push("/")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Voltar</span>
               </Button>
-              <Button variant="outline" onClick={() => router.push("/register")}>
-                Teste Grátis
+              <Button variant="outline" size="sm" onClick={() => router.push("/register")}>
+                <span className="hidden sm:inline">Teste Grátis</span>
+                <span className="sm:hidden">Cadastrar</span>
               </Button>
             </div>
           </div>
@@ -105,7 +106,7 @@ function LoginPageContent() {
       </header>
 
       {/* Main Content */}
-      <div className="flex items-center justify-center p-4 py-16">
+      <div className="flex items-center justify-center p-4 py-8 sm:py-16">
         <div className="w-full max-w-md">
           {/* Logo e título */}
           <div className="text-center mb-8">

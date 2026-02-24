@@ -88,7 +88,7 @@ function SuccessContent() {
             </span>
           </div>
 
-          <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-2 gap-4 text-sm">
+          <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-gray-400 text-xs mb-1">Status</p>
               <p className="font-medium text-gray-700">Assinatura ativa</p>

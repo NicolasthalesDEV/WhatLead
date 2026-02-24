@@ -141,7 +141,7 @@ export default function EditProductPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Editar Produto</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Editar Produto</h1>
           <p className="text-muted-foreground">Atualize os dados do produto</p>
         </div>
       </div>

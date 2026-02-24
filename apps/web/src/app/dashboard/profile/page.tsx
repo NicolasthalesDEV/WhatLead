@@ -189,7 +189,7 @@ export default function ProfilePage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Meu Perfil</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Meu Perfil</h1>
         <p className="text-muted-foreground">
           Gerencie suas informações pessoais e configurações de segurança
         </p>
@@ -199,8 +199,8 @@ export default function ProfilePage() {
       {message && (
         <div
           className={`p-4 rounded-lg border flex items-center gap-3 ${message.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-200 text-red-800'
             }`}
         >
           {message.type === 'success' ? (

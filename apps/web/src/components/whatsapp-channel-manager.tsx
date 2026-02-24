@@ -218,12 +218,12 @@ export function WhatsAppChannelManager() {
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
             <div>
               <CardTitle>Canais WhatsApp</CardTitle>
               <CardDescription>Gerencie os números do WhatsApp conectados à sua conta</CardDescription>
             </div>
-            <Button onClick={() => setShowAddDialog(true)}>
+            <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Canal
             </Button>

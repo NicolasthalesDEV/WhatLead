@@ -232,7 +232,7 @@ export default function CustomerDetailsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">{customer.name}</h1>
+            <h1 className="text-xl sm:text-3xl font-bold">{customer.name}</h1>
             <p className="text-muted-foreground">Detalhes do cliente</p>
           </div>
         </div>

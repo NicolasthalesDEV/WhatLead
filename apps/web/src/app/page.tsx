@@ -180,7 +180,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-purple-50 via-blue-50 to-white">
-        <div className="container mx-auto px-4 py-24 md:py-32">
+        <div className="container mx-auto px-4 py-14 sm:py-24 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 bg-clip-text text-transparent leading-tight">
               Atendimento automático no WhatsApp com IA
@@ -215,10 +215,10 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-white">
+      <section className="py-12 sm:py-24 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">O que o WhatLead oferece</h2>
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl font-bold mb-4">O que o WhatLead oferece</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Uma plataforma focada em automação de atendimento no WhatsApp com recursos de IA
             </p>
@@ -245,10 +245,10 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-gradient-to-br from-purple-50 to-blue-50">
+      <section id="how-it-works" className="py-12 sm:py-24 bg-gradient-to-br from-purple-50 to-blue-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Como funciona</h2>
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl font-bold mb-4">Como funciona</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Em poucos passos seu atendimento automático no WhatsApp já está funcionando
             </p>
@@ -274,10 +274,10 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-white">
+      <section id="pricing" className="py-12 sm:py-24 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Planos</h2>
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-4xl font-bold mb-4">Planos</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Escolha o plano que melhor se encaixa no seu negócio
             </p>
@@ -399,7 +399,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-purple-600 to-blue-600 text-white">
+      <section className="py-12 sm:py-24 bg-gradient-to-br from-purple-600 to-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-6">
             Pronto para automatizar seu atendimento?

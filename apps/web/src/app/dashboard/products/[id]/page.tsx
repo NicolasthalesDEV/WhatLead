@@ -109,29 +109,29 @@ export default function ProductDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Link href="/dashboard/products">
             <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">{product.title}</h1>
+            <h1 className="text-xl sm:text-3xl font-bold truncate max-w-[220px] sm:max-w-none">{product.title}</h1>
             <p className="text-muted-foreground">Detalhes do produto</p>
           </div>
         </div>
         <div className="flex gap-2">
           <Link href={`/dashboard/products/${product.id}/edit`}>
-            <Button>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
+            <Button size="sm">
+              <Edit className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar</span>
             </Button>
           </Link>
-          <Button variant="destructive" onClick={deleteProduct}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Deletar
+          <Button variant="destructive" size="sm" onClick={deleteProduct}>
+            <Trash2 className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Deletar</span>
           </Button>
         </div>
       </div>
@@ -277,7 +277,7 @@ export default function ProductDetailsPage() {
             <CardContent>
               {latestPrice ? (
                 <div>
-                  <p className="text-3xl font-bold">
+                  <p className="text-xl sm:text-3xl font-bold">
                     {formatCurrency(latestPrice.amount)}
                   </p>
                   {latestPrice.promoAmount && (

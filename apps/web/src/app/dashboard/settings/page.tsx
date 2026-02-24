@@ -327,19 +327,36 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Configurações</h1>
           <p className="text-muted-foreground">Gerencie seu perfil, integrações e preferências</p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Salvando..." : "Salvar Alterações"}
         </Button>
       </div>
 
+      {/* Mobile nav: horizontal scrollable tabs */}
+      <div className="lg:hidden">
+        <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-hide border rounded-lg bg-white p-1">
+          {NAV.map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => scrollToSection(id)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap hover:bg-gray-100 transition-colors shrink-0"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1 h-fit sticky top-4">
+        {/* Desktop sidebar nav */}
+        <Card className="hidden lg:block lg:col-span-1 h-fit sticky top-4">
           <CardHeader><CardTitle>Seções</CardTitle></CardHeader>
           <CardContent className="p-0">
             <nav className="space-y-1">

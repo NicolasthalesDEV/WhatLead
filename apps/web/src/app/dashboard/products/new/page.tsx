@@ -82,7 +82,7 @@ export default function NewProductPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Novo Produto</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Novo Produto</h1>
           <p className="text-muted-foreground">Adicione um novo produto ao catálogo</p>
         </div>
       </div>

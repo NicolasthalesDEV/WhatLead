@@ -515,18 +515,18 @@ function FlowEditor({
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-3 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button variant="outline" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
+            <ArrowLeft className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Voltar</span>
           </Button>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">{flow.name}</h1>
-            <p className="text-xs text-gray-500">Editor de Fluxo Visual</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 truncate max-w-[150px] sm:max-w-none">{flow.name}</h1>
+            <p className="text-xs text-gray-500 hidden sm:block">Editor de Fluxo Visual</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={flow.status === "ACTIVE" ? "default" : "outline"}>
+          <Badge variant={flow.status === "ACTIVE" ? "default" : "outline"} className="hidden sm:flex">
             {flow.status === "ACTIVE" ? "● Ativo" : "○ Rascunho"}
           </Badge>
           <Button size="sm" onClick={handleSave} disabled={saving}>
@@ -536,7 +536,21 @@ function FlowEditor({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      {/* Mobile notice */}
+      <div className="sm:hidden flex flex-col items-center justify-center flex-1 p-8 text-center bg-gray-50">
+        <div className="p-4 bg-blue-50 rounded-full mb-4">
+          <Workflow className="h-12 w-12 text-blue-400" />
+        </div>
+        <h2 className="text-lg font-bold text-gray-800 mb-2">Editor Visual</h2>
+        <p className="text-gray-500 text-sm max-w-xs">
+          O editor de fluxos visuais funciona melhor em telas maiores. Acesse pelo computador para criar e editar fluxos.
+        </p>
+        <Button className="mt-6" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Voltar à lista
+        </Button>
+      </div>
+
+      <div className="hidden sm:flex flex-1 overflow-hidden">
         {/* Node palette */}
         <aside className="w-52 bg-white border-r p-3 overflow-y-auto flex-shrink-0">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -1039,35 +1053,49 @@ export default function ChatbotPage() {
 
   if (view === "settings") {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-4 p-3 sm:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Button variant="outline" size="sm" onClick={() => setView("list")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <div className="p-2 bg-purple-100 rounded-xl">
-                  <SlidersHorizontal className="h-5 w-5 text-purple-600" />
+              <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+                <div className="p-1.5 sm:p-2 bg-purple-100 rounded-xl">
+                  <SlidersHorizontal className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
                 </div>
-                Personalização do Chatbot
+                <span className="hidden sm:inline">Personalização do Chatbot</span>
+                <span className="sm:hidden">Personalizar</span>
               </h1>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 hidden sm:block">
                 Configure como seu assistente se comporta e se comunica
               </p>
             </div>
           </div>
-          <Button onClick={saveSettings} disabled={savingSettings}>
+          <Button onClick={saveSettings} disabled={savingSettings} className="w-full sm:w-auto" size="sm">
             <Save className="h-4 w-4 mr-2" />
             {savingSettings ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </div>
 
-        <div className="flex gap-6">
-          {/* Sidebar nav */}
-          <nav className="w-48 shrink-0 space-y-1">
+        {/* Mobile section select */}
+        <div className="sm:hidden">
+          <select
+            value={settingsSection}
+            onChange={(e) => setSettingsSection(e.target.value as typeof settingsSection)}
+            className="w-full border rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            {SECTIONS.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+          {/* Sidebar nav - desktop only */}
+          <nav className="hidden sm:block w-48 shrink-0 space-y-1">
             {SECTIONS.map((s) => (
               <button
                 key={s.key}

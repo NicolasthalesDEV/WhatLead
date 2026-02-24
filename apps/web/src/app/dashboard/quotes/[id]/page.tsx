@@ -198,13 +198,13 @@ export default function QuoteDetailsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Orçamento #{quote.id.slice(0, 8)}</h1>
+            <h1 className="text-xl sm:text-3xl font-bold">Orçamento #{quote.id.slice(0, 8)}</h1>
             <p className="text-muted-foreground">Criado em {formatDate(quote.createdAt)}</p>
             {quote.expiresAt && (
               <p className="text-sm text-orange-600">
@@ -214,7 +214,7 @@ export default function QuoteDetailsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {getStatusBadge(quote.status)}
           <Button variant="outline" onClick={downloadPdf}>
             <Download className="h-4 w-4 mr-2" />

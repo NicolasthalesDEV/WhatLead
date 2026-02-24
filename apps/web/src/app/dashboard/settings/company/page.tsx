@@ -60,10 +60,10 @@ export default function CompanySettingsPage() {
     try {
       const response = await fetch('/api/company/settings');
       if (!response.ok) throw new Error('Failed to fetch');
-      
+
       const data = await response.json();
       setSettings(data.company);
-      
+
       // Populate form
       setFormData({
         name: data.company.name || '',
@@ -130,9 +130,9 @@ export default function CompanySettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações da Empresa</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Configurações da Empresa</h1>
           <p className="text-muted-foreground">
             Gerencie as informações e configurações da sua empresa
           </p>
@@ -151,11 +151,10 @@ export default function CompanySettingsPage() {
       {/* Message */}
       {message && (
         <div
-          className={`p-4 rounded-lg border flex items-center gap-3 ${
-            message.type === 'success'
+          className={`p-4 rounded-lg border flex items-center gap-3 ${message.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
-          }`}
+            }`}
         >
           <AlertCircle className="h-4 w-4" />
           <p className="text-sm font-medium">{message.text}</p>
@@ -310,7 +309,7 @@ export default function CompanySettingsPage() {
       </Card>
 
       {/* Business Hours */}
-      <BusinessHoursConfig 
+      <BusinessHoursConfig
         value={formData.businessHours}
         onChange={(businessHours) => setFormData({ ...formData, businessHours })}
       />

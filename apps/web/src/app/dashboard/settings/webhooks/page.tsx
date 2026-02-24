@@ -174,14 +174,14 @@ export default function WebhooksPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Webhooks</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Webhooks</h1>
           <p className="text-muted-foreground">
             Configure webhooks para integrar com sistemas externos
           </p>
         </div>
-        <Button onClick={() => setShowForm(!showForm)}>
+        <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
           {showForm ? <X className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
           {showForm ? 'Cancelar' : 'Novo Webhook'}
         </Button>
@@ -234,14 +234,14 @@ export default function WebhooksPage() {
                   <div
                     key={event.id}
                     className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${selectedEvents.includes(event.id)
-                        ? 'border-primary bg-primary/5'
-                        : 'hover:bg-gray-50'
+                      ? 'border-primary bg-primary/5'
+                      : 'hover:bg-gray-50'
                       }`}
                     onClick={() => toggleEvent(event.id)}
                   >
                     <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedEvents.includes(event.id)
-                        ? 'bg-primary border-primary'
-                        : 'border-gray-300'
+                      ? 'bg-primary border-primary'
+                      : 'border-gray-300'
                       }`}>
                       {selectedEvents.includes(event.id) && (
                         <CheckIcon className="h-3 w-3 text-white" />

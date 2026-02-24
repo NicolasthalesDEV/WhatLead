@@ -200,7 +200,7 @@ export default function CreateOrderPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Criar Pedido</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Criar Pedido</h1>
           <p className="text-muted-foreground">Crie um novo pedido rapidamente</p>
         </div>
       </div>
@@ -256,8 +256,8 @@ export default function CreateOrderPage() {
                 <CardTitle>Itens do Pedido</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-12 gap-3">
-                  <div className="col-span-7">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="col-span-1 sm:col-span-7">
                     <Label htmlFor="product">Produto</Label>
                     <select
                       id="product"
@@ -277,7 +277,7 @@ export default function CreateOrderPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-1 sm:col-span-3">
                     <Label htmlFor="quantity">Qtd</Label>
                     <Input
                       id="quantity"
@@ -289,7 +289,7 @@ export default function CreateOrderPage() {
                       }
                     />
                   </div>
-                  <div className="col-span-2 flex items-end">
+                  <div className="col-span-1 sm:col-span-2 flex items-end">
                     <Button
                       type="button"
                       onClick={addItem}

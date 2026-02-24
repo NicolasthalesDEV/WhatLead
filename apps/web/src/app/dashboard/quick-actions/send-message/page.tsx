@@ -97,7 +97,7 @@ export default function SendMessagePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Enviar Mensagem</h1>
+          <h1 className="text-xl sm:text-3xl font-bold">Enviar Mensagem</h1>
           <p className="text-muted-foreground">Envie uma mensagem rápida via WhatsApp</p>
         </div>
       </div>

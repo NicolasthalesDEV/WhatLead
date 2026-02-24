@@ -91,7 +91,7 @@ export default function NPSSurveyDetailPage({
           </Link>
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold">{survey.name}</h1>
+              <h1 className="text-xl sm:text-3xl font-bold">{survey.name}</h1>
               {survey.description && (
                 <p className="text-gray-600 mt-1">{survey.description}</p>
               )}
@@ -115,7 +115,7 @@ export default function NPSSurveyDetailPage({
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">Total de Respostas</p>
-            <p className="text-3xl font-bold">{survey.metrics.totalResponses}</p>
+            <p className="text-xl sm:text-3xl font-bold">{survey.metrics.totalResponses}</p>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -141,7 +141,7 @@ export default function NPSSurveyDetailPage({
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">Promotores (9-10)</p>
-            <p className="text-3xl font-bold text-green-600">{survey.metrics.promoters}</p>
+            <p className="text-xl sm:text-3xl font-bold text-green-600">{survey.metrics.promoters}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.promoters / survey.metrics.totalResponses) * 100)}%
@@ -151,7 +151,7 @@ export default function NPSSurveyDetailPage({
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">Neutros (7-8)</p>
-            <p className="text-3xl font-bold text-yellow-600">{survey.metrics.passives}</p>
+            <p className="text-xl sm:text-3xl font-bold text-yellow-600">{survey.metrics.passives}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.passives / survey.metrics.totalResponses) * 100)}%
@@ -161,7 +161,7 @@ export default function NPSSurveyDetailPage({
 
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <p className="text-sm text-gray-600 mb-1">Detratores (0-6)</p>
-            <p className="text-3xl font-bold text-red-600">{survey.metrics.detractors}</p>
+            <p className="text-xl sm:text-3xl font-bold text-red-600">{survey.metrics.detractors}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.detractors / survey.metrics.totalResponses) * 100)}%
@@ -240,7 +240,7 @@ export default function NPSSurveyDetailPage({
         {survey.metrics.averageScore !== null && (
           <div className="mt-6 bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold mb-2">Média de Avaliação</h2>
-            <p className="text-3xl font-bold text-blue-600">
+            <p className="text-xl sm:text-3xl font-bold text-blue-600">
               {survey.metrics.averageScore.toFixed(2)}
             </p>
             <p className="text-sm text-gray-600 mt-1">de 0 a 10</p>
