@@ -124,15 +124,15 @@ export default function SettingsPage() {
   };
 
   const PLAN_LABELS: Record<string, string> = {
-    free: "Gratuito",
-    free_trial: "Teste Grátis",
+    free: "14 Dias Grátis",
+    free_trial: "14 Dias Grátis",
     starter: "Starter",
     professional: "Professional",
     enterprise: "Enterprise",
   };
 
   const PLAN_COLORS: Record<string, string> = {
-    free: "bg-gray-100 text-gray-700",
+    free: "bg-blue-100 text-blue-700",
     free_trial: "bg-blue-100 text-blue-700",
     starter: "bg-green-100 text-green-700",
     professional: "bg-purple-100 text-purple-700",
@@ -143,6 +143,7 @@ export default function SettingsPage() {
     active: "Ativo",
     pending: "Pendente",
     cancelled: "Cancelado",
+    canceled: "Cancelado",
     expired: "Expirado",
     trial: "Trial",
     payment_failed: "Pagamento falhou",
@@ -428,7 +429,11 @@ export default function SettingsPage() {
                           }`}>
                           {PLAN_LABELS[billing?.plan || "free"] || billing?.plan}
                         </span>
-                        <Badge variant="outline" className={billing?.planStatus === "active" ? "border-green-300 text-green-700" : "border-red-300 text-red-600"}>
+                        <Badge variant="outline" className={
+                          billing?.planStatus === "active" ? "border-green-300 text-green-700" :
+                          billing?.planStatus === "trial" ? "border-blue-300 text-blue-700" :
+                          "border-red-300 text-red-600"
+                        }>
                           {STATUS_LABEL[billing?.planStatus || "active"] || billing?.planStatus}
                         </Badge>
                       </div>
@@ -444,28 +449,34 @@ export default function SettingsPage() {
                     </Button>
                   </div>
 
-                  {/* Dias restantes */}
+                  {/* Dias restantes / Trial */}
                   {billing?.expiresIn && (
-                    <div className={`flex items-center gap-3 p-4 rounded-xl border ${(billing.daysRemaining ?? 999) <= 7
-                      ? "bg-red-50 border-red-200"
-                      : (billing.daysRemaining ?? 999) <= 30
-                        ? "bg-yellow-50 border-yellow-200"
-                        : "bg-blue-50 border-blue-200"
-                      }`}>
-                      <Calendar className={`h-5 w-5 flex-shrink-0 ${(billing.daysRemaining ?? 999) <= 7 ? "text-red-500" :
+                    <div className={`flex items-center gap-3 p-4 rounded-xl border ${
+                      (billing.daysRemaining ?? 999) <= 3
+                        ? "bg-red-50 border-red-200"
+                        : (billing.daysRemaining ?? 999) <= 7
+                          ? "bg-orange-50 border-orange-200"
+                          : (billing.daysRemaining ?? 999) <= 30
+                            ? "bg-yellow-50 border-yellow-200"
+                            : "bg-blue-50 border-blue-200"
+                    }`}>
+                      <Calendar className={`h-5 w-5 flex-shrink-0 ${
+                        (billing.daysRemaining ?? 999) <= 3 ? "text-red-500" :
+                        (billing.daysRemaining ?? 999) <= 7 ? "text-orange-500" :
                         (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
-                        }`} />
+                      }`} />
                       <div>
                         <p className="font-medium text-gray-800">{billing.expiresIn}</p>
-                        {(billing.daysRemaining ?? 999) <= 7 && (
-                          <p className="text-xs text-red-600 mt-0.5">Renove seu plano para manter o acesso</p>
+                        {(billing.daysRemaining ?? 999) <= 3 && (
+                          <p className="text-xs text-red-600 mt-0.5">Assine um plano para não perder o acesso</p>
+                        )}
+                        {(billing.daysRemaining ?? 999) > 3 && (billing.daysRemaining ?? 999) <= 7 && (
+                          <p className="text-xs text-orange-700 mt-0.5">Seu período de avaliação está acabando</p>
                         )}
                       </div>
-                      {(billing.daysRemaining ?? 999) <= 30 && (
-                        <Button size="sm" className="ml-auto" onClick={() => router.push("/checkout?plan=" + (billing?.plan || "professional"))}>
-                          Renovar
-                        </Button>
-                      )}
+                      <Button size="sm" className="ml-auto" onClick={() => router.push("/checkout?plan=professional")}>
+                        {billing?.planStatus === "trial" || billing?.plan === "free" ? "Assinar" : "Renovar"}
+                      </Button>
                     </div>
                   )}
 
