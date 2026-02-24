@@ -64,7 +64,7 @@ export default function NPSSurveyDetailPage({
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="py-4">
         <p>Carregando...</p>
       </div>
     );
@@ -72,14 +72,14 @@ export default function NPSSurveyDetailPage({
 
   if (!survey) {
     return (
-      <div className="p-6">
+      <div className="py-4">
         <p>Pesquisa não encontrada</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -89,7 +89,7 @@ export default function NPSSurveyDetailPage({
           >
             ← Voltar para pesquisas
           </Link>
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
             <div>
               <h1 className="text-xl sm:text-3xl font-bold">{survey.name}</h1>
               {survey.description && (
@@ -112,15 +112,15 @@ export default function NPSSurveyDetailPage({
         </div>
 
         {/* KPIs principais */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <p className="text-sm text-gray-600 mb-1">Total de Respostas</p>
-            <p className="text-xl sm:text-3xl font-bold">{survey.metrics.totalResponses}</p>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border p-2 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Total de Respostas</p>
+            <p className="text-lg sm:text-3xl font-bold">{survey.metrics.totalResponses}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <p className="text-sm text-gray-600 mb-1">NPS Score</p>
-            <p className={`text-3xl font-bold ${survey.metrics.npsScore !== null
+          <div className="bg-white rounded-lg shadow-sm border p-2 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">NPS Score</p>
+            <p className={`text-xl sm:text-3xl font-bold ${survey.metrics.npsScore !== null
               ? survey.metrics.npsScore >= 70 ? "text-green-600"
                 : survey.metrics.npsScore >= 50 ? "text-yellow-600"
                   : survey.metrics.npsScore >= 0 ? "text-orange-600"
@@ -139,9 +139,9 @@ export default function NPSSurveyDetailPage({
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <p className="text-sm text-gray-600 mb-1">Promotores (9-10)</p>
-            <p className="text-xl sm:text-3xl font-bold text-green-600">{survey.metrics.promoters}</p>
+          <div className="bg-white rounded-lg shadow-sm border p-2 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Promotores (9-10)</p>
+            <p className="text-lg sm:text-3xl font-bold text-green-600">{survey.metrics.promoters}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.promoters / survey.metrics.totalResponses) * 100)}%
@@ -149,9 +149,9 @@ export default function NPSSurveyDetailPage({
             )}
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <p className="text-sm text-gray-600 mb-1">Neutros (7-8)</p>
-            <p className="text-xl sm:text-3xl font-bold text-yellow-600">{survey.metrics.passives}</p>
+          <div className="bg-white rounded-lg shadow-sm border p-2 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Neutros (7-8)</p>
+            <p className="text-lg sm:text-3xl font-bold text-yellow-600">{survey.metrics.passives}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.passives / survey.metrics.totalResponses) * 100)}%
@@ -159,9 +159,9 @@ export default function NPSSurveyDetailPage({
             )}
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <p className="text-sm text-gray-600 mb-1">Detratores (0-6)</p>
-            <p className="text-xl sm:text-3xl font-bold text-red-600">{survey.metrics.detractors}</p>
+          <div className="bg-white rounded-lg shadow-sm border p-2 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">Detratores (0-6)</p>
+            <p className="text-lg sm:text-3xl font-bold text-red-600">{survey.metrics.detractors}</p>
             {survey.metrics.totalResponses > 0 && (
               <p className="text-xs text-gray-500 mt-1">
                 {Math.round((survey.metrics.detractors / survey.metrics.totalResponses) * 100)}%
@@ -172,7 +172,7 @@ export default function NPSSurveyDetailPage({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Distribuição de Scores */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Distribuição de Scores</h2>
             <div className="space-y-2">
               {survey.metrics.scoreDistribution.map((item) => (
@@ -200,7 +200,7 @@ export default function NPSSurveyDetailPage({
           </div>
 
           {/* Comentários Recentes */}
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white rounded-lg shadow-sm border p-3 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Comentários Recentes</h2>
             {survey.metrics.recentComments.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhum comentário ainda</p>
@@ -238,7 +238,7 @@ export default function NPSSurveyDetailPage({
 
         {/* Média */}
         {survey.metrics.averageScore !== null && (
-          <div className="mt-6 bg-white rounded-lg shadow-sm border p-6">
+          <div className="mt-6 bg-white rounded-lg shadow-sm border p-3 sm:p-6">
             <h2 className="text-lg font-semibold mb-2">Média de Avaliação</h2>
             <p className="text-xl sm:text-3xl font-bold text-blue-600">
               {survey.metrics.averageScore.toFixed(2)}

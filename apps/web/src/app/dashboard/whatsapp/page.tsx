@@ -108,6 +108,8 @@ export default function WhatsAppPage() {
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
+  const [showQuickResponses, setShowQuickResponses] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -707,8 +709,8 @@ export default function WhatsAppPage() {
   };
 
   return (
-    /* Escapa o p-6 do wrapper do layout e preenche h-full do main */
-    <div className="flex flex-col h-full -m-6 overflow-hidden rounded-lg">
+    /* Escapa o padding do wrapper do layout (p-4 mobile / p-6 desktop) e preenche h-full do main */
+    <div className="flex flex-col h-full -m-4 sm:-m-6 overflow-hidden rounded-lg">
 
       {/* ── MAIN PANEL ─────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -744,8 +746,8 @@ export default function WhatsAppPage() {
             <button
               onClick={() => setUnreadOnlyFilter(!unreadOnlyFilter)}
               className={`text-xs px-3 py-1 rounded-full border transition-colors ${unreadOnlyFilter
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                 }`}
             >
               {unreadOnlyFilter ? '✕ Não lidas' : 'Não lidas'}
@@ -834,28 +836,37 @@ export default function WhatsAppPage() {
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {quickResponses.length > 0 && (
-                  <div className="relative group">
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-500" title="Respostas rápidas">
+                  <div className="relative">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-gray-500"
+                      title="Respostas rápidas"
+                      onClick={() => setShowQuickResponses(!showQuickResponses)}
+                    >
                       <Smile className="h-4 w-4" />
                     </Button>
-                    {/* Quick responses dropdown */}
-                    <div className="absolute right-0 top-9 z-50 hidden group-hover:block w-72 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                      <div className="px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-600">
-                        Respostas Rápidas
+                    {/* Quick responses dropdown — click-based (works on touch devices) */}
+                    {showQuickResponses && (
+                      <div className="absolute right-0 top-9 z-50 w-72 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                        <div className="px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-600 flex items-center justify-between">
+                          <span>Respostas Rápidas</span>
+                          <button onClick={() => setShowQuickResponses(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto divide-y divide-gray-100">
+                          {quickResponses.slice(0, 10).map((r) => (
+                            <button
+                              key={r.id}
+                              className="w-full text-left px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                              onClick={() => { useQuickResponse(r.content); setShowQuickResponses(false); }}
+                            >
+                              <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                              <p className="text-xs text-gray-500 truncate mt-0.5">{r.content}</p>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="max-h-60 overflow-y-auto divide-y divide-gray-100">
-                        {quickResponses.slice(0, 10).map((r) => (
-                          <button
-                            key={r.id}
-                            className="w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors"
-                            onClick={() => useQuickResponse(r.content)}
-                          >
-                            <p className="text-sm font-medium text-gray-800">{r.title}</p>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">{r.content}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-500">
@@ -898,9 +909,9 @@ export default function WhatsAppPage() {
                           className={`flex mb-1 ${isOut ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`relative max-w-[65%] rounded-2xl px-3 py-2 shadow-sm ${isOut
-                                ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-sm'
-                                : 'bg-white text-gray-900 rounded-tl-sm'
+                            className={`relative max-w-[80%] sm:max-w-[65%] rounded-2xl px-3 py-2 shadow-sm ${isOut
+                              ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-sm'
+                              : 'bg-white text-gray-900 rounded-tl-sm'
                               }`}
                           >
                             {/* Media */}
@@ -988,10 +999,49 @@ export default function WhatsAppPage() {
                 <div className="flex items-end gap-2">
                   {/* Attachment buttons */}
                   <div className="flex gap-1 pb-0.5">
+                    {/* Mobile: single attach button with popup menu */}
+                    <div className="relative sm:hidden">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
+                        onClick={() => setShowAttachMenu(!showAttachMenu)}
+                        disabled={sending}
+                        title="Anexar"
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                      {showAttachMenu && (
+                        <div className="absolute bottom-11 left-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden w-40">
+                          <button
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 text-sm text-gray-700"
+                            onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }}
+                          >
+                            <ImageIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                            Imagem
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 text-sm text-gray-700 border-t border-gray-100"
+                            onClick={() => { videoInputRef.current?.click(); setShowAttachMenu(false); }}
+                          >
+                            <Video className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                            Vídeo
+                          </button>
+                          <button
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 active:bg-gray-100 text-sm text-gray-700 border-t border-gray-100"
+                            onClick={() => { documentInputRef.current?.click(); setShowAttachMenu(false); }}
+                          >
+                            <Paperclip className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                            Documento
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Desktop: show all 3 buttons individually */}
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
+                      className="hidden sm:flex h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
                       onClick={() => imageInputRef.current?.click()}
                       disabled={sending}
                       title="Imagem"
@@ -1001,7 +1051,7 @@ export default function WhatsAppPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
+                      className="hidden sm:flex h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
                       onClick={() => videoInputRef.current?.click()}
                       disabled={sending}
                       title="Vídeo"
@@ -1011,7 +1061,7 @@ export default function WhatsAppPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
+                      className="hidden sm:flex h-9 w-9 p-0 rounded-full text-gray-500 hover:bg-gray-200"
                       onClick={() => documentInputRef.current?.click()}
                       disabled={sending}
                       title="Documento"
