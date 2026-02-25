@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        phone: true,
         role: true,
         createdAt: true,
         Company: {
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
         id: profile.id,
         name: profile.name,
         email: profile.email,
+        phone: profile.phone ?? '',
         role: profile.role,
         avatarUrl: null,
         preferences: null,
@@ -68,6 +70,7 @@ export async function PATCH(req: NextRequest) {
     const schema = z.object({
       name: z.string().min(2).max(100).optional(),
       email: z.string().email().optional(),
+      phone: z.string().max(30).optional().nullable(),
     });
 
     const result = schema.safeParse(body);
@@ -78,7 +81,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const { name, email } = result.data;
+    const { name, email, phone } = result.data;
 
     // Get current user to check email
     const currentUser = await prisma.user.findUnique({
@@ -104,6 +107,7 @@ export async function PATCH(req: NextRequest) {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
 
     const updatedUser = await prisma.user.update({
       where: { id: user.uid },
@@ -112,6 +116,7 @@ export async function PATCH(req: NextRequest) {
         id: true,
         name: true,
         email: true,
+        phone: true,
         role: true,
         createdAt: true,
         Company: {
@@ -129,6 +134,7 @@ export async function PATCH(req: NextRequest) {
         id: updatedUser.id,
         name: updatedUser.name,
         email: updatedUser.email,
+        phone: updatedUser.phone ?? '',
         role: updatedUser.role,
         avatarUrl: null,
         preferences: null,

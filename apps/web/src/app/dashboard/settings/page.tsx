@@ -67,6 +67,11 @@ export default function SettingsPage() {
     if (user && !loading) {
       const [firstName = "", lastName = ""] = (user.name || "").split(" ", 2);
       setProfile({ firstName, lastName, email: user.email || "", phone: "" });
+      // Also fetch phone (not in auth token) from profile API
+      fetch("/api/user/profile", { credentials: "include" })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => { if (d?.user?.phone) setProfile((p) => ({ ...p, phone: d.user.phone })); })
+        .catch(() => { });
     }
   }, [user, loading]);
 
@@ -235,7 +240,7 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: fullName, email: profile.email }),
+        body: JSON.stringify({ name: fullName, email: profile.email, phone: profile.phone || null }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -452,16 +457,16 @@ export default function SettingsPage() {
                   {/* Dias restantes / Trial */}
                   {billing?.expiresIn && (
                     <div className={`flex items-center gap-3 p-4 rounded-xl border ${(billing.daysRemaining ?? 999) <= 3
-                        ? "bg-red-50 border-red-200"
-                        : (billing.daysRemaining ?? 999) <= 7
-                          ? "bg-orange-50 border-orange-200"
-                          : (billing.daysRemaining ?? 999) <= 30
-                            ? "bg-yellow-50 border-yellow-200"
-                            : "bg-blue-50 border-blue-200"
+                      ? "bg-red-50 border-red-200"
+                      : (billing.daysRemaining ?? 999) <= 7
+                        ? "bg-orange-50 border-orange-200"
+                        : (billing.daysRemaining ?? 999) <= 30
+                          ? "bg-yellow-50 border-yellow-200"
+                          : "bg-blue-50 border-blue-200"
                       }`}>
                       <Calendar className={`h-5 w-5 flex-shrink-0 ${(billing.daysRemaining ?? 999) <= 3 ? "text-red-500" :
-                          (billing.daysRemaining ?? 999) <= 7 ? "text-orange-500" :
-                            (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
+                        (billing.daysRemaining ?? 999) <= 7 ? "text-orange-500" :
+                          (billing.daysRemaining ?? 999) <= 30 ? "text-yellow-600" : "text-blue-500"
                         }`} />
                       <div>
                         <p className="font-medium text-gray-800">{billing.expiresIn}</p>

@@ -249,6 +249,7 @@ model User {
   hash                   String
   role                   Role
   name                   String
+  phone                  String?
   createdAt              DateTime                 @default(now())
   Company                Company                  @relation(fields: [companyId], references: [id])
   AuditLog               AuditLog[]
