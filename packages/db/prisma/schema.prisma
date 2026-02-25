@@ -29,6 +29,7 @@ model Company {
   
   AuditLog               AuditLog[]
   Appointment            Appointment[]
+  ApiUsageLog            ApiUsageLog[]
   ChatbotAnalytics       ChatbotAnalytics[]
   ChatbotFlow            ChatbotFlow[]
   ChatbotSettings        ChatbotSettings?
@@ -616,4 +617,23 @@ enum Role {
   ADMIN
   SELLER
   SUPPORT
+}
+
+// ── API Usage Logging ──────────────────────────────────────────
+model ApiUsageLog {
+  id          String   @id @default(uuid())
+  companyId   String
+  provider    String   // "openai" | "elevenlabs" | "meta"
+  operation   String   // e.g. "chat_completion", "text_to_speech", "whatsapp_message"
+  inputUnits  Int      @default(0)  // tokens (OpenAI), chars (ElevenLabs), messages (Meta)
+  outputUnits Int      @default(0)  // tokens (OpenAI)
+  costUsd     Float    @default(0)  // estimated USD cost
+  model       String?              // e.g. "gpt-4o-mini", "eleven_multilingual_v2"
+  customerId  String?              // optional link to customer
+  createdAt   DateTime @default(now())
+  Company     Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, provider])
+  @@index([companyId, createdAt])
 }

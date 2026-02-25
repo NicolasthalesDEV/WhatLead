@@ -9,6 +9,7 @@ import {
   LogOut,
   Bot,
   Zap,
+  DollarSign,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +24,11 @@ const sidebarNavItems = [
     title: "Chatbot IA",
     href: "/dashboard/chatbot",
     icon: Bot,
+  },
+  {
+    title: "Custos de API",
+    href: "/dashboard/api-costs",
+    icon: DollarSign,
   },
   {
     title: "Configurações",
