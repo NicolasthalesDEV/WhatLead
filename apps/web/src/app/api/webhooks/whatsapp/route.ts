@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@wacrm/db";
-import { ChatbotEngine, matchFlowByMessage, chatbotPreFlight, getChatbotFallbackMessage } from "@/lib/chatbot/engine";
+import { ChatbotEngine, matchFlowByMessage, chatbotPreFlight, getChatbotFallbackMessage, isCurrentlyOffHours } from "@/lib/chatbot/engine";
 import { TriggerManager } from "@/lib/chatbot/triggers";
 import { validateWebhook, getMediaUrl } from "@/lib/wa/client";
 
@@ -309,13 +309,15 @@ async function processIncomingMessages(value: any) {
       }
 
       // Enviar mensagem de boas-vindas para contatos novos
+      // Não enviar se estiver fora do horário — nesse caso o pré-voo já enviará a msg de fora do horário
       if (isNewCustomer) {
         try {
+          const offHours = await isCurrentlyOffHours(channel.companyId);
           const cbWelcome = await db.chatbotSettings.findUnique({
             where: { companyId: channel.companyId },
             select: { autoReplyEnabled: true, welcomeMessage: true },
           });
-          if ((cbWelcome?.autoReplyEnabled ?? true) && cbWelcome?.welcomeMessage) {
+          if (!offHours && (cbWelcome?.autoReplyEnabled ?? true) && cbWelcome?.welcomeMessage) {
             const { buildWhatsAppClient: bwaWelcome } = await import("@/lib/wa/client");
             const waWelcome = bwaWelcome(channel.phoneNumberId, channel.waAccessToken);
             const wr = await waWelcome.sendText(customer.phoneE164, cbWelcome.welcomeMessage);

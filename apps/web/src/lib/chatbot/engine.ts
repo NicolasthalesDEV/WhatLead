@@ -74,6 +74,12 @@ function isWithinBusinessHours(settings: Awaited<ReturnType<typeof loadChatbotSe
   return currentMinutes >= startMinutes && currentMinutes < endMinutes;
 }
 
+// ── Public: check if currently outside business hours ───────────────────────
+export async function isCurrentlyOffHours(companyId: string): Promise<boolean> {
+  const settings = await loadChatbotSettings(companyId);
+  return settings.offHoursEnabled && !isWithinBusinessHours(settings);
+}
+
 // ── Public helper: pre-flight checks before starting a new flow ──
 export async function chatbotPreFlight(
   companyId: string,
@@ -356,24 +362,24 @@ export class ChatbotEngine {
         break;
 
       case "END_FLOW":
-        await this.completeExecution();
+        await this.completeExecution(true);
         break;
 
       default:
         console.error(`Unknown node type: ${node.type}`);
-        await this.completeExecution();
+        await this.completeExecution(false);
     }
   }
 
   private async goToNextNode(nodeId: string | undefined, allNodes: any[]) {
     if (!nodeId) {
-      await this.completeExecution();
+      await this.completeExecution(false);
       return;
     }
 
     const nextNode = allNodes.find((n) => n.id === nodeId);
     if (!nextNode) {
-      await this.completeExecution();
+      await this.completeExecution(false);
       return;
     }
 
@@ -594,7 +600,7 @@ export class ChatbotEngine {
   }
 
   private async jumpToFlow(flowId: string) {
-    await this.completeExecution();
+    await this.completeExecution(false);
     await this.start(flowId);
   }
 
@@ -665,13 +671,15 @@ export class ChatbotEngine {
     }
   }
 
-  private async completeExecution() {
-    // Send farewell message before marking as complete
-    const s = await this.getSettings();
-    if (s.farewellMessage) {
-      await this.sendMessage(s.farewellMessage).catch((e: unknown) =>
-        console.error("Farewell message failed:", e)
-      );
+  private async completeExecution(sendFarewell = false) {
+    // Send farewell message only when flow explicitly ends (END_FLOW node)
+    if (sendFarewell) {
+      const s = await this.getSettings();
+      if (s.farewellMessage) {
+        await this.sendMessage(s.farewellMessage).catch((e: unknown) =>
+          console.error("Farewell message failed:", e)
+        );
+      }
     }
     await prisma.chatbotExecution.update({
       where: { id: this.executionId },

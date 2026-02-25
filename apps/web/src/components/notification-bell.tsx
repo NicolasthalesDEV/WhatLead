@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export function NotificationBell() {
-  const { unreadCount, latestNotifications, isConnected, markAsRead } =
+  const { unreadCount, latestNotifications, isConnected, markAsRead, clearAll } =
     useNotifications();
 
   return (
@@ -46,6 +46,18 @@ export function NotificationBell() {
                 <Badge variant="secondary" className="text-xs">
                   {unreadCount}
                 </Badge>
+              )}
+              {latestNotifications.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-gray-500 hover:text-red-600"
+                  onClick={clearAll}
+                  title="Limpar todas as notificações"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Limpar
+                </Button>
               )}
             </div>
           </div>

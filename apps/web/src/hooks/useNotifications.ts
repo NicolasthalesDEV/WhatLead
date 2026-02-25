@@ -91,11 +91,22 @@ export function useNotifications() {
     }
   }, []);
 
+  const clearAll = useCallback(async () => {
+    try {
+      await fetch("/api/notifications/clear-all", { method: "DELETE" });
+      setLatestNotifications([]);
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to clear notifications:", error);
+    }
+  }, []);
+
   return {
     unreadCount,
     latestNotifications,
     isConnected,
     markAsRead,
     markAllAsRead,
+    clearAll,
   };
 }
