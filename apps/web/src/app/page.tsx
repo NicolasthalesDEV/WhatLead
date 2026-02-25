@@ -276,128 +276,146 @@ export default function Home() {
       {/* Pricing Section */}
       <section id="pricing" className="py-12 sm:py-24 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-8 sm:mb-16">
-            <h2 className="text-2xl sm:text-4xl font-bold mb-4">Planos</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Escolha o plano que melhor se encaixa no seu negócio
+          <div className="text-center mb-12">
+            <span className="inline-block bg-purple-100 text-purple-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+              Sem cartão de crédito
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-bold mb-4">Escolha seu plano</h2>
+            <p className="text-lg text-gray-600 max-w-xl mx-auto">
+              14 dias grátis em todos os planos. Cancele quando quiser.
             </p>
           </div>
-          <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto overflow-x-hidden">
+
+          <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto items-stretch">
             {/* Starter */}
-            <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
-              <CardHeader className="text-center pb-6 pt-8">
-                <CardTitle className="text-2xl mb-2">Starter</CardTitle>
-                <div className="mb-3">
-                  <span className="text-4xl font-bold">R$ 97</span>
-                  <span className="text-gray-600">/mês</span>
+            <div className="relative rounded-2xl border-2 border-gray-200 bg-white flex flex-col hover:shadow-xl hover:border-purple-200 transition-all duration-200">
+              <div className="p-7 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Starter</p>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-extrabold text-gray-900">R$&nbsp;97</span>
+                  <span className="text-gray-500 pb-1">/mês</span>
                 </div>
-                <CardDescription>Para começar</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-3 mb-6">
+                <p className="text-sm text-gray-500">Para começar com automação</p>
+              </div>
+              <div className="p-7 flex flex-col flex-1">
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-5">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-green-700">14 dias grátis para testar</span>
+                </div>
+                <ul className="space-y-3 mb-7 flex-1">
                   {[
                     "1 número WhatsApp",
-                    "Chatbot com fluxos",
+                    "Chatbot com fluxos visuais",
                     "Até 1.000 conversas/mês",
                     "Histórico de mensagens",
                     "Suporte por email",
                   ].map((f, i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700">{f}</span>
+                    <li key={i} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-700">{f}</span>
                     </li>
                   ))}
                 </ul>
                 <Button
-                  className="w-full py-6"
+                  className="w-full"
                   variant="outline"
                   onClick={() => router.push("/register?plan=starter")}
                 >
-                  Começar
+                  Começar grátis
                 </Button>
-              </CardContent>
-            </Card>
-
-            {/* Professional */}
-            <Card className="border-2 border-purple-600 shadow-xl md:scale-105 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold px-4 py-1 rounded-full flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  Mais Popular
-                </div>
               </div>
-              <CardHeader className="text-center pb-6 pt-8">
-                <CardTitle className="text-2xl mb-2">Professional</CardTitle>
-                <div className="mb-3">
-                  <span className="text-4xl font-bold">R$ 197</span>
-                  <span className="text-gray-600">/mês</span>
+            </div>
+
+            {/* Professional — destaque */}
+            <div className="relative rounded-2xl border-2 border-purple-600 bg-white flex flex-col shadow-2xl md:-mt-3 md:mb-0">
+              <div className="absolute -top-4 inset-x-0 flex justify-center">
+                <span className="bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-bold px-5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
+                  <Sparkles className="h-3 w-3" /> Mais Popular
+                </span>
+              </div>
+              <div className="p-7 border-b border-purple-100 bg-gradient-to-br from-purple-600 to-blue-600 rounded-t-2xl">
+                <p className="text-sm font-semibold text-purple-200 uppercase tracking-wide mb-2">Professional</p>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-extrabold text-white">R$&nbsp;197</span>
+                  <span className="text-purple-200 pb-1">/mês</span>
                 </div>
-                <CardDescription>Para negócios em crescimento</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-3 mb-6">
+                <p className="text-sm text-purple-200">Para negócios em crescimento</p>
+              </div>
+              <div className="p-7 flex flex-col flex-1">
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-5">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-green-700">14 dias grátis para testar</span>
+                </div>
+                <ul className="space-y-3 mb-7 flex-1">
                   {[
                     "1 número WhatsApp",
-                    "Chatbot com IA (GPT)",
+                    "Chatbot IA com GPT-4o",
                     "Respostas em voz (ElevenLabs)",
-                    "Transcrição de áudios",
+                    "Transcrição de áudios (Whisper)",
                     "Conversas ilimitadas",
                     "Suporte prioritário",
                   ].map((f, i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700">{f}</span>
+                    <li key={i} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-700">{f}</span>
                     </li>
                   ))}
                 </ul>
                 <Button
-                  className="w-full py-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                   onClick={() => router.push("/register?plan=professional")}
                 >
-                  Começar Agora
+                  Começar grátis
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Enterprise */}
-            <Card className="border-2 border-gray-200 hover:shadow-xl transition-all">
-              <CardHeader className="text-center pb-6 pt-8">
-                <CardTitle className="text-2xl mb-2">Enterprise</CardTitle>
-                <div className="mb-3">
-                  <span className="text-4xl font-bold">R$ 497</span>
-                  <span className="text-gray-600">/mês</span>
+            <div className="relative rounded-2xl border-2 border-gray-200 bg-white flex flex-col hover:shadow-xl hover:border-purple-200 transition-all duration-200">
+              <div className="p-7 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Enterprise</p>
+                <div className="flex items-end gap-1 mb-1">
+                  <span className="text-4xl font-extrabold text-gray-900">R$&nbsp;497</span>
+                  <span className="text-gray-500 pb-1">/mês</span>
                 </div>
-                <CardDescription>Para grandes operações</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-3 mb-6">
+                <p className="text-sm text-gray-500">Para grandes operações</p>
+              </div>
+              <div className="p-7 flex flex-col flex-1">
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-5">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-green-700">14 dias grátis para testar</span>
+                </div>
+                <ul className="space-y-3 mb-7 flex-1">
                   {[
                     "Múltiplos números WhatsApp",
-                    "Chatbot com IA avançada",
+                    "Chatbot IA avançada",
                     "Respostas em voz",
                     "Conversas ilimitadas",
                     "API dedicada",
-                    "Suporte dedicado",
+                    "Suporte dedicado + SLA",
                   ].map((f, i) => (
-                    <li key={i} className="flex items-start">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700">{f}</span>
+                    <li key={i} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-700">{f}</span>
                     </li>
                   ))}
                 </ul>
                 <Button
-                  className="w-full py-6"
+                  className="w-full"
                   variant="outline"
                   onClick={() => router.push("/register?plan=enterprise")}
                 >
-                  Falar com a Equipe
+                  Começar grátis
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
+
+          <p className="text-center text-sm text-gray-500 mt-8">
+            Todos os planos incluem 14 dias de teste gratuito. Cobrança apenas após o período de teste.
+          </p>
         </div>
       </section>
-
       {/* CTA Section */}
       <section className="py-12 sm:py-24 bg-gradient-to-br from-purple-600 to-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">

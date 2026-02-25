@@ -5,10 +5,15 @@ export const dynamic = "force-dynamic";
 import { Header } from "@/components/header";
 import { Sidebar } from "@/components/sidebar";
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, AlertTriangle, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+interface TrialBanner {
+  type: "warning" | "expired";
+  daysRemaining?: number;
+}
 
 export default function DashboardLayout({
   children,
@@ -17,7 +22,24 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [trialBanner, setTrialBanner] = useState<TrialBanner | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/billing/subscription")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.isTrial || data?.plan === "trial" || data?.plan === "free") {
+          if (data?.isExpired) {
+            setTrialBanner({ type: "expired" });
+          } else if (typeof data?.daysRemaining === "number" && data.daysRemaining <= 7) {
+            setTrialBanner({ type: "warning", daysRemaining: data.daysRemaining });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Fecha o menu mobile ao redimensionar para desktop
   useEffect(() => {
@@ -76,6 +98,48 @@ export default function DashboardLayout({
 
       {/* ── Conteúdo principal ───────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+
+        {/* Trial expired banner */}
+        {trialBanner?.type === "expired" && (
+          <div className="flex items-center justify-between gap-3 bg-red-600 text-white px-4 py-2.5 text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+              <span>Seu período de teste terminou. Assine agora para continuar usando o WhatLead.</span>
+            </div>
+            <Button
+              size="sm"
+              className="bg-white text-red-600 hover:bg-red-50 font-bold flex-shrink-0"
+              onClick={() => router.push("/checkout?plan=professional")}
+            >
+              Assinar agora
+            </Button>
+          </div>
+        )}
+
+        {/* Trial warning banner (≤7 days) */}
+        {trialBanner?.type === "warning" && (
+          <div className="flex items-center justify-between gap-3 bg-amber-500 text-white px-4 py-2.5 text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>
+                Seu teste gratuito expira em{" "}
+                <strong>
+                  {trialBanner.daysRemaining === 0
+                    ? "menos de 1 dia"
+                    : `${trialBanner.daysRemaining} dia${trialBanner.daysRemaining === 1 ? "" : "s"}`}
+                </strong>. Escolha um plano para não perder o acesso.
+              </span>
+            </div>
+            <Button
+              size="sm"
+              className="bg-white text-amber-600 hover:bg-amber-50 font-bold flex-shrink-0"
+              onClick={() => router.push("/checkout?plan=professional")}
+            >
+              Ver planos
+            </Button>
+          </div>
+        )}
+
         <div className="border-b bg-background">
           <div className="flex items-center min-h-[3.5rem] gap-1 px-2 sm:px-3">
             {/* Botão hamburger — mobile */}
