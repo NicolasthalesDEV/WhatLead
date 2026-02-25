@@ -38,7 +38,7 @@ export default function DashboardLayout({
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Fecha o menu mobile ao redimensionar para desktop
