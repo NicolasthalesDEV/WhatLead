@@ -833,6 +833,7 @@ export default function ChatbotPage() {
   const [openaiKeyConfigured, setOpenaiKeyConfigured] = useState(false);
   const [elevenLabsKeyInput, setElevenLabsKeyInput] = useState("");
   const [elevenLabsKeyConfigured, setElevenLabsKeyConfigured] = useState(false);
+  const [successRate, setSuccessRate] = useState<string>("—");
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -843,9 +844,23 @@ export default function ChatbotPage() {
   const loadFlows = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/chatbot/flows");
-      const data = await res.json();
-      setFlows(data.flows || []);
+      const [flowsRes, analyticsRes] = await Promise.all([
+        fetch("/api/chatbot/flows"),
+        fetch("/api/chatbot/analytics"),
+      ]);
+      const flowsData = await flowsRes.json();
+      setFlows(flowsData.flows || []);
+
+      if (analyticsRes.ok) {
+        const analyticsData = await analyticsRes.json();
+        const { totalExecutions = 0, completed = 0 } = analyticsData.summary || {};
+        if (totalExecutions > 0) {
+          const rate = Math.round((completed / totalExecutions) * 100);
+          setSuccessRate(`${rate}%`);
+        } else {
+          setSuccessRate("—");
+        }
+      }
     } catch {
       showToast("Erro ao carregar fluxos", "error");
     }
@@ -2015,7 +2030,7 @@ export default function ChatbotPage() {
           },
           {
             label: "Taxa de Sucesso",
-            value: "—",
+            value: successRate,
             icon: <BarChart3 className="h-5 w-5 text-purple-500" />,
             color: "text-purple-600",
           },

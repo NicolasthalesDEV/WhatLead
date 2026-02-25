@@ -32,7 +32,7 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-[min(320px,calc(100vw-1rem))]">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Notificações</h3>

@@ -1,49 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { prisma } from "@wacrm/db";
-import { UnauthorizedError, errorResponse } from "@/lib/errors";
+import { errorResponse } from "@/lib/errors";
 
-export async function PATCH(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const session = await requireAuth(req);
-    if (!session.ok) {
-      return session.res;
-    }
+    if (!session.ok) return session.res;
 
-    const body = await req.json();
-    const { notifications } = body;
-
-    // Buscar usuário atual
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: { preferences: true },
-    });
-
-    if (!user) {
-      throw new UnauthorizedError("Usuário não encontrado");
-    }
-
-    // Merge das preferências existentes com as novas
-    const currentPreferences = (user.preferences as any) || {};
-    const updatedPreferences = {
-      ...currentPreferences,
-      notifications: {
-        ...(currentPreferences.notifications || {}),
-        ...notifications,
-      },
-    };
-
-    // Atualizar preferências
-    await prisma.user.update({
-      where: { id: session.userId },
-      data: {
-        preferences: updatedPreferences,
-      },
+    const pref = await prisma.notificationPreference.upsert({
+      where: { userId: session.userId },
+      create: { userId: session.userId },
+      update: {},
     });
 
     return NextResponse.json({
       success: true,
-      preferences: updatedPreferences,
+      preferences: {
+        notifications: {
+          whatsapp: pref.newMessageEnabled,
+          chatbot: pref.pushEnabled,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("Failed to get preferences:", error);
+    return errorResponse(error);
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await requireAuth(req);
+    if (!session.ok) return session.res;
+
+    const body = await req.json();
+    const n = body?.notifications ?? {};
+
+    const data: Record<string, boolean> = {};
+    if (typeof n.whatsapp === "boolean") data.newMessageEnabled = n.whatsapp;
+    if (typeof n.chatbot === "boolean") data.pushEnabled = n.chatbot;
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    const pref = await prisma.notificationPreference.upsert({
+      where: { userId: session.userId },
+      create: { userId: session.userId, ...data },
+      update: data,
+    });
+
+    return NextResponse.json({
+      success: true,
+      preferences: {
+        notifications: {
+          whatsapp: pref.newMessageEnabled,
+          chatbot: pref.pushEnabled,
+        },
+      },
     });
   } catch (error: any) {
     console.error("Failed to update preferences:", error);
@@ -51,28 +66,3 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await requireAuth(req);
-    if (!session.ok) {
-      return session.res;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: { preferences: true },
-    });
-
-    if (!user) {
-      throw new UnauthorizedError("Usuário não encontrado");
-    }
-
-    return NextResponse.json({
-      success: true,
-      preferences: user.preferences || {},
-    });
-  } catch (error: any) {
-    console.error("Failed to get preferences:", error);
-    return errorResponse(error);
-  }
-}

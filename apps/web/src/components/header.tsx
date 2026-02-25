@@ -33,18 +33,17 @@ export function Header() {
     <header className="relative z-50 w-full bg-background">
       <div className="flex h-14 items-center px-2 sm:px-3">
         <div className="flex flex-1 items-center justify-end space-x-1">
-          {/* Suporte via WhatsApp */}
-          <a
-            href="https://wa.me/5547991011287?text=Ol%C3%A1%2C%20preciso%20de%20suporte%20com%20o%20sistema"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Falar com suporte"
+          {/* Suporte — abre página de reporte */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={() => router.push("/dashboard/support")}
+            title="Reportar problema"
           >
-            <Button variant="ghost" size="sm" className="gap-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="hidden sm:inline">Suporte</span>
-            </Button>
-          </a>
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Suporte</span>
+          </Button>
 
           {/* Notificações */}
           <NotificationBell />

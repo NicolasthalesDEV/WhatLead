@@ -9,6 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, AlertTriangle, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 interface TrialBanner {
   type: "warning" | "expired";
@@ -25,6 +26,9 @@ export default function DashboardLayout({
   const [trialBanner, setTrialBanner] = useState<TrialBanner | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+
+  // Auto-start tutorial for first-time users
+  useOnboarding(true);
 
   useEffect(() => {
     fetch("/api/billing/subscription")
@@ -101,14 +105,14 @@ export default function DashboardLayout({
 
         {/* Trial expired banner */}
         {trialBanner?.type === "expired" && (
-          <div className="flex items-center justify-between gap-3 bg-red-600 text-white px-4 py-2.5 text-sm font-medium">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-red-600 text-white px-4 py-3 text-sm font-medium">
+            <div className="flex items-start sm:items-center gap-2">
+              <ShieldAlert className="h-4 w-4 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>Seu período de teste terminou. Assine agora para continuar usando o WhatLead.</span>
             </div>
             <Button
               size="sm"
-              className="bg-white text-red-600 hover:bg-red-50 font-bold flex-shrink-0"
+              className="bg-white text-red-600 hover:bg-red-50 font-bold flex-shrink-0 w-full sm:w-auto"
               onClick={() => router.push("/checkout?plan=professional")}
             >
               Assinar agora
@@ -118,9 +122,9 @@ export default function DashboardLayout({
 
         {/* Trial warning banner (≤7 days) */}
         {trialBanner?.type === "warning" && (
-          <div className="flex items-center justify-between gap-3 bg-amber-500 text-white px-4 py-2.5 text-sm font-medium">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-amber-500 text-white px-4 py-3 text-sm font-medium">
+            <div className="flex items-start sm:items-center gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 Seu teste gratuito expira em{" "}
                 <strong>
@@ -132,7 +136,7 @@ export default function DashboardLayout({
             </div>
             <Button
               size="sm"
-              className="bg-white text-amber-600 hover:bg-amber-50 font-bold flex-shrink-0"
+              className="bg-white text-amber-600 hover:bg-amber-50 font-bold flex-shrink-0 w-full sm:w-auto"
               onClick={() => router.push("/checkout?plan=professional")}
             >
               Ver planos

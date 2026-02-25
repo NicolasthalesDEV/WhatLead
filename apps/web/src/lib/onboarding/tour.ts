@@ -6,13 +6,12 @@
 import { driver, DriveStep, Config } from "driver.js";
 import "driver.js/dist/driver.css";
 
-// Configuração padrão do driver
 const defaultConfig: Config = {
   showProgress: true,
   showButtons: ["next", "previous", "close"],
   nextBtnText: "Próximo →",
   prevBtnText: "← Anterior",
-  doneBtnText: "Concluir ✓",
+  doneBtnText: "Entendido ✓",
   progressText: "{{current}} de {{total}}",
   allowClose: true,
   smoothScroll: true,
@@ -21,56 +20,58 @@ const defaultConfig: Config = {
   stageRadius: 5,
   popoverOffset: 10,
   onDestroyed: () => {
-    // Marcar onboarding como concluído
     localStorage.setItem("onboarding-completed", "true");
   },
 };
 
-// Etapas do tour de onboarding
 export const onboardingSteps: DriveStep[] = [
+  // ── 1. Boas-vindas
   {
     popover: {
-      title: "🎉 Bem-vindo ao WhatLead!",
+      title: "👋 Bem-vindo ao WhatLead!",
       description: `
-        <div class="space-y-2">
-          <p>Olá! Vamos fazer uma rápida apresentação das três seções principais da plataforma.</p>
-          <p class="text-sm text-muted-foreground">Este tour levará apenas 1 minuto e você pode pular a qualquer momento.</p>
+        <div style="line-height:1.6">
+          <p>O WhatLead conecta seu <strong>WhatsApp Business</strong> a um chatbot com inteligência artificial que atende, responde e automatiza seu atendimento 24 h por dia.</p>
+          <p style="margin-top:8px;font-size:13px;color:#6b7280">Este tour rápido mostra como tudo funciona. Você pode fechar a qualquer momento e rever pelo menu do usuário.</p>
         </div>
       `,
     },
   },
+
+  // ── 2. WhatsApp
   {
     element: '[href="/dashboard/whatsapp"]',
     popover: {
-      title: "💬 WhatsApp — Central de Conversas",
+      title: "💬 WhatsApp — Suas Conversas",
       description: `
-        <div class="space-y-2">
-          <p><strong>Este é o coração do sistema.</strong> Aqui você:</p>
-          <ul class="list-disc list-inside space-y-1 text-sm">
-            <li>Visualiza todas as conversas recebidas</li>
-            <li>Envia mensagens de texto e áudio</li>
-            <li>Acompanha o status de entrega em tempo real</li>
-            <li>Inicia novas conversas com qualquer número</li>
+        <div style="line-height:1.6">
+          <p>Aqui ficam <strong>todas as mensagens</strong> recebidas no seu número WhatsApp Business.</p>
+          <ul style="margin-top:8px;padding-left:16px;font-size:13px">
+            <li>Veja cada conversa em tempo real</li>
+            <li>Responda manualmente quando quiser</li>
+            <li>O chatbot responde automaticamente enquanto você está fora</li>
           </ul>
-          <p class="text-xs text-muted-foreground mt-2">💡 Configure seu número nas Configurações antes de começar.</p>
+          <p style="margin-top:8px;font-size:12px;color:#6b7280">⚠️ Antes de receber mensagens você precisa conectar seu número em <strong>Configurações</strong>.</p>
         </div>
       `,
       side: "right",
       align: "start",
     },
   },
+
+  // ── 3. Chatbot
   {
     element: '[href="/dashboard/chatbot"]',
     popover: {
-      title: "🤖 Chatbot IA — Atendimento Automático",
+      title: "🤖 Chatbot — Atendimento Automático",
       description: `
-        <div class="space-y-2">
-          <p>Configure seu chatbot para responder automaticamente:</p>
-          <ul class="list-disc list-inside space-y-1 text-sm">
-            <li>Monte fluxos visuais de atendimento</li>
-            <li>Ative respostas com GPT (OpenAI)</li>
-            <li>Envie áudios gerados pelo ElevenLabs</li>
-            <li>Transcreva áudios recebidos automaticamente</li>
+        <div style="line-height:1.6">
+          <p>Crie <strong>fluxos visuais</strong> de atendimento: arraste e conecte blocos para definir o que o chatbot faz em cada situação.</p>
+          <ul style="margin-top:8px;padding-left:16px;font-size:13px">
+            <li><strong>Palavras-chave (gatilhos):</strong> ex.: "oi", "preço" — ativam um fluxo</li>
+            <li><strong>Nós de mensagem:</strong> enviam texto automaticamente</li>
+            <li><strong>Nó IA (GPT-4o):</strong> o chatbot responde com inteligência artificial</li>
+            <li><strong>Horário de atendimento:</strong> avisa quando a empresa está fechada</li>
           </ul>
         </div>
       `,
@@ -78,46 +79,66 @@ export const onboardingSteps: DriveStep[] = [
       align: "start",
     },
   },
+
+  // ── 4. Configurações
   {
     element: '[href="/dashboard/settings"]',
     popover: {
-      title: "⚙️ Configurações — Conecte tudo aqui",
+      title: "⚙️ Configurações — Comece por aqui",
       description: `
-        <div class="space-y-2">
-          <p><strong>Configure suas integrações:</strong></p>
-          <ul class="list-disc list-inside space-y-1 text-sm">
-            <li><strong>WhatsApp:</strong> Adicione seu número Business API</li>
-            <li><strong>OpenAI:</strong> Informe sua chave de API para o chatbot GPT</li>
-            <li><strong>ElevenLabs:</strong> Ative respostas em voz</li>
+        <div style="line-height:1.6">
+          <p>Antes de tudo, configure suas integrações:</p>
+          <ul style="margin-top:8px;padding-left:16px;font-size:13px">
+            <li><strong>WhatsApp Business API:</strong> cole seu token e ID de número</li>
+            <li><strong>OpenAI (opcional):</strong> chave para ativar respostas com IA</li>
+            <li><strong>ElevenLabs (opcional):</strong> ativa respostas em voz geradas por IA</li>
           </ul>
-          <p class="text-xs text-muted-foreground mt-2">Comece por aqui antes de qualquer outra coisa.</p>
+          <p style="margin-top:8px;font-size:12px;color:#6b7280">Você também gerencia perfil, senha e plano de assinatura aqui.</p>
         </div>
       `,
       side: "right",
       align: "start",
     },
   },
+
+  // ── 5. Como tudo se conecta
   {
     popover: {
-      title: "✅ Tudo certo!",
+      title: "🔄 Como tudo se conecta",
       description: `
-        <div class="space-y-3">
-          <p><strong>Você está pronto para começar.</strong></p>
-          <p class="text-sm"><strong>🚀 Primeiros passos recomendados:</strong></p>
-          <ol class="list-decimal list-inside space-y-1 text-sm">
-            <li>Vá em <strong>Configurações</strong> e adicione seu número WhatsApp</li>
-            <li>Informe sua chave OpenAI para ativar o chatbot com IA</li>
-            <li>Configure o chatbot na seção <strong>Chatbot IA</strong></li>
-            <li>Receba sua primeira mensagem no <strong>WhatsApp</strong></li>
+        <div style="line-height:1.6">
+          <p style="font-size:13px"><strong>O ciclo de atendimento automático é simples:</strong></p>
+          <ol style="margin-top:8px;padding-left:16px;font-size:13px;line-height:2">
+            <li>Cliente envia mensagem no WhatsApp</li>
+            <li>O sistema verifica se existe um fluxo com aquela <strong>palavra-chave</strong></li>
+            <li>Se sim, executa o fluxo — envia textos, aguarda respostas, aciona IA</li>
+            <li>Se não houver fluxo, a mensagem chega no painel para você responder</li>
           </ol>
-          <p class="text-xs text-muted-foreground mt-3">💡 Para rever este tutorial: Menu do usuário → "Ver Tutorial Novamente"</p>
+          <p style="margin-top:8px;font-size:12px;color:#6b7280">💡 Fora do horário configurado, o chatbot envia automaticamente a mensagem de "empresa fechada".</p>
+        </div>
+      `,
+    },
+  },
+
+  // ── 6. Pronto
+  {
+    popover: {
+      title: "✅ Pronto para começar!",
+      description: `
+        <div style="line-height:1.6">
+          <p><strong>Siga estes 3 passos para ativar seu atendimento automático:</strong></p>
+          <ol style="margin-top:8px;padding-left:16px;font-size:13px;line-height:2.2">
+            <li>📱 <strong>Configurações → WhatsApp:</strong> conecte seu número</li>
+            <li>🤖 <strong>Chatbot:</strong> crie um fluxo com palavra-chave "oi"</li>
+            <li>💬 <strong>WhatsApp:</strong> envie "oi" para seu número e veja a mágica!</li>
+          </ol>
+          <p style="margin-top:10px;font-size:12px;color:#6b7280">🔁 Para rever este tutorial: menu do usuário → <strong>"Ver Tutorial Novamente"</strong></p>
         </div>
       `,
     },
   },
 ];
 
-// Criar instância do driver
 export function createOnboardingDriver() {
   return driver({
     ...defaultConfig,
@@ -125,19 +146,16 @@ export function createOnboardingDriver() {
   });
 }
 
-// Verificar se o usuário já completou o onboarding
 export function hasCompletedOnboarding(): boolean {
   if (typeof window === "undefined") return true;
   return localStorage.getItem("onboarding-completed") === "true";
 }
 
-// Resetar onboarding (para permitir que o usuário veja novamente)
 export function resetOnboarding(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("onboarding-completed");
 }
 
-// Marcar onboarding como concluído
 export function markOnboardingCompleted(): void {
   if (typeof window === "undefined") return;
   localStorage.setItem("onboarding-completed", "true");

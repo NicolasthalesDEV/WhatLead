@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createOnboardingDriver,
   hasCompletedOnboarding,
@@ -9,59 +9,58 @@ import {
 } from "@/lib/onboarding/tour";
 import type { Driver } from "driver.js";
 
-export function useOnboarding() {
-  const [driver, setDriver] = useState<Driver | null>(null);
+export function useOnboarding(autoStart = false) {
+  const [driverInstance, setDriverInstance] = useState<Driver | null>(null);
   const [isCompleted, setIsCompleted] = useState(true);
+  // Avoid double-start in strict mode
+  const started = useRef(false);
 
   useEffect(() => {
-    // Verificar se já completou
     const completed = hasCompletedOnboarding();
     setIsCompleted(completed);
 
-    // Criar instância do driver
-    const driverInstance = createOnboardingDriver();
-    setDriver(driverInstance);
+    const d = createOnboardingDriver();
+    setDriverInstance(d);
+
+    // Auto-start for first-time users
+    if (!completed && autoStart && !started.current) {
+      started.current = true;
+      // Delay so sidebar elements are mounted in the DOM
+      const timer = setTimeout(() => d.drive(), 800);
+      return () => {
+        clearTimeout(timer);
+        d.destroy();
+      };
+    }
 
     return () => {
-      // Cleanup: destruir driver ao desmontar
-      if (driverInstance) {
-        driverInstance.destroy();
-      }
+      d.destroy();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startTour = () => {
-    if (driver) {
-      driver.drive();
-    }
+    if (driverInstance) driverInstance.drive();
   };
 
   const resetTour = () => {
     resetOnboarding();
     setIsCompleted(false);
-    if (driver) {
-      driver.drive();
-    }
+    if (driverInstance) driverInstance.drive();
   };
 
   const completeTour = () => {
     markOnboardingCompleted();
     setIsCompleted(true);
-    if (driver) {
-      driver.destroy();
-    }
-  };
-
-  const skipTour = () => {
-    completeTour();
+    if (driverInstance) driverInstance.destroy();
   };
 
   return {
-    driver,
+    driver: driverInstance,
     isCompleted,
     startTour,
     resetTour,
     completeTour,
-    skipTour,
+    skipTour: completeTour,
   };
 }

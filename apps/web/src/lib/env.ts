@@ -37,6 +37,9 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
+
+  // ── Resend (email API) ───────────────────────────────────
+  RESEND_API_KEY: z.string().optional(),
 });
 
 // Create a mock environment for build time validation skip
@@ -57,6 +60,7 @@ const mockEnv = {
   GOOGLE_CLIENT_ID: undefined,
   GOOGLE_CLIENT_SECRET: undefined,
   GOOGLE_REDIRECT_URI: undefined,
+  RESEND_API_KEY: undefined,
 };
 
 export const env = skipValidation
@@ -78,6 +82,7 @@ export const env = skipValidation
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
       GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+      RESEND_API_KEY: process.env.RESEND_API_KEY,
     });
 
 // Helper to check if Redis features are available
