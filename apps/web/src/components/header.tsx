@@ -148,7 +148,7 @@ export function Header() {
   };
 
   const openHelp = () => {
-    window.open('https://help.exemplo.com', '_blank');
+    window.open('https://wa.me/5547991011287?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20WhatLead', '_blank');
   };
 
   // Helper: render search result dropdown
