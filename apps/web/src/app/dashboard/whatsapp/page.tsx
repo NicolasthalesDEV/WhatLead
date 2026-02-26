@@ -392,12 +392,19 @@ export default function WhatsAppPage() {
     }
   };
 
+  // Use refs so polling intervals always read the latest values
+  // without needing to be recreated on every search/filter change
+  const searchQueryRef = useRef(searchQuery);
+  const unreadOnlyFilterRef = useRef(unreadOnlyFilter);
+  useEffect(() => { searchQueryRef.current = searchQuery; }, [searchQuery]);
+  useEffect(() => { unreadOnlyFilterRef.current = unreadOnlyFilter; }, [unreadOnlyFilter]);
+
   // Fetch conversations
   const fetchConversations = async () => {
     try {
       const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      if (unreadOnlyFilter) params.append('unreadOnly', 'true');
+      if (searchQueryRef.current) params.append('search', searchQueryRef.current);
+      if (unreadOnlyFilterRef.current) params.append('unreadOnly', 'true');
 
       const response = await fetch(`/api/whatsapp/conversations?${params}`, { credentials: 'include' });
       if (!response.ok) {
@@ -427,9 +434,7 @@ export default function WhatsAppPage() {
       const data = await response.json();
       setMessages(data.messages || []);
       setCustomer(data.customer || null);
-
-      // Refresh conversations list to update unread count
-      fetchConversations();
+      // NOTE: do NOT call fetchConversations() here — it already has its own interval
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Erro ao carregar mensagens';
       console.error('fetchMessages error:', msg);
@@ -489,9 +494,7 @@ export default function WhatsAppPage() {
       // Add message to list
       setMessages((prev) => [...prev, data.message]);
       setMessageInput("");
-
-      // Refresh conversations to update last message
-      fetchConversations();
+      // NOTE: conversations list will update on the next poll (no need to call fetchConversations here)
 
       scrollToBottom();
     } catch (error) {
@@ -589,9 +592,7 @@ export default function WhatsAppPage() {
 
       // Add message to list
       setMessages((prev) => [...prev, optimisticMessage]);
-
-      // Refresh conversations to update last message
-      fetchConversations();
+      // NOTE: conversations list will update on the next poll (no need to call fetchConversations here)
 
       scrollToBottom();
     } catch (error) {
@@ -612,26 +613,55 @@ export default function WhatsAppPage() {
     e.target.value = '';
   };
 
-  // Load conversations on mount
+  // Load conversations on mount — poll every 20s, pause when tab hidden
   useEffect(() => {
     fetchConversations();
     fetchQuickResponses();
 
-    // Poll for new messages every 5 seconds
-    const interval = setInterval(fetchConversations, 5000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (!interval) interval = setInterval(fetchConversations, 20000);
+    };
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+    };
+
+    startPolling();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchConversations(); // immediate refresh on tab focus
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount — search/filter changes are picked up via refs
+
+  // Re-fetch when search or filter changes (debounced via ref, no interval restart)
+  useEffect(() => {
+    fetchConversations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, unreadOnlyFilter]);
 
-  // Load messages when conversation is selected
+  // Load messages when conversation is selected — poll every 15s
   useEffect(() => {
     if (selectedCustomerId) {
       // Carregamento inicial — mostra spinner
       fetchMessages(selectedCustomerId);
 
-      // Poll silencioso a cada 4s — sem spinner, sem flicker
+      // Poll silencioso a cada 15s — sem spinner, sem flicker
       const interval = setInterval(() => {
         fetchMessages(selectedCustomerId, true);
-      }, 4000);
+      }, 15000);
 
       return () => clearInterval(interval);
     }
