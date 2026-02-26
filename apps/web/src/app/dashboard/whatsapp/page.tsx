@@ -643,13 +643,13 @@ export default function WhatsAppPage() {
       stopPolling();
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount — search/filter changes are picked up via refs
 
   // Re-fetch when search or filter changes (debounced via ref, no interval restart)
   useEffect(() => {
     fetchConversations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, unreadOnlyFilter]);
 
   // Load messages when conversation is selected — poll every 15s
