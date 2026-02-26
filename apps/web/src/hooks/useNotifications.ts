@@ -12,91 +12,53 @@ type Notification = {
   createdAt: string;
 };
 
-type NotificationUpdate = {
-  type: "notification_update";
-  unreadCount: number;
-  notifications: Notification[];
-};
-
-// Max consecutive errors before giving up reconnecting
-const MAX_RETRIES = 5;
-// Backoff delays in ms: 5s, 10s, 20s, 40s, 60s
-const BACKOFF = [5_000, 10_000, 20_000, 40_000, 60_000];
+const POLL_INTERVAL_MS = 30_000; // 30 seconds
 
 export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestNotifications, setLatestNotifications] = useState<Notification[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const { user } = useAuth();
-
-  const retryCountRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const esRef = useRef<EventSource | null>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?unreadOnly=false&limit=10", {
+        credentials: "include",
+      });
+      if (!res.ok) return; // silently ignore auth/server errors
+      const data = await res.json();
+      setUnreadCount(data.unreadCount ?? 0);
+      setLatestNotifications((data.notifications ?? []).slice(0, 5));
+      setIsConnected(true);
+    } catch {
+      setIsConnected(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Only connect when authenticated
+    // Only poll when authenticated
     if (!user) {
-      esRef.current?.close();
-      esRef.current = null;
       setIsConnected(false);
       return;
     }
 
-    // Reset retry counter when user changes (login)
-    retryCountRef.current = 0;
+    // Initial fetch
+    fetchNotifications();
 
-    const connect = () => {
-      // Already hit the retry limit — stop trying
-      if (retryCountRef.current >= MAX_RETRIES) {
-        console.warn("[SSE] Max retries reached, stopping notifications stream.");
-        return;
-      }
-
-      const es = new EventSource("/api/notifications/stream");
-      esRef.current = es;
-
-      es.onopen = () => {
-        retryCountRef.current = 0; // reset on successful open
-        setIsConnected(true);
-      };
-
-      es.onmessage = (event) => {
-        try {
-          const data: NotificationUpdate = JSON.parse(event.data);
-          if (data.type === "notification_update") {
-            setUnreadCount(data.unreadCount);
-            setLatestNotifications(data.notifications);
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-
-      es.onerror = () => {
-        setIsConnected(false);
-        es.close();
-        esRef.current = null;
-
-        retryCountRef.current += 1;
-
-        if (retryCountRef.current >= MAX_RETRIES) {
-          console.warn("[SSE] Too many errors, notifications stream disabled.");
-          return;
-        }
-
-        const delay = BACKOFF[Math.min(retryCountRef.current - 1, BACKOFF.length - 1)];
-        timerRef.current = setTimeout(connect, delay);
-      };
+    // Poll every 30 seconds
+    const schedule = () => {
+      timerRef.current = setTimeout(async () => {
+        await fetchNotifications();
+        schedule();
+      }, POLL_INTERVAL_MS);
     };
-
-    connect();
+    schedule();
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      esRef.current?.close();
-      esRef.current = null;
     };
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   const markAsRead = useCallback(async (id: string) => {
     try {
