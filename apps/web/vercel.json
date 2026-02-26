@@ -4,7 +4,9 @@
   "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
   "buildCommand": "cd ../.. && cd packages/db && pnpm exec prisma generate && cd ../.. && SKIP_ENV_VALIDATION=true pnpm turbo run build --filter=@wacrm/web",
   "outputDirectory": ".next",
-  "regions": ["iad1"],
+  "regions": [
+    "iad1"
+  ],
   "build": {
     "env": {
       "SKIP_ENV_VALIDATION": "true"
