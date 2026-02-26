@@ -65,6 +65,9 @@ model Customer {
   Order        Order[]
   Quote        Quote[]
   WhatsMessage WhatsMessage[]
+
+  @@index([companyId])
+  @@index([companyId, name])
 }
 
 model FunnelStage {
@@ -583,6 +586,11 @@ model WhatsMessage {
   WhatsChannel WhatsChannel     @relation(fields: [channelId], references: [id])
   Company      Company          @relation(fields: [companyId], references: [id])
   Customer     Customer         @relation(fields: [customerId], references: [id])
+
+  // Indexes for the conversations list query (DISTINCT ON + ORDER BY + unread count)
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, customerId, createdAt(sort: Desc)])
+  @@index([companyId, direction, status])
 }
 
 enum MessageDirection {

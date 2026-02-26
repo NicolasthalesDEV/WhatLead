@@ -646,9 +646,12 @@ export default function WhatsAppPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount — search/filter changes are picked up via refs
 
-  // Re-fetch when search or filter changes (debounced via ref, no interval restart)
+  // Re-fetch when search or filter changes — debounced 300ms to avoid a request per keystroke
   useEffect(() => {
-    fetchConversations();
+    const timer = setTimeout(() => {
+      fetchConversations();
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, unreadOnlyFilter]);
 
@@ -777,7 +780,7 @@ export default function WhatsAppPage() {
       const data = await msgRes.json();
       setMessages((prev) => [...prev, data.message]);
       setMessageInput('');
-      fetchConversations();
+      // conversations list updates on the next poll — no need to call fetchConversations here
       scrollToBottom();
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar áudio via ElevenLabs');

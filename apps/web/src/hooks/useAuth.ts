@@ -40,7 +40,32 @@ export function useAuth() {
       });
 
       if (response.status === 401 || response.status === 403) {
-        // Não autenticado - apenas limpar estado, não redirecionar
+        // Access token expired — try to refresh it using the HttpOnly refresh token cookie
+        const refreshRes = await fetch("/api/auth/refresh", {
+          method: "POST",
+          credentials: "include",
+          // No body needed — the server reads refreshToken from the HttpOnly cookie
+        });
+
+        if (refreshRes.ok) {
+          // New accessToken cookie has been set — retry the profile request
+          const retryRes = await fetch("/api/user/profile", {
+            credentials: "include",
+          });
+
+          if (retryRes.ok) {
+            const data = await retryRes.json();
+            if (data.user) {
+              setState({ user: data.user, loading: false, error: null });
+              if (typeof window !== "undefined") {
+                localStorage.setItem("user-data", JSON.stringify(data.user));
+              }
+              return;
+            }
+          }
+        }
+
+        // Refresh also failed — user must log in again
         setState({
           user: null,
           loading: false,
