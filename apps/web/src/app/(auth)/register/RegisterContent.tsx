@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,7 +84,7 @@ export default function RegisterContent() {
       let res: Response | null = null;
       const attempts: Array<{ url: string; status: number; allow: string | null }> = [];
       for (let i = 0; i < candidates.length; i++) {
-        const current = await fetch(candidates[i], {
+        const current = await fetchApi(candidates[i], {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: payload,
