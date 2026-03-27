@@ -63,6 +63,27 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Auto-issue CSRF cookie on page navigation (GET, non-API) so the browser always
+  // has a token ready before making any mutation. Uses Web Crypto (Edge-compatible).
+  const hasCsrf = request.cookies.has(CSRF_COOKIE);
+  const isPageRequest =
+    !request.nextUrl.pathname.startsWith('/api/') &&
+    ['GET', 'HEAD'].includes(request.method);
+
+  if (!hasCsrf && isPageRequest) {
+    // crypto.randomUUID() is available in Edge runtime
+    const token =
+      crypto.randomUUID().replace(/-/g, '') +
+      crypto.randomUUID().replace(/-/g, '');
+    response.cookies.set(CSRF_COOKIE, token, {
+      httpOnly: false, // Lível pelo JS para o double-submit pattern
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24,
+      path: '/',
+    });
+  }
+
   // Security Headers
   const securityHeaders = {
     // HSTS - Force HTTPS (31536000 = 1 year)

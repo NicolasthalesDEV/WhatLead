@@ -30,7 +30,7 @@ export function verifyCsrfToken(req: NextRequest): boolean {
 
 export function setCsrfCookie(res: NextResponse, token: string): NextResponse {
   res.cookies.set(CSRF_COOKIE_NAME, token, {
-    httpOnly: true,
+    httpOnly: false, // Deve ser lível pelo JS (double-submit cookie pattern)
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: 60 * 60 * 24, // 24 hours
