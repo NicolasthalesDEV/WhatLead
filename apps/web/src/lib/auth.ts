@@ -228,24 +228,44 @@ export async function verifyAuth(req: NextRequest): Promise<Claims | null> {
   }
 }
 
-// Rate limiting helper
+// Rate limiting helper — Redis-backed when REDIS_URL is set, in-memory fallback
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-export function checkRateLimit(key: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean {
+function inMemoryRateLimit(key: string, maxAttempts: number, windowMs: number): boolean {
   const now = Date.now();
   const record = rateLimitMap.get(key);
-
   if (!record || record.resetAt < now) {
     rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }
-
-  if (record.count >= maxAttempts) {
-    return false;
-  }
-
+  if (record.count >= maxAttempts) return false;
   record.count++;
   return true;
+}
+
+async function redisRateLimit(key: string, maxAttempts: number, windowMs: number): Promise<boolean> {
+  try {
+    const { default: Redis } = await import("ioredis");
+    const redis = new Redis(process.env.REDIS_URL!, { lazyConnect: true, enableOfflineQueue: false });
+    await redis.connect();
+    const redisKey = `ratelimit:${key}`;
+    const count = await redis.incr(redisKey);
+    if (count === 1) {
+      await redis.pexpire(redisKey, windowMs);
+    }
+    await redis.quit();
+    return count <= maxAttempts;
+  } catch {
+    // Fall back to in-memory if Redis is unavailable
+    return inMemoryRateLimit(key, maxAttempts, windowMs);
+  }
+}
+
+export async function checkRateLimit(key: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): Promise<boolean> {
+  if (process.env.REDIS_URL) {
+    return redisRateLimit(key, maxAttempts, windowMs);
+  }
+  return inMemoryRateLimit(key, maxAttempts, windowMs);
 }
 
 export function resetRateLimit(key: string) {

@@ -11,7 +11,7 @@ afterEach(() => {
 process.env.JWT_SECRET = 'test-secret-key-minimum-32-characters-long';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-key-minimum-32-chars';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
-process.env.NODE_ENV = 'test';
+Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', writable: true });
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({

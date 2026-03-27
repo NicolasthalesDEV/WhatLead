@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@wacrm/db';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, createAuditLog } from '@/lib/auth';
 
 /**
  * GET /api/company/settings
@@ -22,7 +22,21 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         slug: true,
+        email: true,
+        phone: true,
+        website: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+        country: true,
+        document: true,
+        logoUrl: true,
+        description: true,
+        businessHours: true,
+        autoMessages: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -33,25 +47,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      company: {
-        ...company,
-        email: null,
-        phone: null,
-        website: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        country: null,
-        document: null,
-        logoUrl: null,
-        description: null,
-        businessHours: null,
-        autoMessages: null,
-        updatedAt: company.createdAt,
-      },
-    });
+    return NextResponse.json({ company });
 
   } catch (error) {
     console.error('Error fetching company settings:', error);
@@ -104,11 +100,40 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const data = updateCompanySchema.parse(body);
-    const updateData: { name?: string } = {};
 
-    if (typeof data.name === 'string') {
-      updateData.name = data.name;
-    }
+    type CompanyUpdateInput = {
+      name?: string;
+      email?: string | null;
+      phone?: string | null;
+      website?: string | null;
+      address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      zipCode?: string | null;
+      country?: string;
+      document?: string | null;
+      logoUrl?: string | null;
+      description?: string | null;
+      businessHours?: any;
+      autoMessages?: any;
+    };
+
+    const updateData: CompanyUpdateInput = {};
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.website !== undefined) updateData.website = data.website;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.city !== undefined) updateData.city = data.city;
+    if (data.state !== undefined) updateData.state = data.state;
+    if (data.zipCode !== undefined) updateData.zipCode = data.zipCode;
+    if (data.country !== undefined) updateData.country = data.country;
+    if (data.document !== undefined) updateData.document = data.document;
+    if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.businessHours !== undefined) updateData.businessHours = data.businessHours;
+    if (data.autoMessages !== undefined) updateData.autoMessages = data.autoMessages;
 
     // Atualizar empresa
     const company = await prisma.company.update({
@@ -118,29 +143,34 @@ export async function PATCH(req: NextRequest) {
         id: true,
         name: true,
         slug: true,
+        email: true,
+        phone: true,
+        website: true,
+        address: true,
+        city: true,
+        state: true,
+        zipCode: true,
+        country: true,
+        document: true,
+        logoUrl: true,
+        description: true,
+        businessHours: true,
+        autoMessages: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
-    return NextResponse.json({
-      company: {
-        ...company,
-        email: null,
-        phone: null,
-        website: null,
-        address: null,
-        city: null,
-        state: null,
-        zipCode: null,
-        country: null,
-        document: null,
-        logoUrl: null,
-        description: null,
-        businessHours: null,
-        autoMessages: null,
-        updatedAt: company.createdAt,
-      },
+    await createAuditLog({
+      userId: user.uid,
+      companyId: user.companyId,
+      action: 'COMPANY_SETTINGS_UPDATE',
+      resource: 'company',
+      resourceId: user.companyId,
+      req,
     });
+
+    return NextResponse.json({ company });
 
   } catch (error) {
     console.error('Error updating company settings:', error);

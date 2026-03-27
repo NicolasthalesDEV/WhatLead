@@ -276,6 +276,13 @@ const NODE_META: Record<
     border: "border-rose-400",
     icon: <Volume2 className="h-4 w-4 text-rose-600" />,
   },
+  GOTO_FLOW: {
+    label: "Ir para Fluxo",
+    color: "text-cyan-700",
+    bg: "bg-cyan-50",
+    border: "border-cyan-400",
+    icon: <GitBranch className="h-4 w-4 text-cyan-600" />,
+  },
 };
 
 // ─────────────────────────────────────────────

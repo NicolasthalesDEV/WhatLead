@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -126,6 +126,15 @@ export async function POST(req: NextRequest) {
           createdAt: true,
         },
       });
+
+      await createAuditLog({
+        userId: authResult.userId,
+        companyId: authResult.companyId!,
+        action: 'WHATSAPP_CHANNEL_CREATE',
+        resource: 'whatsChannel',
+        resourceId: channel.id,
+        req,
+      }).catch(() => {});
 
       return NextResponse.json({ channel }, { status: 201 });
     } catch (apiError: any) {

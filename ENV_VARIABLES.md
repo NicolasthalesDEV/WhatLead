@@ -39,8 +39,13 @@
 | Variável | Status | Descrição | Quando Usar |
 |----------|--------|-----------|-------------|
 | `ASAAS_API_KEY` | ❌ | API Key do Asaas | Usar Asaas para PIX |
-| `SENTRY_DSN` | ❌ | URL Sentry (monitoring) | Monitoramento de erros |
+| `SENTRY_DSN` | ❌ | URL Sentry (server) | Monitoramento de erros no servidor |
+| `NEXT_PUBLIC_SENTRY_DSN` | ❌ | URL Sentry (browser) | Monitoramento de erros no cliente |
+| `SENTRY_ORG` | ❌ | Organização Sentry | Upload de source maps |
+| `SENTRY_PROJECT` | ❌ | Projeto Sentry | Upload de source maps |
 | `SENTRY_AUTH_TOKEN` | ❌ | Token Sentry | Deploy com source maps |
+| `SUPER_ADMIN_EMAILS` | ❌ | Emails super-admin (CSV) | Acesso ao painel `/dashboard/admin/companies` |
+| `NEXT_PUBLIC_SUPER_ADMIN_EMAILS` | ❌ | Mesmo CSV (visível no browser) | Ocultar links de admin no sidebar para não-admins |
 | `REDIS_PASSWORD` | ❌ | Senha Redis | Redis com autenticação |
 | `SMTP_HOST` | ❌ | Servidor SMTP | E-mail transacional |
 | `SMTP_USER` | ❌ | Usuário SMTP | E-mail transacional |

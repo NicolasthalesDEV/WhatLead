@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as db } from "@wacrm/db";
 import { requireAuth } from "@/lib/auth";
+import crypto from "crypto";
 
 // GET /api/funnel/cards - Listar todos os cards do funil
 export async function GET(req: NextRequest) {
@@ -8,47 +9,21 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const funnelCard = (db as any).funnelCard;
-
-  if (!funnelCard) {
-    return NextResponse.json({ cards: [] });
-  }
 
   const { searchParams } = new URL(req.url);
   const stageId = searchParams.get("stageId");
 
-  const where: any = {
-    companyId: authResult.companyId,
-  };
+  const where: any = { companyId: authResult.companyId };
+  if (stageId) where.stageId = stageId;
 
-  if (stageId) {
-    where.stageId = stageId;
-  }
-
-  const cards = await funnelCard.findMany({
+  const cards = await db.funnelCard.findMany({
     where,
     include: {
-      stage: true,
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          phoneE164: true,
-          email: true,
-        },
-      },
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+      Stage: true,
+      Customer: { select: { id: true, name: true, phoneE164: true, email: true } },
+      AssignedTo: { select: { id: true, name: true, email: true } },
     },
-    orderBy: [
-      { stageId: "asc" },
-      { position: "asc" },
-    ],
+    orderBy: [{ stageId: "asc" }, { position: "asc" }],
   });
 
   return NextResponse.json({ cards });
@@ -60,61 +35,33 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const funnelCard = (db as any).funnelCard;
-  const funnelStage = (db as any).funnelStage;
-
-  if (!funnelCard || !funnelStage) {
-    return NextResponse.json(
-      { error: "Funnel cards are not available in current database schema" },
-      { status: 501 }
-    );
-  }
 
   const body = await req.json();
-  const {
-    stageId,
-    customerId,
-    title,
-    description,
-    value,
-    probability,
-    email,
-    phone,
-    tags,
-    assignedToId,
-  } = body;
+  const { stageId, customerId, title, description, value, probability, tags, assignedToId } = body;
 
   if (!stageId || !title) {
-    return NextResponse.json(
-      { error: "StageId and title are required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "StageId and title are required" }, { status: 400 });
   }
 
-  // Verificar se o estágio existe e pertence à empresa
-  const stage = await funnelStage.findFirst({
-    where: {
-      id: stageId,
-      companyId: authResult.companyId,
-    },
+  const stage = await db.funnelStage.findFirst({
+    where: { id: stageId, companyId: authResult.companyId },
   });
 
   if (!stage) {
     return NextResponse.json({ error: "Stage not found" }, { status: 404 });
   }
 
-  // Encontrar a próxima posição no estágio
-  const lastCard = await funnelCard.findFirst({
+  const lastCard = await db.funnelCard.findFirst({
     where: { stageId },
     orderBy: { position: "desc" },
   });
 
   const nextPosition = lastCard ? lastCard.position + 1 : 1;
 
-  const card = await funnelCard.create({
+  const card = await db.funnelCard.create({
     data: {
       id: crypto.randomUUID(),
-      companyId: authResult.companyId,
+      companyId: authResult.companyId!,
       stageId,
       customerId: customerId || null,
       title,
@@ -126,22 +73,9 @@ export async function POST(req: NextRequest) {
       position: nextPosition,
     },
     include: {
-      stage: true,
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          phoneE164: true,
-          email: true,
-        },
-      },
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+      Stage: true,
+      Customer: { select: { id: true, name: true, phoneE164: true, email: true } },
+      AssignedTo: { select: { id: true, name: true, email: true } },
     },
   });
 

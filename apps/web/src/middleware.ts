@@ -1,11 +1,66 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const CSRF_COOKIE = 'csrf-token';
+const CSRF_HEADER = 'x-csrf-token';
+
+/**
+ * Timing-safe string comparison that works in Edge runtime (no Node.js crypto).
+ * Returns true only when both strings are identical, without leaking timing info.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/** Routes that are server-to-server and must be exempt from CSRF checks. */
+const CSRF_EXEMPT = [
+  '/api/webhooks/',    // Meta WhatsApp inbound webhook, billing webhooks, etc.
+  '/api/auth/csrf',   // Token-issuance endpoint (GET, but exempt for clarity)
+  '/api/health',      // Health / liveness probes (always GET)
+];
+
+/**
+ * Enforce CSRF for all browser-originated mutations (POST/PUT/PATCH/DELETE to /api/*).
+ * Returns a 403 response when the token is invalid/missing, or null to continue.
+ */
+function enforceCsrf(request: NextRequest): NextResponse | null {
+  const { pathname } = request.nextUrl;
+  const method = request.method;
+
+  // Only apply to API mutations
+  if (!pathname.startsWith('/api/')) return null;
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return null;
+
+  // Exempt server-to-server endpoints
+  if (CSRF_EXEMPT.some((prefix) => pathname.startsWith(prefix))) return null;
+
+  const cookieToken = request.cookies.get(CSRF_COOKIE)?.value;
+  const headerToken = request.headers.get(CSRF_HEADER);
+
+  if (!cookieToken || !headerToken || !timingSafeEqual(cookieToken, headerToken)) {
+    return NextResponse.json(
+      { error: { code: 'CSRF_TOKEN_INVALID', message: 'Invalid or missing CSRF token' } },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
 /**
  * Next.js Middleware for security headers and protection
  * Runs on all requests before reaching the app
  */
 export function middleware(request: NextRequest) {
+  // CSRF enforcement — must run before any mutation reaches the handler
+  const csrfError = enforceCsrf(request);
+  if (csrfError) return csrfError;
+
   const response = NextResponse.next();
 
   // Security Headers

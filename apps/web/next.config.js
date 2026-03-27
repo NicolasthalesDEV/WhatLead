@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
+const { withSentryConfig } = require('@sentry/nextjs');
 
 const nextConfig = {
   experimental: {
@@ -55,4 +56,14 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = process.env.SENTRY_DSN
+  ? withSentryConfig(nextConfig, {
+    org: process.env.SENTRY_ORG,
+    project: process.env.SENTRY_PROJECT,
+    silent: true, // suppress build output
+    widenClientFileUpload: true,
+    hideSourceMaps: true,
+    disableLogger: true,
+    automaticVercelMonitors: true,
+  })
+  : nextConfig;

@@ -9,28 +9,19 @@ export async function GET(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const funnelStage = (db as any).funnelStage;
 
-  if (!funnelStage) {
-    return NextResponse.json({ stages: [] });
-  }
-
-  const stages = await funnelStage.findMany({
-    where: {
-      companyId: authResult.companyId,
-    },
-    orderBy: {
-      order: "asc",
+  const stages = await db.funnelStage.findMany({
+    where: { companyId: authResult.companyId },
+    orderBy: { order: "asc" },
+    include: {
+      _count: { select: { FunnelCard: true } },
     },
   });
 
   return NextResponse.json({
-    stages: stages.map((stage: any) => ({
+    stages: stages.map(stage => ({
       ...stage,
-      description: null,
-      color: null,
-      isActive: true,
-      _count: { cards: 0 },
+      _count: { cards: stage._count.FunnelCard },
     })),
   });
 }
@@ -41,14 +32,6 @@ export async function POST(req: NextRequest) {
   if (!authResult.ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const funnelStage = (db as any).funnelStage;
-
-  if (!funnelStage) {
-    return NextResponse.json(
-      { error: "Funnel stages are not available in current database schema" },
-      { status: 501 }
-    );
-  }
 
   const body = await req.json();
   const { name } = body;
@@ -57,34 +40,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
 
-  // Encontrar a próxima ordem disponível
-  const lastStage = await funnelStage.findFirst({
+  const lastStage = await db.funnelStage.findFirst({
     where: { companyId: authResult.companyId },
     orderBy: { order: "desc" },
   });
 
   const nextOrder = lastStage ? lastStage.order + 1 : 1;
 
-  const stage = await funnelStage.create({
+  const stage = await db.funnelStage.create({
     data: {
       id: crypto.randomUUID(),
-      companyId: authResult.companyId,
+      companyId: authResult.companyId!,
       name,
       order: nextOrder,
       default: false,
     },
   });
 
-  return NextResponse.json(
-    {
-      stage: {
-        ...stage,
-        description: null,
-        color: null,
-        isActive: true,
-        _count: { cards: 0 },
-      },
-    },
-    { status: 201 }
-  );
+  return NextResponse.json({ stage: { ...stage, _count: { cards: 0 } } }, { status: 201 });
 }

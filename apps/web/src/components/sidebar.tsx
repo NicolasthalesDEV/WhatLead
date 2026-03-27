@@ -10,6 +10,19 @@ import {
   Bot,
   Zap,
   DollarSign,
+  Building2,
+  Building,
+  Activity,
+  Users,
+  ShoppingCart,
+  Package,
+  FileText,
+  TicketCheck,
+  TrendingUp,
+  BarChart3,
+  Layers,
+  Bell,
+  CalendarDays,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,16 +39,84 @@ const sidebarNavItems = [
     icon: Bot,
   },
   {
+    title: "Clientes",
+    href: "/dashboard/customers",
+    icon: Users,
+  },
+  {
+    title: "Funil de Vendas",
+    href: "/dashboard/funnel",
+    icon: Layers,
+  },
+  {
+    title: "Pedidos",
+    href: "/dashboard/orders",
+    icon: ShoppingCart,
+  },
+  {
+    title: "Produtos",
+    href: "/dashboard/products",
+    icon: Package,
+  },
+  {
+    title: "Orçamentos",
+    href: "/dashboard/quotes",
+    icon: FileText,
+  },
+  {
+    title: "Tickets",
+    href: "/dashboard/tickets",
+    icon: TicketCheck,
+  },
+  {
+    title: "NPS",
+    href: "/dashboard/nps",
+    icon: TrendingUp,
+  },
+  {
+    title: "Relatórios",
+    href: "/dashboard/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Agenda",
+    href: "/dashboard/agenda",
+    icon: CalendarDays,
+  },
+  {
+    title: "Notificações",
+    href: "/dashboard/notifications",
+    icon: Bell,
+  },
+  {
     title: "Custos de API",
     href: "/dashboard/api-costs",
     icon: DollarSign,
+  },
+  {
+    title: "Empresa",
+    href: "/dashboard/settings/company",
+    icon: Building,
+    roles: ["OWNER", "ADMIN"],
   },
   {
     title: "Configurações",
     href: "/dashboard/settings",
     icon: Settings,
   },
-];
+  {
+    title: "Admin: Empresas",
+    href: "/dashboard/admin/companies",
+    icon: Building2,
+    superAdminOnly: true,
+  },
+  {
+    title: "Admin: Filas",
+    href: "/dashboard/admin/queues",
+    icon: Activity,
+    superAdminOnly: true,
+  },
+] as const;
 
 interface SidebarProps {
   className?: string;
@@ -45,6 +126,21 @@ interface SidebarProps {
 export function Sidebar({ className, isOpen = true }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  // Super-admin check: NEXT_PUBLIC_SUPER_ADMIN_EMAILS is a CSV of emails
+  const superAdminEmails = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase());
+  const isSuperAdmin =
+    superAdminEmails.length > 0 &&
+    !!user?.email &&
+    superAdminEmails.includes(user.email.toLowerCase());
+
+  const visibleItems = sidebarNavItems.filter((item) => {
+    if ((item as any).superAdminOnly && !isSuperAdmin) return false;
+    if ((item as any).roles && user?.role && !(item as any).roles.includes(user.role)) return false;
+    return true;
+  });
 
   return (
     <TooltipProvider>
@@ -68,7 +164,7 @@ export function Sidebar({ className, isOpen = true }: SidebarProps) {
                 )}
               </div>
               <nav className="space-y-1">
-                {sidebarNavItems.map((item) => (
+                {visibleItems.map((item) => (
                   isOpen ? (
                     <Link
                       key={item.href}

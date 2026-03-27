@@ -1,6 +1,35 @@
 import crypto from 'crypto';
 import { prisma } from '@wacrm/db';
 
+// Lazy-load BullMQ queue so the web app can enqueue webhook jobs
+// when Redis is available. Falls back to in-process delivery otherwise.
+let _webhooksQueue: import('bullmq').Queue | null = null;
+async function getWebhooksQueue() {
+  if (_webhooksQueue !== null) return _webhooksQueue;
+  if (!process.env.REDIS_URL) return null;
+  try {
+    const { Queue } = await import('bullmq');
+    const IORedis = (await import('ioredis')).default;
+    const conn = new IORedis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      enableOfflineQueue: false,
+    });
+    _webhooksQueue = new Queue('webhooks', {
+      connection: conn,
+      prefix: process.env.BULLMQ_PREFIX || 'wacrm',
+      defaultJobOptions: {
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 1000 },
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 300 },
+      },
+    });
+    return _webhooksQueue;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Webhook Delivery System
  * 
@@ -181,8 +210,21 @@ export async function triggerWebhook(
           },
         });
 
-        // Enviar webhook (assíncrono)
-        deliverWithRetry(endpoint, payload, delivery.id, 0);
+        // Enqueue via Redis worker if available, otherwise fall back to in-process delivery
+        const queue = await getWebhooksQueue();
+        if (queue) {
+          await queue.add('deliver', {
+            deliveryId: delivery.id,
+            endpointId: endpoint.id,
+            url: endpoint.url,
+            secret: endpoint.secret,
+            payload,
+            attempt: 0,
+          });
+        } else {
+          // In-process fallback (no Redis)
+          deliverWithRetry(endpoint, payload, delivery.id, 0);
+        }
 
         return delivery;
       })

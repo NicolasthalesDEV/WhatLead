@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, createAuditLog } from "@/lib/auth";
 import { prisma } from "@wacrm/db";
 import crypto from "crypto";
 
@@ -56,6 +56,15 @@ export async function POST(req: NextRequest) {
       priority: priority ?? 0,
     },
   });
+
+  await createAuditLog({
+    userId: auth.userId,
+    companyId: auth.companyId!,
+    action: 'CHATBOT_FLOW_CREATE',
+    resource: 'chatbotFlow',
+    resourceId: flow.id,
+    req,
+  }).catch(() => {});
 
   return NextResponse.json(
     {

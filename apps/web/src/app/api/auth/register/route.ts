@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     const { prisma } = await import("@wacrm/db");
 
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
-    if (!checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
+    if (!await checkRateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
       throw new RateLimitError(3600);
     }
 

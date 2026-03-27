@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@wacrm/db';
+import { prisma, Prisma } from '@wacrm/db';
 import { verifyAuth } from '@/lib/auth';
 
 /**
@@ -42,23 +42,23 @@ export async function GET(req: NextRequest) {
 
     const skip = (query.page - 1) * query.limit;
 
-    // Construir condições WHERE dinamicamente usando strings SQL
-    const searchCondition = query.search 
-      ? `AND (c.name ILIKE '%${query.search}%' OR c."phoneE164" ILIKE '%${query.search}%')`
-      : '';
+    // Construir condições WHERE usando Prisma.sql (fully parameterized — SQL injection safe)
+    const searchCondition = query.search
+      ? Prisma.sql`AND (c.name ILIKE ${`%${query.search}%`} OR c."phoneE164" ILIKE ${`%${query.search}%`})`
+      : Prisma.empty;
 
     const unreadCondition = query.unreadOnly === 'true'
-      ? `AND COALESCE(uc.unread, 0) > 0`
-      : '';
+      ? Prisma.sql`AND COALESCE(uc.unread, 0) > 0`
+      : Prisma.empty;
 
     const assignedCondition = query.assignedTo
-      ? `AND fc."assignedToId" = '${query.assignedTo}'`
-      : '';
+      ? Prisma.sql`AND fc."assignedToId" = ${query.assignedTo}`
+      : Prisma.empty;
 
-    // Buscar últimas mensagens por cliente
-    // Agrupamos por customerId e pegamos a mensagem mais recente
-    const conversations = await prisma.$queryRawUnsafe(
-      `WITH last_messages AS (
+    // Buscar últimas mensagens por cliente usando query parametrizada segura
+    const conversations = (await prisma.$queryRaw(
+      Prisma.sql`
+      WITH last_messages AS (
         SELECT DISTINCT ON (wm."customerId")
           wm."customerId",
           wm.body,
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
           wm."createdAt",
           wm.status
         FROM "WhatsMessage" wm
-        WHERE wm."companyId" = '${user.companyId}'
+        WHERE wm."companyId" = ${user.companyId}
         ORDER BY wm."customerId", wm."createdAt" DESC
       ),
       unread_counts AS (
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
           wm."customerId",
           COUNT(*)::bigint as unread
         FROM "WhatsMessage" wm
-        WHERE wm."companyId" = '${user.companyId}'
+        WHERE wm."companyId" = ${user.companyId}
           AND wm.direction = 'IN'
           AND wm.status != 'read'
         GROUP BY wm."customerId"
@@ -94,16 +94,17 @@ export async function GET(req: NextRequest) {
       FROM "Customer" c
       INNER JOIN last_messages lm ON lm."customerId" = c.id
       LEFT JOIN unread_counts uc ON uc."customerId" = c.id
-      LEFT JOIN "FunnelCard" fc ON fc."customerId" = c.id AND fc."companyId" = '${user.companyId}'
+      LEFT JOIN "FunnelCard" fc ON fc."customerId" = c.id AND fc."companyId" = ${user.companyId}
       LEFT JOIN "User" u ON u.id = fc."assignedToId"
-      WHERE c."companyId" = '${user.companyId}'
+      WHERE c."companyId" = ${user.companyId}
         ${searchCondition}
         ${unreadCondition}
         ${assignedCondition}
       ORDER BY lm."createdAt" DESC
       LIMIT ${query.limit}
-      OFFSET ${skip}`
-    ) as Array<{
+      OFFSET ${skip}
+      `
+    )) as Array<{
       customerId: string;
       customerName: string;
       customerPhone: string;
@@ -117,13 +118,15 @@ export async function GET(req: NextRequest) {
     }>;
 
     // Contar total de conversas (para paginação)
-    const totalResult = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(DISTINCT wm."customerId")::bigint as total
+    const totalResult = (await prisma.$queryRaw(
+      Prisma.sql`
+      SELECT COUNT(DISTINCT wm."customerId")::bigint as total
       FROM "WhatsMessage" wm
       INNER JOIN "Customer" c ON c.id = wm."customerId"
-      WHERE wm."companyId" = '${user.companyId}'
-        ${searchCondition}`
-    ) as Array<{ total: bigint }>;
+      WHERE wm."companyId" = ${user.companyId}
+        ${searchCondition}
+      `
+    )) as Array<{ total: bigint }>;
 
     const total = Number(totalResult[0]?.total || 0);
 

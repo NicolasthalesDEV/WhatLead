@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // Rate limiting by email
     const rateLimitKey = `login:${body.data.email}`;
-    if (!checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000)) {
+    if (!await checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000)) {
       throw new RateLimitError(900); // 15 minutos
     }
 
