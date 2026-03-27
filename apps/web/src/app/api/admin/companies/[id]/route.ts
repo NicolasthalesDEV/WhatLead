@@ -26,7 +26,7 @@ const updateSchema = z.object({
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const claims = await verifyAuth(req);
   if (!claims) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -54,8 +54,9 @@ export async function PATCH(
   if (planStatus !== undefined) updateData.planStatus = planStatus;
   if (planExpiresAt !== undefined) updateData.planExpiresAt = planExpiresAt ? new Date(planExpiresAt) : null;
 
+  const { id } = await params;
   const company = await prisma.company.update({
-    where: { id: params.id },
+    where: { id },
     data: updateData,
     select: { id: true, name: true, slug: true, plan: true, planStatus: true, planExpiresAt: true },
   });
@@ -69,7 +70,7 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const claims = await verifyAuth(req);
   if (!claims) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -78,8 +79,9 @@ export async function DELETE(
     return NextResponse.json({ error: 'Acesso restrito a super-admins' }, { status: 403 });
   }
 
+  const { id } = await params;
   await prisma.company.update({
-    where: { id: params.id },
+    where: { id },
     data: { planStatus: 'canceled' },
   });
 
