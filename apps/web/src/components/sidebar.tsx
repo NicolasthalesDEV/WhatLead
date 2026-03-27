@@ -9,18 +9,11 @@ import {
   LogOut,
   Bot,
   Zap,
-  DollarSign,
   Building2,
   Building,
   Activity,
   Users,
-  ShoppingCart,
-  Package,
-  FileText,
-  TicketCheck,
-  TrendingUp,
   BarChart3,
-  Layers,
   Bell,
   CalendarDays,
 } from "lucide-react";
@@ -44,34 +37,9 @@ const sidebarNavItems = [
     icon: Users,
   },
   {
-    title: "Funil de Vendas",
-    href: "/dashboard/funnel",
-    icon: Layers,
-  },
-  {
-    title: "Pedidos",
-    href: "/dashboard/orders",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Produtos",
-    href: "/dashboard/products",
-    icon: Package,
-  },
-  {
-    title: "Orçamentos",
-    href: "/dashboard/quotes",
-    icon: FileText,
-  },
-  {
-    title: "Tickets",
-    href: "/dashboard/tickets",
-    icon: TicketCheck,
-  },
-  {
-    title: "NPS",
-    href: "/dashboard/nps",
-    icon: TrendingUp,
+    title: "Agenda",
+    href: "/dashboard/agenda",
+    icon: CalendarDays,
   },
   {
     title: "Relatórios",
@@ -79,19 +47,9 @@ const sidebarNavItems = [
     icon: BarChart3,
   },
   {
-    title: "Agenda",
-    href: "/dashboard/agenda",
-    icon: CalendarDays,
-  },
-  {
     title: "Notificações",
     href: "/dashboard/notifications",
     icon: Bell,
-  },
-  {
-    title: "Custos de API",
-    href: "/dashboard/api-costs",
-    icon: DollarSign,
   },
   {
     title: "Empresa",

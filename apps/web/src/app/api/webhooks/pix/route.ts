@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@wacrm/db";
 import { getPixProvider } from "@/lib/pix/provider";
 import { createNotification } from "@/lib/notifications";
-import { scheduleNPSAfterOrder } from "@/lib/nps";
 
 /**
  * POST: Webhook para receber notificações de pagamento PIX
@@ -93,7 +92,7 @@ export async function POST(req: NextRequest) {
       if (notifyUser) {
         await createNotification(prisma, {
           userId: notifyUser.id,
-          type: "PAYMENT_RECEIVED",
+          type: "SYSTEM",
           title: "Pagamento Recebido",
           message: `Pagamento do pedido #${payment.order.id.slice(0, 8)} foi confirmado via PIX`,
           data: {
@@ -113,9 +112,6 @@ export async function POST(req: NextRequest) {
       //     `✅ Seu pagamento foi confirmado!\n\nPedido: #${payment.order.id.slice(0, 8)}\nValor: R$ ${((webhookData.paidAmount || payment.amount) / 100).toFixed(2)}\n\nObrigado pela preferência!`
       //   );
       // }
-
-      // Agendar envio de pesquisa NPS
-      await scheduleNPSAfterOrder(payment.order.id);
     }
 
     // Se expirou ou foi cancelado
