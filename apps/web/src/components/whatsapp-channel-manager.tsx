@@ -9,6 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { Plus, Trash2, Eye, EyeOff, CheckCircle2, XCircle, Loader2, Pencil, Power } from "lucide-react";
+import { fetchApi } from "@/lib/api";
+
+/** Safe error-message extractor — prevents passing objects to showToast */
+function toErrorMsg(data: any, fallback: string): string {
+  if (!data) return fallback;
+  if (typeof data.error === "string") return data.error;
+  if (typeof data.error?.message === "string") return data.error.message;
+  return fallback;
+}
 
 interface WhatsAppChannel {
   id: string;
@@ -76,7 +85,7 @@ export function WhatsAppChannelManager() {
     }
     setSaving(true);
     try {
-      const response = await fetch("/api/whatsapp/channels", {
+      const response = await fetchApi("/api/whatsapp/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -89,7 +98,7 @@ export function WhatsAppChannelManager() {
         setAddForm(emptyForm);
         await loadChannels();
       } else {
-        showToast(data.error || "Erro ao adicionar canal", "error");
+        showToast(toErrorMsg(data, "Erro ao adicionar canal"), "error");
       }
     } catch {
       showToast("Erro ao adicionar canal", "error");
@@ -126,7 +135,7 @@ export function WhatsAppChannelManager() {
       if (editForm.waAccessToken.trim()) {
         payload.waAccessToken = editForm.waAccessToken.trim();
       }
-      const response = await fetch("/api/whatsapp/channels", {
+      const response = await fetchApi("/api/whatsapp/channels", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -139,7 +148,7 @@ export function WhatsAppChannelManager() {
         setEditingChannel(null);
         await loadChannels();
       } else {
-        showToast(data.error || "Erro ao atualizar canal", "error");
+        showToast(toErrorMsg(data, "Erro ao atualizar canal"), "error");
       }
     } catch {
       showToast("Erro ao atualizar canal", "error");
@@ -153,7 +162,7 @@ export function WhatsAppChannelManager() {
     const newStatus = channel.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     setActionLoading((p) => ({ ...p, [channel.id]: true }));
     try {
-      const response = await fetch("/api/whatsapp/channels", {
+      const response = await fetchApi("/api/whatsapp/channels", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -167,7 +176,7 @@ export function WhatsAppChannelManager() {
         );
         await loadChannels();
       } else {
-        showToast(data.error || "Erro ao alterar status", "error");
+        showToast(toErrorMsg(data, "Erro ao alterar status"), "error");
       }
     } catch {
       showToast("Erro ao alterar status", "error");
@@ -181,7 +190,7 @@ export function WhatsAppChannelManager() {
     if (!confirm(`Remover o canal "${channel.displayName}"? Canais com mensagens serão apenas desativados.`)) return;
     setActionLoading((p) => ({ ...p, [channel.id]: true }));
     try {
-      const response = await fetch(`/api/whatsapp/channels?channelId=${channel.id}`, {
+      const response = await fetchApi(`/api/whatsapp/channels?channelId=${channel.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -193,7 +202,7 @@ export function WhatsAppChannelManager() {
         );
         await loadChannels();
       } else {
-        showToast(data.error || "Erro ao remover canal", "error");
+        showToast(toErrorMsg(data, "Erro ao remover canal"), "error");
       }
     } catch {
       showToast("Erro ao remover canal", "error");

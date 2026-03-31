@@ -76,10 +76,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (existing) {
-      return NextResponse.json(
-        { error: "Este número já está cadastrado no sistema" },
-        { status: 400 }
-      );
+      if (existing.status === "ACTIVE") {
+        return NextResponse.json(
+          { error: "Este número já está cadastrado e ativo no sistema" },
+          { status: 400 }
+        );
+      }
+      // Canal inativo: reativar com as novas credenciais (sem bloquear re-adição)
     }
 
     // Testar as credenciais antes de salvar
@@ -105,27 +108,46 @@ export async function POST(req: NextRequest) {
       }
 
       const phoneInfo = await testResponse.json();
-      
-      // Criar o canal
-      const channel = await prisma.whatsChannel.create({
-        data: {
-          id: crypto.randomUUID(),
-          companyId: authResult.companyId,
-          phoneNumberId: validatedData.phoneNumberId,
-          waAccessToken: validatedData.waAccessToken,
-          waBusinessId: validatedData.waBusinessId,
-          displayName: validatedData.displayName || phoneInfo.display_phone_number || phoneInfo.verified_name || "WhatsApp",
-          status: "ACTIVE",
-        },
-        select: {
-          id: true,
-          phoneNumberId: true,
-          waBusinessId: true,
-          displayName: true,
-          status: true,
-          createdAt: true,
-        },
-      });
+
+      // Reativar canal inativo com novas credenciais OU criar novo
+      const channel = existing
+        ? await prisma.whatsChannel.update({
+            where: { id: existing.id },
+            data: {
+              companyId: authResult.companyId,
+              waAccessToken: validatedData.waAccessToken,
+              waBusinessId: validatedData.waBusinessId,
+              displayName: validatedData.displayName || phoneInfo.display_phone_number || phoneInfo.verified_name || "WhatsApp",
+              status: "ACTIVE",
+            },
+            select: {
+              id: true,
+              phoneNumberId: true,
+              waBusinessId: true,
+              displayName: true,
+              status: true,
+              createdAt: true,
+            },
+          })
+        : await prisma.whatsChannel.create({
+            data: {
+              id: crypto.randomUUID(),
+              companyId: authResult.companyId,
+              phoneNumberId: validatedData.phoneNumberId,
+              waAccessToken: validatedData.waAccessToken,
+              waBusinessId: validatedData.waBusinessId,
+              displayName: validatedData.displayName || phoneInfo.display_phone_number || phoneInfo.verified_name || "WhatsApp",
+              status: "ACTIVE",
+            },
+            select: {
+              id: true,
+              phoneNumberId: true,
+              waBusinessId: true,
+              displayName: true,
+              status: true,
+              createdAt: true,
+            },
+          });
 
       await createAuditLog({
         userId: authResult.userId,
@@ -198,8 +220,8 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Se estiver atualizando as credenciais, validar
-    if (validatedData.phoneNumberId || validatedData.waAccessToken) {
+    // Se estiver atualizando o token, validar as credenciais
+    if (validatedData.waAccessToken) {
       const phoneId = validatedData.phoneNumberId || existing.phoneNumberId;
       const token = validatedData.waAccessToken || existing.waAccessToken;
 
