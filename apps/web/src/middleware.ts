@@ -19,11 +19,12 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 /** Routes that are server-to-server and must be exempt from CSRF checks. */
 const CSRF_EXEMPT = [
-  '/api/webhooks/',    // Meta WhatsApp inbound webhook, billing webhooks, etc.
-  '/api/auth/csrf',   // Token-issuance endpoint (GET, but exempt for clarity)
-  '/api/auth/refresh', // Token refresh — must work when session is stale (chicken-and-egg)
-  '/api/auth/logout',  // Logout — must work even if CSRF cookie expired
-  '/api/health',      // Health / liveness probes (always GET)
+  '/api/webhooks/',         // Meta WhatsApp inbound webhook, billing webhooks, etc.
+  '/api/whatsapp/webhook',  // Alias for /api/webhooks/whatsapp — must also accept Meta POSTs
+  '/api/auth/csrf',         // Token-issuance endpoint (GET, but exempt for clarity)
+  '/api/auth/refresh',      // Token refresh — must work when session is stale (chicken-and-egg)
+  '/api/auth/logout',       // Logout — must work even if CSRF cookie expired
+  '/api/health',            // Health / liveness probes (always GET)
 ];
 
 /**
