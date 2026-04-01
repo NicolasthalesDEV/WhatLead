@@ -51,6 +51,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         ...(status && { status }),
         ...(location !== undefined && { location }),
         ...(notes !== undefined && { notes }),
+        updatedAt: new Date(),
       },
     });
 

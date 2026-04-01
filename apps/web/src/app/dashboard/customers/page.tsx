@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export default function CustomersPage() {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (search) params.set("search", search);
     if (tagFilter) params.set("tag", tagFilter);
-    const res = await fetch(`/api/customers?${params}`);
+    const res = await fetchApi(`/api/customers?${params}`);
     if (res.ok) {
       const data = await res.json();
       setCustomers(data.customers ?? data.data ?? []);
@@ -50,7 +51,7 @@ export default function CustomersPage() {
   async function createCustomer(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch("/api/customers", {
+    const res = await fetchApi("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

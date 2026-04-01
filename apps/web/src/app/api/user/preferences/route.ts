@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
     const pref = await prisma.notificationPreference.upsert({
       where: { userId: session.userId },
-      create: { userId: session.userId },
+      create: { userId: session.userId, updatedAt: new Date() },
       update: {},
     });
 
@@ -47,8 +47,8 @@ export async function PATCH(req: NextRequest) {
 
     const pref = await prisma.notificationPreference.upsert({
       where: { userId: session.userId },
-      create: { userId: session.userId, ...data },
-      update: data,
+      create: { userId: session.userId, ...data, updatedAt: new Date() },
+      update: { ...data, updatedAt: new Date() },
     });
 
     return NextResponse.json({

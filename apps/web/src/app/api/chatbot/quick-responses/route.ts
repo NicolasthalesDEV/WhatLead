@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       companyId: auth.companyId,
       shortcut,
       message,
+      updatedAt: new Date(),
     },
   });
 
@@ -74,7 +75,7 @@ export async function PUT(req: NextRequest) {
       id,
       companyId: auth.companyId,
     },
-    data: { shortcut, message, active },
+    data: { shortcut, message, active, updatedAt: new Date() },
   });
 
   if (response.count === 0) {

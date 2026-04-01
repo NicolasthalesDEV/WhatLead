@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       triggerKeywords: flowData.flow.triggerKeywords || [],
       active: false,
       status: "DRAFT",
+      updatedAt: new Date(),
     },
   });
 
@@ -42,9 +43,12 @@ export async function POST(req: NextRequest) {
           id: crypto.randomUUID(),
           flowId: flow.id,
           type: node.type,
-          name: node.name,
-          config: node.config,
-          position: node.position,
+          name: node.name || node.type,
+          data: node.data ?? {},
+          position: node.position ?? { x: 0, y: 0 },
+          connections: node.connections ?? [],
+          order: node.order ?? 0,
+          updatedAt: new Date(),
         },
       });
     }

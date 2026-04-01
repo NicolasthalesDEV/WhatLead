@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
         status: status || "SCHEDULED",
         location: location || null,
         notes: notes || null,
+        updatedAt: new Date(),
       },
       include: {
         Customer: { select: { id: true, name: true, phoneE164: true } },
@@ -156,6 +157,7 @@ async function syncToGoogle(companyId: string, appointmentId: string) {
         googleEventId: data.id,
         googleCalendarId: token.calendarId,
         syncedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
   } else {
@@ -183,6 +185,7 @@ async function refreshGoogleToken(
     data: {
       accessToken: data.access_token,
       expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      updatedAt: new Date(),
     },
   });
   return data.access_token;

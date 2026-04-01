@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ export default function SupportPage() {
 
     setSending(true);
     try {
-      const res = await fetch("/api/support/report", {
+      const res = await fetchApi("/api/support/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

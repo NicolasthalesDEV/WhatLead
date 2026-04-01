@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export default function NotificationsPage() {
     setLoading(true);
     const params = new URLSearchParams({ limit: "50" });
     if (unreadOnly) params.set("unreadOnly", "true");
-    const res = await fetch(`/api/notifications?${params}`);
+    const res = await fetchApi(`/api/notifications?${params}`);
     if (res.ok) {
       const data = await res.json();
       setNotifications(data.notifications ?? data ?? []);
@@ -38,18 +39,18 @@ export default function NotificationsPage() {
   useEffect(() => { load(); }, [unreadOnly]);
 
   async function markAllRead() {
-    await fetch("/api/notifications/mark-all-read", { method: "POST" });
+    await fetchApi("/api/notifications/mark-all-read", { method: "POST" });
     load();
   }
 
   async function clearAll() {
     if (!confirm("Limpar todas as notificações?")) return;
-    await fetch("/api/notifications/clear-all", { method: "DELETE" });
+    await fetchApi("/api/notifications/clear-all", { method: "DELETE" });
     load();
   }
 
   async function markRead(id: string) {
-    await fetch(`/api/notifications/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ read: true }) });
+    await fetchApi(`/api/notifications/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ read: true }) });
     load();
   }
 

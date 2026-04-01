@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ export default function AgendaPage() {
     setLoading(true);
     const from = startOfMonth(month).toISOString();
     const to = endOfMonth(month).toISOString();
-    const res = await fetch(`/api/agenda?from=${from}&to=${to}`);
+    const res = await fetchApi(`/api/agenda?from=${from}&to=${to}`);
     if (res.ok) {
       const data = await res.json();
       setAppointments(data.appointments ?? []);
@@ -56,7 +57,7 @@ export default function AgendaPage() {
   async function createAppointment(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const res = await fetch("/api/agenda", {
+    const res = await fetchApi("/api/agenda", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

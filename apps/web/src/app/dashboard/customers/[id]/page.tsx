@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,7 +110,7 @@ export default function CustomerDetailsPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/customers/${id}`);
+      const res = await fetchApi(`/api/customers/${id}`);
       if (res.ok) {
         const data = await res.json();
         setCustomer(data.customer);
@@ -128,7 +129,7 @@ export default function CustomerDetailsPage() {
     if (!confirm("Tem certeza que deseja deletar este cliente?")) return;
 
     try {
-      const res = await fetch(`/api/customers/${id}`, {
+      const res = await fetchApi(`/api/customers/${id}`, {
         method: "DELETE",
       });
 

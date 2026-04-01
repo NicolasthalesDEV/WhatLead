@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       conditions: conditions || {},
       priority: priority || 0,
       enabled: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -76,6 +77,7 @@ export async function PUT(req: NextRequest) {
       conditions,
       priority,
       enabled,
+      updatedAt: new Date(),
     },
   });
 

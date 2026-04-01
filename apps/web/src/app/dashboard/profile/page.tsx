@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +87,7 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const response = await fetch('/api/user/profile');
+      const response = await fetchApi('/api/user/profile');
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
@@ -111,7 +112,7 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/user/profile', {
+      const response = await fetchApi('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -146,7 +147,7 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/user/change-password', {
+      const response = await fetchApi('/api/user/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(passwordData),

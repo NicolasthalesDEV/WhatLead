@@ -1,3 +1,4 @@
+import { fetchApi } from '@/lib/api';
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,7 +24,7 @@ export function useNotifications() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications?unreadOnly=false&limit=10", {
+      const res = await fetchApi("/api/notifications?unreadOnly=false&limit=10", {
         credentials: "include",
       });
       if (!res.ok) return; // silently ignore auth/server errors
@@ -62,7 +63,7 @@ export function useNotifications() {
 
   const markAsRead = useCallback(async (id: string) => {
     try {
-      await fetch(`/api/notifications/${id}`, {
+      await fetchApi(`/api/notifications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isRead: true }),
@@ -80,7 +81,7 @@ export function useNotifications() {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await fetch("/api/notifications/mark-all-read", { method: "POST" });
+      await fetchApi("/api/notifications/mark-all-read", { method: "POST" });
 
       setLatestNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
@@ -91,7 +92,7 @@ export function useNotifications() {
 
   const clearAll = useCallback(async () => {
     try {
-      await fetch("/api/notifications/clear-all", { method: "DELETE" });
+      await fetchApi("/api/notifications/clear-all", { method: "DELETE" });
       setLatestNotifications([]);
       setUnreadCount(0);
     } catch (error) {

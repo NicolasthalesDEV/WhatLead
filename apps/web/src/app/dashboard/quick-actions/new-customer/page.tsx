@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +47,7 @@ export default function NewCustomerPage() {
       if (formData.state) body.state = formData.state;
       if (formData.zipCode) body.zipCode = formData.zipCode;
 
-      const res = await fetch("/api/customers", {
+      const res = await fetchApi("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

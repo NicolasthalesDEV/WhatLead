@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +84,7 @@ export default function NotificationDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/notifications/${id}`);
+      const res = await fetchApi(`/api/notifications/${id}`);
 
       if (res.status === 404) {
         setNotFound(true);
@@ -106,7 +107,7 @@ export default function NotificationDetailPage() {
 
   const markAsRead = async () => {
     try {
-      await fetch(`/api/notifications/${id}`, {
+      await fetchApi(`/api/notifications/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isRead: true }),
@@ -120,7 +121,7 @@ export default function NotificationDetailPage() {
     if (!confirm("Tem certeza que deseja excluir esta notificação?")) return;
 
     try {
-      await fetch(`/api/notifications/${id}`, { method: "DELETE" });
+      await fetchApi(`/api/notifications/${id}`, { method: "DELETE" });
       router.push("/dashboard/notifications");
     } catch (error) {
       console.error("Failed to delete notification:", error);

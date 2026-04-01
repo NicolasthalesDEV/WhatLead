@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,7 @@ export default function WebhooksPage() {
   // Fetch endpoints
   const fetchEndpoints = async () => {
     try {
-      const response = await fetch('/api/webhooks/endpoints');
+      const response = await fetchApi('/api/webhooks/endpoints');
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setEndpoints(data.endpoints);
@@ -76,7 +77,7 @@ export default function WebhooksPage() {
 
     setCreating(true);
     try {
-      const response = await fetch('/api/webhooks/endpoints', {
+      const response = await fetchApi('/api/webhooks/endpoints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +113,7 @@ export default function WebhooksPage() {
   // Toggle endpoint active/inactive
   const toggleEndpoint = async (id: string, currentActive: boolean) => {
     try {
-      const response = await fetch(`/api/webhooks/endpoints/${id}`, {
+      const response = await fetchApi(`/api/webhooks/endpoints/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: !currentActive }),
@@ -132,7 +133,7 @@ export default function WebhooksPage() {
     if (!confirm('Deseja realmente deletar este webhook?')) return;
 
     try {
-      const response = await fetch(`/api/webhooks/endpoints/${id}`, {
+      const response = await fetchApi(`/api/webhooks/endpoints/${id}`, {
         method: 'DELETE',
       });
 
@@ -148,7 +149,7 @@ export default function WebhooksPage() {
   // Copy secret
   const copySecret = async (id: string) => {
     try {
-      const response = await fetch(`/api/webhooks/endpoints/${id}`);
+      const response = await fetchApi(`/api/webhooks/endpoints/${id}`);
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();

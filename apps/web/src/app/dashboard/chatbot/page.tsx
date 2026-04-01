@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import "@xyflow/react/dist/style.css";
 import {
   ReactFlow,
@@ -1084,7 +1085,7 @@ export default function ChatbotPage() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch("/api/chatbot/settings");
+      const res = await fetchApi("/api/chatbot/settings");
       const data = await res.json();
       if (data.settings) {
         setSettings({ ...DEFAULT_SETTINGS, ...data.settings });
@@ -1107,7 +1108,7 @@ export default function ChatbotPage() {
       if (openaiKeyInput.trim()) payload.openaiApiKey = openaiKeyInput.trim();
       if (elevenLabsKeyInput.trim()) payload.elevenLabsApiKey = elevenLabsKeyInput.trim();
 
-      const res = await fetch("/api/chatbot/settings", {
+      const res = await fetchApi("/api/chatbot/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1128,7 +1129,7 @@ export default function ChatbotPage() {
 
   const clearApiKey = async (field: "openaiApiKey" | "elevenLabsApiKey") => {
     try {
-      const res = await fetch("/api/chatbot/settings", {
+      const res = await fetchApi("/api/chatbot/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: null }),
@@ -1150,7 +1151,7 @@ export default function ChatbotPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/chatbot/flows", {
+      const res = await fetchApi("/api/chatbot/flows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1184,7 +1185,7 @@ export default function ChatbotPage() {
     if (!confirm("Confirmar exclusão?")) return;
     setLoading(true);
     try {
-      await fetch(`/api/chatbot/flows/${id}`, { method: "DELETE" });
+      await fetchApi(`/api/chatbot/flows/${id}`, { method: "DELETE" });
       showToast("Fluxo excluído", "success");
       await loadFlows();
     } catch {
@@ -1196,7 +1197,7 @@ export default function ChatbotPage() {
   const toggleStatus = async (flow: Flow) => {
     const newStatus = flow.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
     try {
-      await fetch(`/api/chatbot/flows/${flow.id}`, {
+      await fetchApi(`/api/chatbot/flows/${flow.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...flow, status: newStatus }),
@@ -1210,7 +1211,7 @@ export default function ChatbotPage() {
   const openEditor = async (flow: Flow) => {
     setSelectedFlow(flow);
     try {
-      const res = await fetch(`/api/chatbot/flows/${flow.id}`);
+      const res = await fetchApi(`/api/chatbot/flows/${flow.id}`);
       const data = await res.json();
       setFlowNodes(data.flow?.nodes || []);
       setView("editor");
@@ -1243,7 +1244,7 @@ export default function ChatbotPage() {
       };
     });
 
-    const res = await fetch(`/api/chatbot/flows/${selectedFlow.id}/nodes`, {
+    const res = await fetchApi(`/api/chatbot/flows/${selectedFlow.id}/nodes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nodes: dbNodes }),

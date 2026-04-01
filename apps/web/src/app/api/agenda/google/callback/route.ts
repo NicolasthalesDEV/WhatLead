@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
           : null,
         scope: tokens.scope || null,
         tokenType: tokens.token_type || "Bearer",
+        updatedAt: new Date(),
       },
       update: {
         accessToken: tokens.access_token,
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
           ? new Date(Date.now() + tokens.expires_in * 1000)
           : undefined,
         scope: tokens.scope || undefined,
+        updatedAt: new Date(),
       },
     });
 

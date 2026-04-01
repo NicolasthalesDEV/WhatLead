@@ -29,6 +29,7 @@ export async function POST(
   // Delete existing nodes and re-create
   await prisma.chatbotNode.deleteMany({ where: { flowId: id } });
 
+  const now = new Date();
   if (nodes && nodes.length > 0) {
     await prisma.chatbotNode.createMany({
       data: nodes.map((node: any, index: number) => ({
@@ -40,6 +41,7 @@ export async function POST(
         position: node.position ?? { x: 0, y: 0 },
         connections: node.connections ?? [],
         order: node.order ?? index,
+        updatedAt: now,
       })),
     });
   }

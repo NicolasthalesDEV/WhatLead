@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -45,7 +46,7 @@ export default function NotificationPreferencesPage() {
   const loadPreferences = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/notifications/preferences");
+      const res = await fetchApi("/api/notifications/preferences");
       const data = await res.json();
 
       if (data.preferences) {
@@ -60,7 +61,7 @@ export default function NotificationPreferencesPage() {
   const savePreferences = async () => {
     setSaving(true);
     try {
-      await fetch("/api/notifications/preferences", {
+      await fetchApi("/api/notifications/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(preferences),

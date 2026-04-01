@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         data: {
           id: crypto.randomUUID(),
           companyId: auth.companyId,
+          updatedAt: new Date(),
         },
       });
     }
@@ -95,6 +96,7 @@ export async function PUT(req: NextRequest) {
       create: {
         id: crypto.randomUUID(),
         companyId: auth.companyId,
+        updatedAt: new Date(),
         botName,
         botEmoji,
         language,

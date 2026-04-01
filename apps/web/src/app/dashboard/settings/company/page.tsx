@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ export default function CompanySettingsPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/company/settings');
+      const response = await fetchApi('/api/company/settings');
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();
@@ -94,7 +95,7 @@ export default function CompanySettingsPage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/company/settings', {
+      const response = await fetchApi('/api/company/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,7 +82,7 @@ export default function AdminCompaniesPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
-      const res = await fetch(`/api/admin/companies?${params}`);
+      const res = await fetchApi(`/api/admin/companies?${params}`);
       if (res.status === 403) { setForbidden(true); return; }
       const data = await res.json();
       setCompanies(data.companies ?? []);
@@ -99,7 +100,7 @@ export default function AdminCompaniesPage() {
     e.preventDefault();
     setCreating(true);
     try {
-      const res = await fetch("/api/admin/companies", {
+      const res = await fetchApi("/api/admin/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -123,7 +124,7 @@ export default function AdminCompaniesPage() {
   const handleSuspend = async (id: string, name: string) => {
     if (!confirm(`Suspender a empresa "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/companies/${id}`, { method: "DELETE" });
+      const res = await fetchApi(`/api/admin/companies/${id}`, { method: "DELETE" });
       if (!res.ok) { showToast("Erro ao suspender empresa", "error"); return; }
       showToast("Empresa suspensa", "success");
       fetchCompanies();

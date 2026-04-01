@@ -31,7 +31,8 @@ export async function GET(req: NextRequest) {
       preferences = await notificationPreference.create({
         data: { 
           id: crypto.randomUUID(),
-          userId: authResult.userId 
+          userId: authResult.userId,
+          updatedAt: new Date(),
         },
       });
     }
@@ -66,10 +67,11 @@ export async function PUT(req: NextRequest) {
   try {
     const preferences = await notificationPreference.upsert({
       where: { userId: authResult.userId },
-      update: body,
+      update: { ...body, updatedAt: new Date() },
       create: {
         userId: authResult.userId,
         ...body,
+        updatedAt: new Date(),
       },
     });
 

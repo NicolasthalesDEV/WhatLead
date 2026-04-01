@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +54,7 @@ export default function EditCustomerPage() {
     if (!customerId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/customers/${customerId}`);
+      const res = await fetchApi(`/api/customers/${customerId}`);
       if (res.ok) {
         const data = await res.json();
         const cust = data.customer;
@@ -95,7 +96,7 @@ export default function EditCustomerPage() {
         zipCode: formData.zipCode,
       };
 
-      const res = await fetch(`/api/customers/${customerId}`, {
+      const res = await fetchApi(`/api/customers/${customerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

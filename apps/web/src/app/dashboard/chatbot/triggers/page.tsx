@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,7 @@ export default function TriggersPage() {
 
   const loadTriggers = async () => {
     try {
-      const res = await fetch("/api/chatbot/triggers");
+      const res = await fetchApi("/api/chatbot/triggers");
       const data = await res.json();
       setTriggers(data.triggers || []);
     } catch (error) {
@@ -66,7 +67,7 @@ export default function TriggersPage() {
 
   const loadFlows = async () => {
     try {
-      const res = await fetch("/api/chatbot/flows");
+      const res = await fetchApi("/api/chatbot/flows");
       const data = await res.json();
       setFlows(data.flows || []);
     } catch (error) {
@@ -79,7 +80,7 @@ export default function TriggersPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/chatbot/triggers", {
+      const res = await fetchApi("/api/chatbot/triggers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -104,7 +105,7 @@ export default function TriggersPage() {
     if (!confirm("Tem certeza que deseja excluir este trigger?")) return;
 
     try {
-      await fetch(`/api/chatbot/triggers/${id}`, { method: "DELETE" });
+      await fetchApi(`/api/chatbot/triggers/${id}`, { method: "DELETE" });
       await loadTriggers();
     } catch (error) {
       console.error("Failed to delete trigger:", error);

@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -276,7 +277,7 @@ export default function WhatsAppPage() {
     if (!trimmed) { setEditingContact(false); return; }
     setSavingContact(true);
     try {
-      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+      const res = await fetchApi(`/api/customers/${selectedCustomerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -319,7 +320,7 @@ export default function WhatsAppPage() {
       ? customer.tags.filter((t) => t !== '__blocked')
       : [...customer.tags, '__blocked'];
     try {
-      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+      const res = await fetchApi(`/api/customers/${selectedCustomerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -341,7 +342,7 @@ export default function WhatsAppPage() {
       ? customer.tags.filter((t) => t !== '__muted')
       : [...customer.tags, '__muted'];
     try {
-      const res = await fetch(`/api/customers/${selectedCustomerId}`, {
+      const res = await fetchApi(`/api/customers/${selectedCustomerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -360,7 +361,7 @@ export default function WhatsAppPage() {
     if (!window.confirm('Apagar todas as mensagens desta conversa?')) return;
     setMenuActionLoading('clear');
     try {
-      await fetch(`/api/whatsapp/conversations/${selectedCustomerId}?mode=clear`, {
+      await fetchApi(`/api/whatsapp/conversations/${selectedCustomerId}?mode=clear`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -377,7 +378,7 @@ export default function WhatsAppPage() {
     if (!window.confirm('Remover esta conversa da lista? As mensagens serão apagadas.')) return;
     setMenuActionLoading('delete');
     try {
-      await fetch(`/api/whatsapp/conversations/${selectedCustomerId}?mode=delete`, {
+      await fetchApi(`/api/whatsapp/conversations/${selectedCustomerId}?mode=delete`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -406,7 +407,7 @@ export default function WhatsAppPage() {
       if (searchQueryRef.current) params.append('search', searchQueryRef.current);
       if (unreadOnlyFilterRef.current) params.append('unreadOnly', 'true');
 
-      const response = await fetch(`/api/whatsapp/conversations?${params}`, { credentials: 'include' });
+      const response = await fetchApi(`/api/whatsapp/conversations?${params}`, { credentials: 'include' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || 'Failed to fetch conversations');
@@ -425,7 +426,7 @@ export default function WhatsAppPage() {
   const fetchMessages = async (customerId: string, silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const response = await fetch(`/api/whatsapp/conversations/${customerId}`, { credentials: 'include' });
+      const response = await fetchApi(`/api/whatsapp/conversations/${customerId}`, { credentials: 'include' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || 'Failed to fetch messages');
@@ -452,7 +453,7 @@ export default function WhatsAppPage() {
   // Fetch quick responses
   const fetchQuickResponses = async () => {
     try {
-      const response = await fetch('/api/chatbot/quick-responses', { credentials: 'include' });
+      const response = await fetchApi('/api/chatbot/quick-responses', { credentials: 'include' });
       if (!response.ok) {
         setQuickResponses([]);
         return;
@@ -471,7 +472,7 @@ export default function WhatsAppPage() {
 
     setSending(true);
     try {
-      const response = await fetch(
+      const response = await fetchApi(
         `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
         {
           method: 'POST',
@@ -515,7 +516,7 @@ export default function WhatsAppPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const uploadResponse = await fetch('/api/whatsapp/media/upload', {
+      const uploadResponse = await fetchApi('/api/whatsapp/media/upload', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -560,7 +561,7 @@ export default function WhatsAppPage() {
         messagePayload.fileName = file.name;
       }
 
-      const response = await fetch(
+      const response = await fetchApi(
         `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
         {
           method: 'POST',
@@ -728,7 +729,7 @@ export default function WhatsAppPage() {
     setSendingVoice(true);
     try {
       // 1. Generate audio from text
-      const ttsRes = await fetch('/api/whatsapp/tts', {
+      const ttsRes = await fetchApi('/api/whatsapp/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -745,7 +746,7 @@ export default function WhatsAppPage() {
       // 2. Upload audio to get public URL
       const formData = new FormData();
       formData.append('file', audioBlob, 'voice.mp3');
-      const uploadRes = await fetch('/api/whatsapp/media/upload', {
+      const uploadRes = await fetchApi('/api/whatsapp/media/upload', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -762,7 +763,7 @@ export default function WhatsAppPage() {
         : { mediaUrl: uploadData.url as string };
 
       // 3. Send audio message
-      const msgRes = await fetch(
+      const msgRes = await fetchApi(
         `/api/whatsapp/conversations/${selectedCustomerId}/messages`,
         {
           method: 'POST',
@@ -798,7 +799,7 @@ export default function WhatsAppPage() {
 
     setSearchingCustomers(true);
     try {
-      const response = await fetch(
+      const response = await fetchApi(
         `/api/customers?search=${encodeURIComponent(query)}&limit=10`,
         { credentials: 'include' }
       );
@@ -833,7 +834,7 @@ export default function WhatsAppPage() {
     setStartingConversation(true);
     try {
       // Fetch customer details
-      const response = await fetch(`/api/customers/${customerId}`, {
+      const response = await fetchApi(`/api/customers/${customerId}`, {
         credentials: 'include',
       });
 
@@ -970,7 +971,7 @@ export default function WhatsAppPage() {
       const normalizedPhone = phone.startsWith('+') ? phone : `+${phone.replace(/\D/g, '')}`;
 
       // Check if customer exists or create new one
-      const response = await fetch('/api/customers', {
+      const response = await fetchApi('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -984,7 +985,7 @@ export default function WhatsAppPage() {
 
       if (response.status === 409) {
         // Customer already exists — find them by phone
-        const searchRes = await fetch(
+        const searchRes = await fetchApi(
           `/api/customers?search=${encodeURIComponent(normalizedPhone)}&limit=1`,
           { credentials: 'include' }
         );

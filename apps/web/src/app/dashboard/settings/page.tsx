@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchApi } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,7 +79,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchPreferences() {
       try {
-        const res = await fetch("/api/user/preferences", { credentials: "include" });
+        const res = await fetchApi("/api/user/preferences", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           if (data.preferences?.notifications) {
@@ -93,7 +94,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchBilling() {
       try {
-        const res = await fetch("/api/billing/subscription", { credentials: "include" });
+        const res = await fetchApi("/api/billing/subscription", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           setBilling({
@@ -116,7 +117,7 @@ export default function SettingsPage() {
     if (cancelConfirmText !== "EXCLUIR") return;
     setCancelling(true);
     try {
-      const res = await fetch("/api/billing/delete-account", {
+      const res = await fetchApi("/api/billing/delete-account", {
         method: "POST",
         credentials: "include",
       });
@@ -157,7 +158,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchChatbotSettingsKeys() {
       try {
-        const res = await fetch("/api/chatbot/settings", { credentials: "include" });
+        const res = await fetchApi("/api/chatbot/settings", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           setApiKeys({
@@ -186,7 +187,7 @@ export default function SettingsPage() {
         showToast("Nenhuma alteração para salvar", "warning");
         return;
       }
-      const res = await fetch("/api/chatbot/settings", {
+      const res = await fetchApi("/api/chatbot/settings", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -209,7 +210,7 @@ export default function SettingsPage() {
   useEffect(() => {
     async function fetchApiStatus() {
       try {
-        const res = await fetch("/api/health", { credentials: "include" });
+        const res = await fetchApi("/api/health", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           setApiStatus({
@@ -236,7 +237,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const fullName = `${profile.firstName} ${profile.lastName}`.trim();
-      const res = await fetch("/api/user/profile", {
+      const res = await fetchApi("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -261,7 +262,7 @@ export default function SettingsPage() {
     const newValue = !notifications[key];
     setNotifications((p) => ({ ...p, [key]: newValue }));
     try {
-      const res = await fetch("/api/user/preferences", {
+      const res = await fetchApi("/api/user/preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -290,7 +291,7 @@ export default function SettingsPage() {
     }
     setChangingPassword(true);
     try {
-      const res = await fetch("/api/user/change-password", {
+      const res = await fetchApi("/api/user/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
