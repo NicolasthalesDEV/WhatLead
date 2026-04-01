@@ -187,7 +187,7 @@ export function WhatsAppChannelManager() {
 
   // ── DELETE ────────────────────────────────────────────────────────────────────
   const handleDeleteChannel = async (channel: WhatsAppChannel) => {
-    if (!confirm(`Remover o canal "${channel.displayName}"? Canais com mensagens serão apenas desativados.`)) return;
+    if (!confirm(`Remover o canal "${channel.displayName}"?`)) return;
     setActionLoading((p) => ({ ...p, [channel.id]: true }));
     try {
       const response = await fetchApi(`/api/whatsapp/channels?channelId=${channel.id}`, {
@@ -196,11 +196,9 @@ export function WhatsAppChannelManager() {
       });
       const data = await response.json();
       if (response.ok) {
-        showToast(
-          data.deactivated ? "Canal desativado (possui mensagens)" : "Canal removido",
-          data.deactivated ? "warning" : "success"
-        );
-        await loadChannels();
+        // Remove from local state immediately — covers both true delete and deactivation
+        setChannels((prev) => prev.filter((c) => c.id !== channel.id));
+        showToast("Canal removido", "success");
       } else {
         showToast(toErrorMsg(data, "Erro ao remover canal"), "error");
       }
