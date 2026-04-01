@@ -31,7 +31,6 @@ export async function GET(req: NextRequest) {
     const channels = await prisma.whatsChannel.findMany({
       where: {
         companyId: authResult.companyId,
-        status: "ACTIVE",
       },
       select: {
         id: true,
