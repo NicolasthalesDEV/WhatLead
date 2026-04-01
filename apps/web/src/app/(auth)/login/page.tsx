@@ -27,8 +27,12 @@ function LoginPageContent() {
 
   useEffect(() => {
     // Se já estiver autenticado, redirecionar para dashboard
+    // Não redirecionar se vier de um logout (localStorage vazio)
     const checkAuth = async () => {
       try {
+        const cached = typeof window !== "undefined" ? localStorage.getItem("user-data") : null;
+        if (!cached) return; // veio de logout ou sessão nova — não redirecionar
+
         const response = await fetch("/api/user/profile", {
           credentials: "include",
         });

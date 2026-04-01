@@ -116,6 +116,8 @@ export function useAuth() {
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
     } catch (error) {
       console.error("Logout error:", error);

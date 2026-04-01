@@ -5,7 +5,9 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
 
-  const { refreshToken, all } = await req.json();
+  // Body is optional — frontend may not send one
+  const body = await req.json().catch(() => ({}));
+  const { all } = body as { refreshToken?: string; all?: boolean };
 
   if (all) {
     // Logout from all sessions
@@ -19,7 +21,10 @@ export async function POST(req: NextRequest) {
       req,
     });
 
-    return NextResponse.json({ success: true, message: "Logged out from all devices" });
+    const allRes = NextResponse.json({ success: true, message: "Logged out from all devices" });
+    allRes.cookies.delete('accessToken');
+    allRes.cookies.delete('refreshToken');
+    return allRes;
   }
 
   if (auth.sessionId) {
