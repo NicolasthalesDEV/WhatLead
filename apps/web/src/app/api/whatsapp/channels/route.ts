@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     const channels = await prisma.whatsChannel.findMany({
       where: {
         companyId: authResult.companyId,
+        status: "ACTIVE",
       },
       select: {
         id: true,
@@ -305,13 +306,6 @@ export async function DELETE(req: NextRequest) {
         id: channelId,
         companyId: authResult.companyId,
       },
-      include: {
-        _count: {
-          select: {
-            WhatsMessage: true,
-          },
-        },
-      },
     });
 
     if (!existing) {
@@ -321,23 +315,15 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Se tiver mensagens, apenas desativar ao invés de deletar
-    if (existing._count.WhatsMessage > 0) {
-      await prisma.whatsChannel.update({
+    // Deletar todas as mensagens do canal e depois o canal (cascade manual)
+    await prisma.$transaction([
+      prisma.whatsMessage.deleteMany({
+        where: { channelId },
+      }),
+      prisma.whatsChannel.delete({
         where: { id: channelId },
-        data: { status: "INACTIVE" },
-      });
-
-      return NextResponse.json({ 
-        message: "Canal desativado (possui mensagens associadas)",
-        deactivated: true
-      });
-    }
-
-    // Se não tiver mensagens, pode deletar
-    await prisma.whatsChannel.delete({
-      where: { id: channelId },
-    });
+      }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
