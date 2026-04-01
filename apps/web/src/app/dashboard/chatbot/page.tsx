@@ -285,6 +285,23 @@ const NODE_META: Record<
   },
 };
 
+// Plain-language descriptions shown in the node palette for non-technical users
+const NODE_DESCRIPTIONS: Record<string, string> = {
+  TRIGGER: "Onde o fluxo começa",
+  MESSAGE: "Envia uma mensagem",
+  QUESTION: "Faz uma pergunta e salva a resposta",
+  CONDITION: "Divide em 2 caminhos (sim / não)",
+  ACTION: "Executa uma ação no sistema",
+  DELAY: "Aguarda um tempo antes de continuar",
+  ASSIGN_TAG: "Adiciona uma etiqueta ao contato",
+  HANDOFF: "Chama um atendente humano",
+  API_CALL: "Integra com sistema externo",
+  END_FLOW: "Encerra a conversa",
+  AI_RESPONSE: "Resposta gerada por IA",
+  VOICE_REPLY: "Envia mensagem de voz",
+  GOTO_FLOW: "Vai para outro fluxo",
+};
+
 // ─────────────────────────────────────────────
 // Custom Node Component
 // ─────────────────────────────────────────────
@@ -429,6 +446,24 @@ function FlowEditor({
   const [saving, setSaving] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
+  // Condition builder — lets non-technical users build conditions without raw syntax
+  const [condVariable, setCondVariable] = useState("");
+  const [condOperator, setCondOperator] = useState("contains");
+  const [condValue, setCondValue] = useState("");
+
+  const buildCondition = (variable: string, operator: string, value: string) => {
+    const opSep: Record<string, string> = {
+      contains: " contains ",
+      "==": " == ",
+      "!=": " != ",
+      startsWith: " starts with ",
+      endsWith: " ends with ",
+      ">": " > ",
+      "<": " < ",
+    };
+    return `${variable}${opSep[operator] ?? " contains "}${value}`;
+  };
+
   const onConnect = useCallback(
     (params: Connection) =>
       setEdges((eds) =>
@@ -446,6 +481,30 @@ function FlowEditor({
 
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
+    // Parse condition string into builder parts when a CONDITION node is selected
+    if (node.data.type === "CONDITION") {
+      const cond = (node.data.condition as string) || "";
+      const ops = [
+        [" contains ", "contains"],
+        [" == ", "=="],
+        [" != ", "!="],
+        [" starts with ", "startsWith"],
+        [" ends with ", "endsWith"],
+        [" > ", ">"],
+        [" < ", "<"],
+      ] as const;
+      let parsed = { variable: cond, operator: "contains", value: "" };
+      for (const [sep, op] of ops) {
+        const idx = cond.indexOf(sep);
+        if (idx !== -1) {
+          parsed = { variable: cond.slice(0, idx), operator: op, value: cond.slice(idx + sep.length) };
+          break;
+        }
+      }
+      setCondVariable(parsed.variable);
+      setCondOperator(parsed.operator);
+      setCondValue(parsed.value);
+    }
   }, []);
 
   const onPaneClick = useCallback(() => {
@@ -564,9 +623,9 @@ function FlowEditor({
 
       <div className="hidden sm:flex flex-1 overflow-hidden">
         {/* Node palette */}
-        <aside className="w-52 bg-white border-r p-3 overflow-y-auto flex-shrink-0">
+        <aside className="w-56 bg-white border-r p-3 overflow-y-auto flex-shrink-0">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Componentes
+            Blocos disponíveis
           </p>
           <div className="space-y-1.5">
             {Object.entries(NODE_META).map(([type, meta]) => (
@@ -574,20 +633,32 @@ function FlowEditor({
                 key={type}
                 onClick={() => addNode(type)}
                 className={`
-                  w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-left
-                  hover:shadow-sm transition-all text-sm font-medium
+                  w-full flex items-start gap-2 px-3 py-2 rounded-lg border text-left
+                  hover:shadow-sm transition-all
                   ${meta.bg} ${meta.border} ${meta.color}
                 `}
               >
-                {meta.icon}
-                {meta.label}
+                <span className="mt-0.5 flex-shrink-0">{meta.icon}</span>
+                <span>
+                  <span className="block text-sm font-semibold leading-tight">{meta.label}</span>
+                  <span className="block text-xs font-normal opacity-70 leading-tight mt-0.5">
+                    {NODE_DESCRIPTIONS[type]}
+                  </span>
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="mt-4 pt-4 border-t">
+          <div className="mt-4 pt-4 border-t space-y-2">
+            <p className="text-xs font-semibold text-gray-500">Como usar</p>
             <p className="text-xs text-gray-400 leading-relaxed">
-              Arraste nós para o canvas ou clique para adicionar. Conecte as saídas com as entradas.
+              1. <strong>Clique</strong> em um bloco para adicioná-lo ao canvas.
+            </p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              2. <strong>Arraste o ponto</strong> de saída (baixo) até a entrada (cima) do próximo bloco para conectá-los.
+            </p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              3. <strong>Clique</strong> em um bloco para editar seu conteúdo no painel à direita.
             </p>
           </div>
         </aside>
@@ -627,193 +698,330 @@ function FlowEditor({
 
           {/* Empty state */}
           {nodes.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center text-gray-400">
-                <Workflow className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p className="font-medium">Canvas vazio</p>
-                <p className="text-sm mt-1">Clique em um componente à esquerda para começar</p>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center bg-white/95 rounded-2xl p-8 shadow-sm border max-w-sm">
+                <Workflow className="h-12 w-12 mx-auto mb-3 text-blue-300" />
+                <p className="font-semibold text-gray-700 text-base">Canvas vazio</p>
+                <p className="text-sm text-gray-500 mt-1 mb-4">
+                  Clique em um bloco no painel à esquerda para adicioná-lo aqui, ou comece com um modelo rápido:
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => { addNode("TRIGGER"); addNode("MESSAGE"); addNode("END_FLOW"); }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Começar com modelo básico
+                </Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Properties panel */}
-        {selectedNode && (
-          <aside className="w-64 bg-white border-l p-4 overflow-y-auto flex-shrink-0 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Propriedades</h3>
-              <div className="flex gap-1">
-                <button
-                  onClick={deleteSelectedNode}
-                  className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"
-                  title="Excluir nó"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setSelectedNode(null)}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+        {/* Properties panel — tips when nothing selected, editor when a node is selected */}
+        <aside className="w-64 bg-white border-l p-4 overflow-y-auto flex-shrink-0 shadow-sm">
+          {!selectedNode ? (
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-500" />
+                Dicas rápidas
+              </h3>
+              <div className="space-y-3">
+                <div className="flex gap-2 text-xs text-gray-500">
+                  <span className="text-base leading-none">1️⃣</span>
+                  <p>Clique em um bloco à <strong>esquerda</strong> para adicioná-lo ao canvas.</p>
+                </div>
+                <div className="flex gap-2 text-xs text-gray-500">
+                  <span className="text-base leading-none">2️⃣</span>
+                  <p><strong>Clique</strong> em um bloco no canvas para editar suas propriedades aqui.</p>
+                </div>
+                <div className="flex gap-2 text-xs text-gray-500">
+                  <span className="text-base leading-none">3️⃣</span>
+                  <p>Para <strong>conectar</strong> dois blocos, arraste o ponto de saída (baixo) até o ponto de entrada (cima) do próximo.</p>
+                </div>
+                <div className="flex gap-2 text-xs text-gray-500">
+                  <span className="text-base leading-none">4️⃣</span>
+                  <p>Clique em <strong>Salvar</strong> no topo para guardar as mudanças.</p>
+                </div>
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs font-semibold text-yellow-700 mb-1">💡 Estrutura recomendada</p>
+                  <p className="text-xs text-yellow-600">Todo fluxo deve começar com um bloco <strong>Início</strong> e terminar com <strong>Encerrar</strong> ou <strong>Transferir</strong>.</p>
+                </div>
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">🗑 Excluir um bloco</p>
+                  <p className="text-xs text-blue-600">Clique no bloco para selecioná-lo e depois pressione a tecla <strong>Delete</strong> no teclado, ou use o botão de lixeira que aparece no painel.</p>
+                </div>
               </div>
             </div>
-
-            <div className="space-y-3">
-              {/* Label */}
-              <div>
-                <Label className="text-xs text-gray-500">Rótulo</Label>
-                <Input
-                  value={(selectedNode.data.label as string) || ""}
-                  onChange={(e) => updateSelectedNode("label", e.target.value)}
-                  className="mt-1 text-sm"
-                  placeholder="Nome do nó"
-                />
+          ) : (
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className={`p-1.5 rounded-lg ${NODE_META[selectedNode.data.type as string]?.bg ?? "bg-gray-100"}`}>
+                    {NODE_META[selectedNode.data.type as string]?.icon}
+                  </span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm leading-tight">
+                      {NODE_META[selectedNode.data.type as string]?.label ?? "Bloco"}
+                    </h3>
+                    <p className="text-xs text-gray-400 leading-tight">
+                      {NODE_DESCRIPTIONS[selectedNode.data.type as string] ?? ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={deleteSelectedNode}
+                    className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"
+                    title="Excluir bloco"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedNode(null)}
+                    className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                    title="Fechar painel"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Message / Question */}
-              {(selectedNode.data.type === "MESSAGE" ||
-                selectedNode.data.type === "QUESTION") && (
+              <div className="space-y-4">
+                {/* Label */}
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">Nome do bloco</Label>
+                  <p className="text-xs text-gray-400 mb-1">Como ele aparece no canvas</p>
+                  <Input
+                    value={(selectedNode.data.label as string) || ""}
+                    onChange={(e) => updateSelectedNode("label", e.target.value)}
+                    className="text-sm"
+                    placeholder="Ex: Boas-vindas"
+                  />
+                </div>
+
+                {/* Message */}
+                {selectedNode.data.type === "MESSAGE" && (
                   <div>
-                    <Label className="text-xs text-gray-500">
-                      {selectedNode.data.type === "QUESTION" ? "Pergunta" : "Mensagem"}
-                    </Label>
+                    <Label className="text-xs font-medium text-gray-600">Texto da mensagem</Label>
+                    <p className="text-xs text-gray-400 mb-1">O que o bot vai enviar ao cliente</p>
                     <Textarea
                       value={(selectedNode.data.message as string) || ""}
                       onChange={(e) => updateSelectedNode("message", e.target.value)}
-                      className="mt-1 text-sm"
-                      rows={3}
-                      placeholder="Digite aqui... Use {{variavel}} para inserir dados"
+                      className="text-sm"
+                      rows={4}
+                      placeholder="Ex: Olá! Seja bem-vindo. Como posso ajudar?"
                     />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Use <code className="bg-gray-100 px-1 rounded">{"{{nome}}"}</code> para inserir o nome do cliente.
+                    </p>
                   </div>
                 )}
 
-              {/* Variable */}
-              {selectedNode.data.type === "QUESTION" && (
-                <div>
-                  <Label className="text-xs text-gray-500">Salvar resposta em</Label>
-                  <Input
-                    value={(selectedNode.data.variable as string) || ""}
-                    onChange={(e) => updateSelectedNode("variable", e.target.value)}
-                    className="mt-1 text-sm font-mono"
-                    placeholder="nome_variavel"
-                  />
-                </div>
-              )}
+                {/* Question */}
+                {selectedNode.data.type === "QUESTION" && (
+                  <>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Pergunta</Label>
+                      <p className="text-xs text-gray-400 mb-1">O que o bot vai perguntar</p>
+                      <Textarea
+                        value={(selectedNode.data.message as string) || ""}
+                        onChange={(e) => updateSelectedNode("message", e.target.value)}
+                        className="text-sm"
+                        rows={3}
+                        placeholder="Ex: Qual é o seu nome?"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Guardar resposta como</Label>
+                      <p className="text-xs text-gray-400 mb-2">Escolha um nome para usar a resposta depois</p>
+                      <div className="flex gap-1.5 flex-wrap mb-2">
+                        {["nome", "email", "telefone", "cidade", "interesse"].map((preset) => (
+                          <button
+                            key={preset}
+                            onClick={() => updateSelectedNode("variable", preset)}
+                            className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${selectedNode.data.variable === preset
+                                ? "bg-purple-100 border-purple-400 text-purple-700 font-medium"
+                                : "bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100"
+                              }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                      <Input
+                        value={(selectedNode.data.variable as string) || ""}
+                        onChange={(e) => updateSelectedNode("variable", e.target.value)}
+                        className="text-sm"
+                        placeholder="ou escreva um nome personalizado"
+                      />
+                    </div>
+                  </>
+                )}
 
-              {/* Condition */}
-              {selectedNode.data.type === "CONDITION" && (
-                <div>
-                  <Label className="text-xs text-gray-500">Condição</Label>
-                  <Input
-                    value={(selectedNode.data.condition as string) || ""}
-                    onChange={(e) => updateSelectedNode("condition", e.target.value)}
-                    className="mt-1 text-sm font-mono"
-                    placeholder="lastInput contains sim"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Ex: <code>lastInput contains sim</code> ou <code>nome == João</code>
-                  </p>
-                  <p className="text-xs text-orange-600 mt-2 font-medium">
-                    → Saída direita: verdadeiro<br />
-                    → Saída esquerda: falso
-                  </p>
-                </div>
-              )}
-
-              {/* Action */}
-              {selectedNode.data.type === "ACTION" && (
-                <>
-                  <div>
-                    <Label className="text-xs text-gray-500">Ação</Label>
-                    <select
-                      value={(selectedNode.data.action as string) || "save_variable"}
-                      onChange={(e) => updateSelectedNode("action", e.target.value)}
-                      className="mt-1 w-full text-sm border rounded-md px-2 py-1.5"
-                    >
-                      <option value="save_variable">Salvar variável</option>
-                      <option value="create_quote">Criar orçamento</option>
-                      <option value="create_order">Criar pedido</option>
-                      <option value="update_customer">Atualizar cliente</option>
-                    </select>
+                {/* Condition — visual builder */}
+                {selectedNode.data.type === "CONDITION" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">O que verificar</Label>
+                      <p className="text-xs text-gray-400 mb-1">Use <code className="bg-gray-100 px-1 rounded">lastInput</code> para a última mensagem recebida, ou o nome de uma variável anterior</p>
+                      <Input
+                        value={condVariable}
+                        onChange={(e) => {
+                          setCondVariable(e.target.value);
+                          updateSelectedNode("condition", buildCondition(e.target.value, condOperator, condValue));
+                        }}
+                        className="text-sm"
+                        placeholder="lastInput"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Operação</Label>
+                      <select
+                        value={condOperator}
+                        onChange={(e) => {
+                          setCondOperator(e.target.value);
+                          updateSelectedNode("condition", buildCondition(condVariable, e.target.value, condValue));
+                        }}
+                        className="mt-1 w-full text-sm border rounded-md px-2 py-1.5 bg-white"
+                      >
+                        <option value="contains">contém a palavra</option>
+                        <option value="==">é exatamente igual a</option>
+                        <option value="!=">é diferente de</option>
+                        <option value="startsWith">começa com</option>
+                        <option value="endsWith">termina com</option>
+                        <option value=">">é maior que (número)</option>
+                        <option value="<">é menor que (número)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Valor</Label>
+                      <Input
+                        value={condValue}
+                        onChange={(e) => {
+                          setCondValue(e.target.value);
+                          updateSelectedNode("condition", buildCondition(condVariable, condOperator, e.target.value));
+                        }}
+                        className="text-sm mt-1"
+                        placeholder="Ex: sim, não, João"
+                      />
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-2.5">
+                      <p className="text-xs text-orange-700 font-medium mb-0.5">Condição gerada:</p>
+                      <p className="text-xs font-mono text-orange-600 break-all">
+                        {(selectedNode.data.condition as string) || "—"}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-2.5 text-xs text-green-700">
+                      <p><strong>Saída direita (verde):</strong> condição verdadeira → SIM</p>
+                      <p className="mt-0.5"><strong>Saída esquerda (vermelha):</strong> condição falsa → NÃO</p>
+                    </div>
                   </div>
+                )}
+
+                {/* Action */}
+                {selectedNode.data.type === "ACTION" && (
+                  <>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Ação a executar</Label>
+                      <select
+                        value={(selectedNode.data.action as string) || "save_variable"}
+                        onChange={(e) => updateSelectedNode("action", e.target.value)}
+                        className="mt-1 w-full text-sm border rounded-md px-2 py-1.5 bg-white"
+                      >
+                        <option value="save_variable">Salvar dado do cliente</option>
+                        <option value="create_quote">Criar orçamento</option>
+                        <option value="create_order">Criar pedido</option>
+                        <option value="update_customer">Atualizar cadastro do cliente</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Nome da variável</Label>
+                      <p className="text-xs text-gray-400 mb-1">Dado que será usado na ação</p>
+                      <Input
+                        value={(selectedNode.data.variable as string) || ""}
+                        onChange={(e) => updateSelectedNode("variable", e.target.value)}
+                        className="text-sm"
+                        placeholder="Ex: nome, email, interesse"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Delay */}
+                {selectedNode.data.type === "DELAY" && (
                   <div>
-                    <Label className="text-xs text-gray-500">Variável</Label>
+                    <Label className="text-xs font-medium text-gray-600">Tempo de espera</Label>
+                    <p className="text-xs text-gray-400 mb-1">Quantos segundos o bot aguarda antes de continuar</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={Number(selectedNode.data.delay ?? 2000) / 1000}
+                        onChange={(e) => updateSelectedNode("delay", Number(e.target.value) * 1000)}
+                        className="text-sm w-24"
+                        min={0.5}
+                        step={0.5}
+                      />
+                      <span className="text-sm text-gray-500">segundos</span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Útil para simular que o bot está "digitando" antes de responder.
+                    </p>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {selectedNode.data.type === "ASSIGN_TAG" && (
+                  <div>
+                    <Label className="text-xs font-medium text-gray-600">Etiquetas</Label>
+                    <p className="text-xs text-gray-400 mb-1">Separe múltiplas etiquetas com vírgula</p>
                     <Input
-                      value={(selectedNode.data.variable as string) || ""}
-                      onChange={(e) => updateSelectedNode("variable", e.target.value)}
-                      className="mt-1 text-sm font-mono"
-                      placeholder="nome_variavel"
+                      value={(selectedNode.data.tags as string) || ""}
+                      onChange={(e) => updateSelectedNode("tags", e.target.value)}
+                      className="text-sm"
+                      placeholder="Ex: lead, cliente, vip, interesse-produto-a"
                     />
+                    <p className="text-xs text-gray-400 mt-1">
+                      As etiquetas ajudam a organizar e filtrar seus contatos.
+                    </p>
                   </div>
-                </>
-              )}
+                )}
 
-              {/* Delay */}
-              {selectedNode.data.type === "DELAY" && (
-                <div>
-                  <Label className="text-xs text-gray-500">Tempo (segundos)</Label>
-                  <Input
-                    type="number"
-                    value={Number(selectedNode.data.delay ?? 2000) / 1000}
-                    onChange={(e) =>
-                      updateSelectedNode("delay", Number(e.target.value) * 1000)
-                    }
-                    className="mt-1 text-sm"
-                    min={0.5}
-                    step={0.5}
-                  />
-                </div>
-              )}
-
-              {/* Tags */}
-              {selectedNode.data.type === "ASSIGN_TAG" && (
-                <div>
-                  <Label className="text-xs text-gray-500">Tags (separadas por vírgula)</Label>
-                  <Input
-                    value={(selectedNode.data.tags as string) || ""}
-                    onChange={(e) => updateSelectedNode("tags", e.target.value)}
-                    className="mt-1 text-sm"
-                    placeholder="lead, cliente, vip"
-                  />
-                </div>
-              )}
-
-              {/* API Call */}
-              {selectedNode.data.type === "API_CALL" && (
-                <>
-                  <div>
-                    <Label className="text-xs text-gray-500">URL</Label>
-                    <Input
-                      value={(selectedNode.data.apiUrl as string) || ""}
-                      onChange={(e) => updateSelectedNode("apiUrl", e.target.value)}
-                      className="mt-1 text-sm"
-                      placeholder="https://api.example.com/endpoint"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-gray-500">Método</Label>
-                    <select
-                      value={(selectedNode.data.apiMethod as string) || "GET"}
-                      onChange={(e) => updateSelectedNode("apiMethod", e.target.value)}
-                      className="mt-1 w-full text-sm border rounded-md px-2 py-1.5"
-                    >
-                      <option>GET</option>
-                      <option>POST</option>
-                      <option>PUT</option>
-                      <option>DELETE</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {/* Node ID */}
-              <div className="pt-2 border-t">
-                <p className="text-xs text-gray-400 font-mono">{selectedNode.id}</p>
+                {/* API Call */}
+                {selectedNode.data.type === "API_CALL" && (
+                  <>
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2.5 text-xs text-indigo-700">
+                      <p className="font-semibold">⚙️ Recurso avançado</p>
+                      <p className="mt-0.5">Permite integrar com sistemas externos. Indicado para usuários com experiência técnica.</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">URL da API</Label>
+                      <Input
+                        value={(selectedNode.data.apiUrl as string) || ""}
+                        onChange={(e) => updateSelectedNode("apiUrl", e.target.value)}
+                        className="text-sm mt-1"
+                        placeholder="https://api.example.com/endpoint"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-600">Método</Label>
+                      <select
+                        value={(selectedNode.data.apiMethod as string) || "GET"}
+                        onChange={(e) => updateSelectedNode("apiMethod", e.target.value)}
+                        className="mt-1 w-full text-sm border rounded-md px-2 py-1.5 bg-white"
+                      >
+                        <option>GET</option>
+                        <option>POST</option>
+                        <option>PUT</option>
+                        <option>DELETE</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-          </aside>
-        )}
+          )}
+        </aside>
       </div>
     </div>
   );

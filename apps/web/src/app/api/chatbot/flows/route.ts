@@ -41,42 +41,53 @@ export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (!auth.ok) return auth.res;
 
-  const { name, description, triggers, priority } = await req.json();
+  try {
+    const { name, description, triggers, priority } = await req.json();
 
-  const flow = await prisma.chatbotFlow.create({
-    data: {
-      id: crypto.randomUUID(),
-      companyId: auth.companyId,
-      name,
-      description: description || null,
-      triggerType: "KEYWORD",
-      triggerKeywords: triggers || [],
-      active: false,
-      status: "DRAFT",
-      priority: priority ?? 0,
-    },
-  });
+    if (!name?.trim()) {
+      return NextResponse.json({ message: "Nome do fluxo é obrigatório" }, { status: 400 });
+    }
 
-  await createAuditLog({
-    userId: auth.userId,
-    companyId: auth.companyId!,
-    action: 'CHATBOT_FLOW_CREATE',
-    resource: 'chatbotFlow',
-    resourceId: flow.id,
-    req,
-  }).catch(() => {});
-
-  return NextResponse.json(
-    {
-      flow: {
-        id: flow.id,
-        name: flow.name,
-        description: flow.description,
-        status: flow.status,
-        triggers: flow.triggerKeywords,
-        priority: flow.priority,
+    const now = new Date();
+    const flow = await prisma.chatbotFlow.create({
+      data: {
+        id: crypto.randomUUID(),
+        companyId: auth.companyId!,
+        name: name.trim(),
+        description: description || null,
+        triggerType: "KEYWORD",
+        triggerKeywords: triggers || [],
+        active: false,
+        status: "DRAFT",
+        priority: priority ?? 0,
+        updatedAt: now,
       },
-    },
-    { status: 201 }
-  );
+    });
+
+    await createAuditLog({
+      userId: auth.userId,
+      companyId: auth.companyId!,
+      action: 'CHATBOT_FLOW_CREATE',
+      resource: 'chatbotFlow',
+      resourceId: flow.id,
+      req,
+    }).catch(() => {});
+
+    return NextResponse.json(
+      {
+        flow: {
+          id: flow.id,
+          name: flow.name,
+          description: flow.description,
+          status: flow.status,
+          triggers: flow.triggerKeywords,
+          priority: flow.priority,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Failed to create flow:", error);
+    return NextResponse.json({ message: "Erro ao criar o fluxo" }, { status: 500 });
+  }
 }
