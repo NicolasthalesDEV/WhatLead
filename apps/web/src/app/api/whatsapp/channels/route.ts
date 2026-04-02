@@ -66,7 +66,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const validatedData = CreateChannelSchema.parse(body);
+    const rawData = CreateChannelSchema.parse(body);
+    // Trim whitespace from IDs to prevent silent mismatch with Meta webhooks
+    const validatedData = {
+      ...rawData,
+      phoneNumberId: rawData.phoneNumberId.trim(),
+      waAccessToken: rawData.waAccessToken.trim(),
+      waBusinessId: rawData.waBusinessId.trim(),
+    };
 
     // Verificar se já existe um canal com este phoneNumberId
     const existing = await prisma.whatsChannel.findUnique({

@@ -34,7 +34,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
-    console.log("[WA Webhook] Received payload:", JSON.stringify(payload, null, 2));
+
+    // Extract phone_number_id(s) from payload for quick diagnosis
+    const receivedPhoneIds: string[] = [];
+    for (const entry of payload.entry || []) {
+      for (const change of entry.changes || []) {
+        const pid = change?.value?.metadata?.phone_number_id;
+        if (pid && !receivedPhoneIds.includes(pid)) receivedPhoneIds.push(pid);
+      }
+    }
+    console.log("[WA Webhook] POST received — phone_number_ids:", receivedPhoneIds, "| timestamp:", new Date().toISOString());
 
     // Meta pode enviar múltiplos entries e múltiplos changes por payload
     const entries = payload.entry || [];
@@ -96,7 +105,14 @@ async function processIncomingMessages(value: any) {
         : null;
 
       if (!channel) {
-        console.warn("No WhatsApp channel found for phoneNumberId:", businessPhoneNumberId, "— message skipped");
+        // Log all stored phoneNumberIds to help diagnose mismatches
+        const allChannels = await db.whatsChannel.findMany({
+          select: { phoneNumberId: true, displayName: true, status: true },
+        });
+        console.error(
+          `[WA Webhook] No channel found for phone_number_id="${businessPhoneNumberId}". ` +
+          `Channels in DB: ${JSON.stringify(allChannels.map(c => ({ id: c.phoneNumberId, name: c.displayName, status: c.status })))}`
+        );
         continue;
       }
 

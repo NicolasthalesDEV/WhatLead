@@ -15,6 +15,13 @@ import { prisma as db } from "@wacrm/db";
  * - hora atual do servidor
  */
 export async function GET(req: NextRequest) {
+  // Protect debug endpoint with the same token used for webhook verification
+  const secret = req.headers.get("x-debug-secret");
+  const expectedToken = process.env.WA_VERIFY_TOKEN;
+  if (!expectedToken || secret !== expectedToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   try {
     const channels = await db.whatsChannel.findMany({
       select: {
@@ -24,8 +31,28 @@ export async function GET(req: NextRequest) {
         status: true,
         waBusinessId: true,
         createdAt: true,
+        waAccessToken: true, // needed for Meta API check below
       },
     });
+
+    // For each channel, verify the token + phoneNumberId against Meta API
+    const version = process.env.WA_API_VERSION || "v25.0";
+    const channelChecks = await Promise.all(
+      channels.map(async (ch) => {
+        let metaCheck: any = null;
+        try {
+          const res = await fetch(
+            `https://graph.facebook.com/${version}/${ch.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`,
+            { headers: { Authorization: `Bearer ${ch.waAccessToken}` } }
+          );
+          metaCheck = { httpStatus: res.status, ...(await res.json()) };
+        } catch (e) {
+          metaCheck = { error: String(e) };
+        }
+        const { waAccessToken: _omit, ...safeChannel } = ch;
+        return { ...safeChannel, metaCheck };
+      })
+    );
 
     const lastMessages = await db.whatsMessage.findMany({
       orderBy: { createdAt: "desc" },
@@ -49,7 +76,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       serverTime: new Date().toISOString(),
       verifyTokenSet: !!process.env.WA_VERIFY_TOKEN,
-      channels,
+      channels: channelChecks,
       lastMessages,
     });
   } catch (error) {
